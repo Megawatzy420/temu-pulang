@@ -359,6 +359,11 @@ Extensible key-value store for application runtime toggles.
 | `description` | `VARCHAR(255)` | Yes | `NULL` | Explanation of setting |
 | `created_at` / `updated_at` | `TIMESTAMP` | Yes | `NULL` | Standard timestamps |
 
+**Known `application_settings` Keys:**
+| Key | Group | Type | Description |
+|---|---|---|---|
+| `payment.qris_image_path` | `payment` | `string` | Relative public-disk path (e.g. `qris/<hash>.png`) to the shop QRIS image displayed in the POS payment modal, or empty string when unset. |
+
 ---
 
 ### 3.3. Product Catalog & Variants

@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Pos;
 
+use App\Models\ApplicationSetting;
 use App\Models\Category;
 use App\Models\Order;
 use App\Models\OrderItem;
@@ -15,9 +16,11 @@ use App\Services\PaymentService;
 use App\Services\PrintService;
 use App\Services\ShiftService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Livewire\Component;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
 class CashierPos extends Component
 {
@@ -241,7 +244,7 @@ class CashierPos extends Component
     public function selectProduct(int $productId): void
     {
         if (! $this->getActiveShiftProperty()) {
-            $this->dispatch('notify', message: 'Buka Shift kasir terlebih dahulu sebelum memulai pemesanan.', type: 'warning');
+            $this->dispatch('notify', message: __('messages.pos.shift_required_order'), type: 'warning');
 
             return;
         }
@@ -254,7 +257,7 @@ class CashierPos extends Component
         }
 
         if ($product->is_sold_out) {
-            $this->dispatch('notify', message: "Menu {$product->name} saat ini sedang habis (sold out).", type: 'error');
+            $this->dispatch('notify', message: __('messages.pos.product_sold_out', ['name' => $product->name]), type: 'error');
 
             return;
         }
@@ -349,7 +352,7 @@ class CashierPos extends Component
     public function setVariant(int $variantId, string $variantName, int $price, bool $isSoldOut = false): void
     {
         if ($isSoldOut) {
-            $this->dispatch('notify', message: 'Varian ini sedang habis (sold out).', type: 'warning');
+            $this->dispatch('notify', message: __('messages.pos.variant_sold_out'), type: 'warning');
 
             return;
         }
@@ -365,7 +368,7 @@ class CashierPos extends Component
     public function toggleAddon(int $modifierId, bool $isSoldOut = false): void
     {
         if ($isSoldOut) {
-            $this->dispatch('notify', message: 'Opsi modifier ini sedang habis (sold out).', type: 'warning');
+            $this->dispatch('notify', message: __('messages.pos.modifier_sold_out'), type: 'warning');
 
             return;
         }
@@ -436,7 +439,7 @@ class CashierPos extends Component
     protected function addItemToCart(array $item): void
     {
         $this->cart[] = $item;
-        $this->dispatch('notify', message: "{$item['name']} ditambahkan ke pesanan.", type: 'success');
+        $this->dispatch('notify', message: __('messages.pos.item_added', ['name' => $item['name']]), type: 'success');
     }
 
     // ── Cart mutation methods ──────────────────────────────────────────────────
@@ -492,7 +495,7 @@ class CashierPos extends Component
             array_splice($this->cart, $index, 1);
             $this->resetDraftIdempotencyKey();
 
-            $this->dispatch('notify', message: 'Item dihapus dari keranjang.', type: 'info');
+            $this->dispatch('notify', message: __('messages.pos.item_removed'), type: 'info');
         }
     }
 
@@ -505,7 +508,7 @@ class CashierPos extends Component
         $this->cart = [];
         $this->resetDraftIdempotencyKey();
 
-        $this->dispatch('notify', message: 'Keranjang pesanan dikosongkan.', type: 'info');
+        $this->dispatch('notify', message: __('messages.pos.cart_cleared'), type: 'info');
     }
 
     /**
@@ -520,7 +523,7 @@ class CashierPos extends Component
         $this->cart = [];
         $this->resetDraftIdempotencyKey();
 
-        $this->dispatch('notify', message: 'Pesanan ditahan sementara.', type: 'warning');
+        $this->dispatch('notify', message: __('messages.pos.order_held'), type: 'warning');
     }
 
     // ── Checkout ──────────────────────────────────────────────────────────────
@@ -535,20 +538,20 @@ class CashierPos extends Component
     {
         // Block if payment is unresolved
         if ($this->paymentInFlight) {
-            $this->dispatch('notify', message: 'Ada transaksi yang belum terkonfirmasi. Periksa status transaksi terlebih dahulu.', type: 'warning');
+            $this->dispatch('notify', message: __('messages.pos.payment_in_flight_warning'), type: 'warning');
 
             return;
         }
 
         $shift = $this->getActiveShiftProperty();
         if (! $shift) {
-            $this->dispatch('notify', message: 'Shift kasir belum aktif. Buka shift di menu Shift & Kas.', type: 'error');
+            $this->dispatch('notify', message: __('messages.pos.shift_not_active'), type: 'error');
 
             return;
         }
 
         if (empty($this->cart)) {
-            $this->dispatch('notify', message: 'Pilih minimal satu menu untuk checkout.', type: 'warning');
+            $this->dispatch('notify', message: __('messages.pos.cart_empty_checkout'), type: 'warning');
 
             return;
         }
@@ -587,32 +590,32 @@ class CashierPos extends Component
 
         $shift = $this->getActiveShiftProperty();
         if (! $shift) {
-            $this->dispatch('notify', message: 'Shift kasir belum dibuka.', type: 'error');
+            $this->dispatch('notify', message: __('messages.pos.shift_not_opened'), type: 'error');
 
             return;
         }
 
         if (empty($this->cart)) {
-            $this->dispatch('notify', message: 'Keranjang pesanan kosong.', type: 'warning');
+            $this->dispatch('notify', message: __('messages.pos.cart_empty_payment'), type: 'warning');
 
             return;
         }
 
         // Validate payment method inputs
         if ($this->paymentMethod === 'cash' && $this->cashGiven < $this->getTotalProperty()) {
-            $this->dispatch('notify', message: 'Uang tunai yang diterima kurang dari total tagihan.', type: 'error');
+            $this->dispatch('notify', message: __('messages.pos.insufficient_cash'), type: 'error');
 
             return;
         }
 
         if ($this->paymentMethod === 'qris' && ! $this->qrisCashierConfirmed) {
-            $this->dispatch('notify', message: 'Harap konfirmasi bahwa dana QRIS telah masuk sebelum menyelesaikan pembayaran.', type: 'error');
+            $this->dispatch('notify', message: __('messages.pos.qris_not_confirmed'), type: 'error');
 
             return;
         }
 
         if ($this->paymentMethod === 'debit' && ! $this->debitCashierConfirmed) {
-            $this->dispatch('notify', message: 'Harap konfirmasi bahwa pembayaran EDC berhasil sebelum menyelesaikan pembayaran.', type: 'error');
+            $this->dispatch('notify', message: __('messages.pos.debit_not_confirmed'), type: 'error');
 
             return;
         }
@@ -689,8 +692,9 @@ class CashierPos extends Component
             $this->showPaymentModal = false;
             $this->showSuccessModal = true;
 
-        } catch (\Exception $e) {
-            $this->dispatch('notify', message: 'Gagal memproses pembayaran: '.$e->getMessage(), type: 'error');
+        } catch (\Throwable $e) {
+            $errorMessage = $this->mapPaymentExceptionToMessage($e);
+            $this->dispatch('notify', message: $errorMessage, type: 'error');
 
             // Safe validation failure — payment was rejected before any mutation
             if ($e instanceof \InvalidArgumentException || $e instanceof \DomainException) {
@@ -747,7 +751,7 @@ class CashierPos extends Component
                 'reference_number' => $this->debitReferenceNumber ?: null,
                 'notes' => null,
             ]],
-            default => throw new \InvalidArgumentException("Metode pembayaran tidak didukung: {$this->paymentMethod}"),
+            default => throw new \InvalidArgumentException(__('messages.pos.unsupported_payment_method', ['method' => $this->paymentMethod])),
         };
     }
 
@@ -768,7 +772,7 @@ class CashierPos extends Component
 
         // Check if payment already succeeded
         if ($this->restoreCompletedPaymentState($this->checkoutIdempotencyKey)) {
-            $this->dispatch('notify', message: 'Transaksi pembayaran berhasil dipulihkan.', type: 'success');
+            $this->dispatch('notify', message: __('messages.pos.payment_recovered_success'), type: 'success');
 
             return;
         }
@@ -780,13 +784,13 @@ class CashierPos extends Component
             $this->paymentInFlight = false;
             $this->hasUnresolvedOrder = true;
             session([self::SESSION_PAYMENT_INFLIGHT => false]);
-            $this->dispatch('notify', message: 'Pesanan tersimpan namun pembayaran belum selesai. Silakan lanjutkan pembayaran dengan kunci yang sama.', type: 'warning');
+            $this->dispatch('notify', message: __('messages.pos.unpaid_order_recovered_warning'), type: 'warning');
 
             return;
         }
 
         // No order found — still keep the key; original request might still be in-flight
-        $this->dispatch('notify', message: 'Tidak ada transaksi yang ditemukan. Jangan buat pesanan baru. Gunakan tombol Kirim Ulang jika diperlukan.', type: 'warning');
+        $this->dispatch('notify', message: __('messages.pos.no_transaction_found_warning'), type: 'warning');
     }
 
     /**
@@ -799,7 +803,7 @@ class CashierPos extends Component
         }
 
         if (empty($this->checkoutIdempotencyKey)) {
-            $this->dispatch('notify', message: 'Tidak ada kunci transaksi aktif untuk dipulihkan.', type: 'warning');
+            $this->dispatch('notify', message: __('messages.pos.no_active_key_to_recover'), type: 'warning');
 
             return;
         }
@@ -809,14 +813,14 @@ class CashierPos extends Component
             ->first();
 
         if (! $existingOrder) {
-            $this->dispatch('notify', message: 'Pesanan belum tercatat di sistem. Silakan periksa status transaksi terlebih dahulu.', type: 'warning');
+            $this->dispatch('notify', message: __('messages.pos.order_not_found_in_system'), type: 'warning');
 
             return;
         }
 
         if ($existingOrder->payment_status !== Order::PAYMENT_STATUS_UNPAID) {
             if ($this->restoreCompletedPaymentState($this->checkoutIdempotencyKey)) {
-                $this->dispatch('notify', message: 'Pesanan ini sudah lunas. Menampilkan bukti pembayaran.', type: 'success');
+                $this->dispatch('notify', message: __('messages.pos.order_already_paid'), type: 'success');
             }
 
             return;
@@ -875,7 +879,7 @@ class CashierPos extends Component
         $this->debitCashierConfirmed = false;
         $this->showPaymentModal = true;
 
-        $this->dispatch('notify', message: 'Pesanan belum selesai berhasil dimuat. Silakan lanjutkan pembayaran.', type: 'info');
+        $this->dispatch('notify', message: __('messages.pos.unpaid_order_resumed'), type: 'info');
     }
 
     /**
@@ -976,7 +980,7 @@ class CashierPos extends Component
         $newJob = $printService->queueReprint($printJob, Auth::user());
         $this->lastPrintJobId = $newJob->id;
         $this->lastPrintJobStatus = $newJob->status;
-        $this->dispatch('notify', message: 'Permintaan cetak ulang berhasil dibuat.', type: 'success');
+        $this->dispatch('notify', message: __('messages.pos.reprint_queued_success'), type: 'success');
     }
 
     /**
@@ -993,9 +997,9 @@ class CashierPos extends Component
         try {
             $printService->retryFailedJob($printJob);
             $this->lastPrintJobStatus = 'pending';
-            $this->dispatch('notify', message: 'Cetak ulang dijadwalkan.', type: 'success');
-        } catch (\DomainException $e) {
-            $this->dispatch('notify', message: $e->getMessage(), type: 'error');
+            $this->dispatch('notify', message: __('messages.pos.retry_print_queued_success'), type: 'success');
+        } catch (\Throwable $e) {
+            $this->dispatch('notify', message: $this->mapPaymentExceptionToMessage($e), type: 'error');
         }
     }
 
@@ -1052,6 +1056,8 @@ class CashierPos extends Component
 
         $realProducts = $productsQuery->get();
 
+        $qrisImagePath = (string) ApplicationSetting::get('payment.qris_image_path', '');
+
         return view('livewire.pos.cashier-pos', [
             'activeShift' => $activeShift,
             'categories' => $categories,
@@ -1061,10 +1067,58 @@ class CashierPos extends Component
             'serviceCharge' => $this->getServiceChargeProperty(),
             'total' => $this->getTotalProperty(),
             'paymentInFlight' => $this->paymentInFlight,
+            'qrisImagePath' => $qrisImagePath,
         ])->layout('components.layouts.app', [
             'title' => __('messages.nav.pos'),
             'headerTitle' => __('messages.pos.terminal_title'),
-            'headerSubtitle' => $activeShift ? "Kasir Aktif: {$activeShift->user->name} • Shift #{$activeShift->id}" : 'PERINGATAN: Shift Belum Dibuka',
+            'headerSubtitle' => $activeShift
+                ? __('messages.pos.header_active_cashier', ['user' => $activeShift->user->name, 'id' => $activeShift->id])
+                : __('messages.pos.header_no_active_shift'),
         ]);
+    }
+
+    /**
+     * Map a payment or print exception to a user-friendly localized message.
+     */
+    protected function mapPaymentExceptionToMessage(\Throwable $e): string
+    {
+        if ($e instanceof ConflictHttpException) {
+            return __('messages.pos.error_conflict');
+        }
+
+        $lowerMsg = strtolower($e->getMessage());
+
+        if (str_contains($lowerMsg, 'shift')) {
+            return __('messages.pos.shift_closed_error');
+        }
+
+        if (str_contains($lowerMsg, 'kurang') || str_contains($lowerMsg, 'insufficient')) {
+            return __('messages.pos.insufficient_cash');
+        }
+
+        if (str_contains($lowerMsg, 'qris')) {
+            if (str_contains($lowerMsg, 'digunakan') || str_contains($lowerMsg, 'kadaluarsa') || str_contains($lowerMsg, 'expired')) {
+                return __('messages.pos.qris_expired_or_used');
+            }
+            if (str_contains($lowerMsg, 'konfirmasi') || str_contains($lowerMsg, 'valid') || str_contains($lowerMsg, 'invalid')) {
+                return __('messages.pos.qris_confirmation_invalid');
+            }
+        }
+
+        if (str_contains($lowerMsg, 'lunas') || str_contains($lowerMsg, 'dibayar') || str_contains($lowerMsg, 'already paid')) {
+            return __('messages.pos.order_already_paid');
+        }
+
+        if (str_contains($lowerMsg, 'batal') || str_contains($lowerMsg, 'cancelled') || str_contains($lowerMsg, 'canceled')) {
+            return __('messages.pos.order_cancelled_error');
+        }
+
+        Log::error('POS exception: '.$e->getMessage(), [
+            'exception' => $e,
+            'checkout_key' => $this->checkoutIdempotencyKey,
+            'user_id' => Auth::id(),
+        ]);
+
+        return __('messages.pos.payment_failed_generic');
     }
 }

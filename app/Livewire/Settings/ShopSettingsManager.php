@@ -3,13 +3,18 @@
 namespace App\Livewire\Settings;
 
 use App\Models\ActivityLog;
+use App\Models\ApplicationSetting;
 use App\Models\ShopSetting;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 class ShopSettingsManager extends Component
 {
+    use WithFileUploads;
+
     // Business Profile
     public string $name = 'Temu Pulang Coffee & Eatery';
 
@@ -63,6 +68,11 @@ class ShopSettingsManager extends Component
     // Active Tab in View
     public string $activeTab = 'profile';
 
+    // QRIS Image
+    public mixed $qrisImageUpload = null;
+
+    public string $qrisImagePath = '';
+
     /**
      * Mount component with current DB settings.
      */
@@ -107,6 +117,8 @@ class ShopSettingsManager extends Component
             ];
             $this->operatingHours = $setting->operating_hours ?: $defaultHours;
         }
+
+        $this->qrisImagePath = (string) ApplicationSetting::get('payment.qris_image_path', '');
     }
 
     /**
@@ -187,6 +199,103 @@ class ShopSettingsManager extends Component
         );
 
         $this->dispatch('notify', message: 'Pengaturan toko berhasil disimpan.', type: 'success');
+    }
+
+    /**
+     * Upload or replace the shop QRIS image (Owner only, PNG/WebP, max 2 MB).
+     */
+    public function uploadQrisImage(): void
+    {
+        $user = Auth::user();
+        if (! $user || ! $user->isOwner()) {
+            abort(403);
+        }
+
+        $this->validate([
+            'qrisImageUpload' => [
+                'required',
+                'file',
+                'max:2048',
+                'mimes:png,webp',
+            ],
+        ]);
+
+        // Validate real MIME type from file contents, not just extension
+        $realPath = $this->qrisImageUpload->getRealPath();
+        $finfo = new \finfo(FILEINFO_MIME_TYPE);
+        $realMime = ($realPath && is_file($realPath))
+            ? $finfo->file($realPath)
+            : $finfo->buffer($this->qrisImageUpload->get());
+
+        if (! in_array($realMime, ['image/png', 'image/webp'], true)) {
+            $this->addError('qrisImageUpload', __('messages.settings.qris_invalid_mime'));
+
+            return;
+        }
+
+        $oldPath = (string) ApplicationSetting::get('payment.qris_image_path', '');
+        if ($oldPath !== '' && Storage::disk('public')->exists($oldPath)) {
+            Storage::disk('public')->delete($oldPath);
+        }
+
+        $path = (string) $this->qrisImageUpload->store('qris', 'public');
+
+        ApplicationSetting::set(
+            key: 'payment.qris_image_path',
+            value: $path,
+            type: 'string',
+            group: 'payment',
+            description: 'Path to the shop QRIS image shown in POS payment modal.'
+        );
+
+        $this->qrisImagePath = $path;
+        $this->qrisImageUpload = null;
+
+        ActivityLog::record(
+            action: 'settings.qris_image_updated',
+            description: "QRIS image updated by {$user->name}.",
+            properties: ['path' => $path],
+            user: $user,
+            module: 'settings'
+        );
+
+        $this->dispatch('notify', message: __('messages.settings.qris_uploaded'), type: 'success');
+    }
+
+    /**
+     * Remove the current shop QRIS image (Owner only).
+     */
+    public function removeQrisImage(): void
+    {
+        $user = Auth::user();
+        if (! $user || ! $user->isOwner()) {
+            abort(403);
+        }
+
+        $oldPath = (string) ApplicationSetting::get('payment.qris_image_path', '');
+        if ($oldPath !== '' && Storage::disk('public')->exists($oldPath)) {
+            Storage::disk('public')->delete($oldPath);
+        }
+
+        ApplicationSetting::set(
+            key: 'payment.qris_image_path',
+            value: '',
+            type: 'string',
+            group: 'payment',
+            description: 'Path to the shop QRIS image shown in POS payment modal.'
+        );
+
+        $this->qrisImagePath = '';
+        $this->qrisImageUpload = null;
+
+        ActivityLog::record(
+            action: 'settings.qris_image_removed',
+            description: "QRIS image removed by {$user->name}.",
+            user: $user,
+            module: 'settings'
+        );
+
+        $this->dispatch('notify', message: __('messages.settings.qris_removed'), type: 'info');
     }
 
     /**

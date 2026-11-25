@@ -142,6 +142,8 @@ return [
         'qris_ref_label' => 'Nomor Referensi QRIS (Opsional)',
         'qris_ref_placeholder' => 'misal: REF-QRIS-20261114',
         'qris_confirm_checkbox' => 'Saya konfirmasi bahwa dana QRIS sebesar <strong>Rp :amount</strong> telah masuk ke rekening merchant.',
+        'qris_no_image_notice' => 'Gambar QRIS belum diunggah. Minta Pemilik Toko untuk mengunggah gambar QRIS di Pengaturan Toko.',
+        'qris_amount_to_pay' => 'Total Pembayaran QRIS',
         'debit_ref_label' => 'Nomor Referensi EDC (Opsional)',
         'debit_ref_placeholder' => 'misal: EDC-REF-20261114',
         'debit_confirm_checkbox' => 'Saya konfirmasi bahwa mesin EDC menampilkan transaksi berhasil (Approved) untuk pembayaran <strong>Rp :amount</strong>.',
@@ -212,6 +214,23 @@ return [
         'active' => 'Aktif',
         'inactive' => 'Nonaktif',
         'unauthorized' => 'Tindakan ini tidak diizinkan untuk peran Anda.',
+    ],
+
+    // Settings
+    'settings' => [
+        'tab_qris' => 'QRIS',
+        'qris_title' => 'Gambar QRIS Pembayaran',
+        'qris_subtitle' => 'Gambar QRIS yang ditampilkan kepada pelanggan di layar kasir saat metode QRIS dipilih.',
+        'qris_upload_label' => 'Unggah Gambar QRIS',
+        'qris_replace_label' => 'Ganti Gambar QRIS',
+        'qris_upload_btn' => 'Simpan Gambar QRIS',
+        'qris_remove_btn' => 'Hapus Gambar QRIS',
+        'qris_remove_confirm' => 'Yakin ingin menghapus gambar QRIS? Kasir tidak bisa menampilkan kode QRIS tanpa gambar.',
+        'qris_not_set' => 'Gambar QRIS belum diunggah. Kasir tidak bisa menampilkan kode QRIS kepada pelanggan.',
+        'qris_uploaded' => 'Gambar QRIS berhasil disimpan.',
+        'qris_removed' => 'Gambar QRIS berhasil dihapus.',
+        'qris_invalid_mime' => 'Tipe file tidak valid. Hanya PNG dan WebP yang diterima.',
+        'qris_hint' => 'Format PNG / WebP, maks 2 MB',
     ],
 
     // Printing Management (Owner only)

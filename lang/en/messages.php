@@ -142,6 +142,8 @@ return [
         'qris_ref_label' => 'QRIS Reference Number (Optional)',
         'qris_ref_placeholder' => 'e.g. REF-QRIS-20261114',
         'qris_confirm_checkbox' => 'I confirm that QRIS funds of <strong>Rp :amount</strong> have been credited to the merchant account.',
+        'qris_no_image_notice' => 'QRIS image has not been uploaded yet. Ask the Shop Owner to upload a QRIS image in Shop Settings.',
+        'qris_amount_to_pay' => 'QRIS Amount to Pay',
         'debit_ref_label' => 'EDC Reference Number (Optional)',
         'debit_ref_placeholder' => 'e.g. EDC-REF-20261114',
         'debit_confirm_checkbox' => 'I confirm that the EDC machine shows Approved for the payment of <strong>Rp :amount</strong>.',
@@ -212,6 +214,23 @@ return [
         'active' => 'Active',
         'inactive' => 'Inactive',
         'unauthorized' => 'This action is unauthorized for your role.',
+    ],
+
+    // Settings
+    'settings' => [
+        'tab_qris' => 'QRIS',
+        'qris_title' => 'QRIS Payment Image',
+        'qris_subtitle' => 'The QRIS image displayed to customers on the cashier screen when QRIS is selected.',
+        'qris_upload_label' => 'Upload QRIS Image',
+        'qris_replace_label' => 'Replace QRIS Image',
+        'qris_upload_btn' => 'Save QRIS Image',
+        'qris_remove_btn' => 'Remove QRIS Image',
+        'qris_remove_confirm' => 'Are you sure you want to remove the QRIS image? Cashiers cannot display a QRIS code without it.',
+        'qris_not_set' => 'No QRIS image uploaded yet. Cashiers cannot display the QRIS code to customers.',
+        'qris_uploaded' => 'QRIS image saved successfully.',
+        'qris_removed' => 'QRIS image removed successfully.',
+        'qris_invalid_mime' => 'Invalid file type. Only PNG and WebP are accepted.',
+        'qris_hint' => 'PNG / WebP format, max 2 MB',
     ],
 
     // Printing Management (Owner only)

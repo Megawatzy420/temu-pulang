@@ -176,11 +176,11 @@
                     </h3>
                     @if($activeShift)
                         <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                            Shift #{{ $activeShift->id }} Aktif
+                            {{ __('messages.pos.shift_status_active', ['id' => $activeShift->id]) }}
                         </span>
                     @else
                         <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-200">
-                            Shift Tutup
+                            {{ __('messages.pos.shift_status_closed') }}
                         </span>
                     @endif
                 </div>
@@ -205,23 +205,23 @@
         @if (($paymentInFlight || $hasUnresolvedOrder) && $checkoutIdempotencyKey)
         <div class="mx-4 mt-3 p-3 rounded-xl bg-amber-50 border border-amber-300 text-xs text-amber-900 space-y-2">
             <p class="font-bold flex items-center gap-1">
-                ⚠️ Transaksi sebelumnya belum terkonfirmasi
+                ⚠️ {{ __('messages.pos.unconfirmed_trx_title') }}
             </p>
-            <p>Jangan buat pesanan baru. Periksa status transaksi terlebih dahulu atau lanjutkan pembayaran.</p>
+            <p>{{ __('messages.pos.unconfirmed_trx_desc') }}</p>
             <div class="flex flex-wrap gap-2 pt-1">
                 <button
                     type="button"
                     wire:click="recoverPendingPayment"
                     class="px-3 py-1.5 rounded-lg bg-amber-700 hover:bg-amber-800 text-white text-xs font-bold transition-colors cursor-pointer"
                 >
-                    Periksa Status Transaksi
+                    {{ __('messages.pos.check_trx_status') }}
                 </button>
                 <button
                     type="button"
                     wire:click="resumeUnpaidOrder"
                     class="px-3 py-1.5 rounded-lg bg-coffee-800 hover:bg-coffee-900 text-white text-xs font-bold transition-colors cursor-pointer"
                 >
-                    Lanjutkan Pembayaran
+                    {{ __('messages.pos.resume_payment') }}
                 </button>
             </div>
         </div>
@@ -537,10 +537,10 @@
                 <div class="px-6 py-4.5 border-b border-coffee-100 bg-cream-50 flex items-center justify-between">
                     <div>
                         <h3 class="text-lg font-bold text-coffee-950 tracking-tight">
-                            Pembayaran Pesanan
+                            {{ __('messages.pos.payment_modal_title') }}
                         </h3>
                         <p class="text-xs text-coffee-500 mt-0.5">
-                            {{ count($cart) }} Item
+                            {{ __('messages.pos.item_count', ['count' => count($cart)]) }}
                         </p>
                     </div>
                     <button
@@ -558,7 +558,7 @@
                 <div class="p-6 space-y-5 overflow-y-auto max-h-[70vh]">
                     <!-- Total Bill Box -->
                     <div class="p-4 rounded-2xl bg-cream-100/80 border border-coffee-200 text-center">
-                        <span class="text-xs font-semibold text-coffee-600 block uppercase tracking-wider">Total Tagihan</span>
+                        <span class="text-xs font-semibold text-coffee-600 block uppercase tracking-wider">{{ __('messages.pos.total_bill') }}</span>
                         <span class="text-3xl font-black text-coffee-950 mt-1 block tracking-tight">
                             Rp {{ number_format($total, 0, ',', '.') }}
                         </span>
@@ -567,7 +567,7 @@
                     <!-- Payment Method Selector -->
                     <div class="space-y-2">
                         <label class="block text-xs font-bold uppercase tracking-wider text-coffee-800">
-                            Metode Pembayaran
+                            {{ __('messages.pos.payment_method') }}
                         </label>
                         <div class="grid grid-cols-3 gap-2">
                             <button
@@ -578,7 +578,7 @@
                                 <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
                                 </svg>
-                                <span class="text-xs font-bold">Tunai</span>
+                                <span class="text-xs font-bold">{{ __('messages.pos.payment_cash') }}</span>
                             </button>
 
                             <button
@@ -589,7 +589,7 @@
                                 <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
                                 </svg>
-                                <span class="text-xs font-bold">QRIS</span>
+                                <span class="text-xs font-bold">{{ __('messages.pos.payment_qris') }}</span>
                             </button>
 
                             <button
@@ -600,7 +600,7 @@
                                 <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                                 </svg>
-                                <span class="text-xs font-bold">Debit</span>
+                                <span class="text-xs font-bold">{{ __('messages.pos.payment_debit') }}</span>
                             </button>
                         </div>
                     </div>
@@ -609,7 +609,7 @@
                     @if ($paymentMethod === 'cash')
                         <div class="space-y-2">
                             <label class="block text-xs font-bold uppercase tracking-wider text-coffee-800">
-                                Uang Diterima
+                                {{ __('messages.pos.cash_received') }}
                             </label>
                             <div class="grid grid-cols-3 gap-2">
                                 <button
@@ -617,7 +617,7 @@
                                     wire:click="$set('cashGiven', {{ $total }})"
                                     class="py-2 px-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer {{ $cashGiven === $total ? 'bg-caramel-500 text-white border-caramel-600' : 'bg-cream-50 border-coffee-200 text-coffee-800' }}"
                                 >
-                                    Uang Pas
+                                    {{ __('messages.pos.exact_cash') }}
                                 </button>
                                 <button
                                     type="button"
@@ -637,14 +637,14 @@
 
                             @if ($cashGiven >= $total)
                                 <div class="flex items-center justify-between p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs mt-2">
-                                    <span class="font-medium text-emerald-800">Kembalian:</span>
+                                    <span class="font-medium text-emerald-800">{{ __('messages.pos.change_label') }}</span>
                                     <span class="font-bold text-emerald-900 text-sm">
                                         Rp {{ number_format($cashGiven - $total, 0, ',', '.') }}
                                     </span>
                                 </div>
                             @elseif ($cashGiven > 0 && $cashGiven < $total)
                                 <div class="flex items-center justify-between p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-xs mt-2">
-                                    <span class="font-medium text-rose-800">Kurang:</span>
+                                    <span class="font-medium text-rose-800">{{ __('messages.pos.shortage_label') }}</span>
                                     <span class="font-bold text-rose-900 text-sm">
                                         Rp {{ number_format($total - $cashGiven, 0, ',', '.') }}
                                     </span>
@@ -656,20 +656,40 @@
                     <!-- QRIS payment details -->
                     @if ($paymentMethod === 'qris')
                         <div class="space-y-3">
+                            @if ($qrisImagePath)
+                                <div class="flex flex-col items-center gap-2 p-4 rounded-xl bg-white border border-coffee-200">
+                                    <img
+                                        src="{{ Storage::url($qrisImagePath) }}"
+                                        alt="QRIS"
+                                        class="max-h-64 w-auto object-contain rounded-lg"
+                                    />
+                                    <span class="text-xs font-bold uppercase tracking-wider text-coffee-600">
+                                        {{ __('messages.pos.qris_amount_to_pay') }}
+                                    </span>
+                                    <p class="text-xl font-extrabold text-coffee-950 tracking-tight">
+                                        Rp {{ number_format($total, 0, ',', '.') }}
+                                    </p>
+                                </div>
+                            @else
+                                <div class="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 font-semibold">
+                                    {{ __('messages.pos.qris_no_image_notice') }}
+                                </div>
+                            @endif
+
                             <div class="p-3 rounded-xl bg-blue-50 border border-blue-200 text-xs text-blue-900">
-                                <p class="font-bold mb-1">Instruksi Pembayaran QRIS:</p>
-                                <p>1. Tampilkan kode QRIS kepada pelanggan.</p>
-                                <p>2. Tunggu konfirmasi notifikasi masuk dari aplikasi merchant.</p>
-                                <p>3. Centang konfirmasi di bawah lalu klik Bayar.</p>
+                                <p class="font-bold mb-1">{{ __('messages.pos.qris_instructions_title') }}</p>
+                                <p>{{ __('messages.pos.qris_instruction_1') }}</p>
+                                <p>{{ __('messages.pos.qris_instruction_2') }}</p>
+                                <p>{{ __('messages.pos.qris_instruction_3') }}</p>
                             </div>
                             <div>
                                 <label class="block text-xs font-bold uppercase tracking-wider text-coffee-800 mb-1">
-                                    Nomor Referensi QRIS (Opsional)
+                                    {{ __('messages.pos.qris_ref_label') }}
                                 </label>
                                 <input
                                     type="text"
                                     wire:model="qrisReferenceNumber"
-                                    placeholder="misal: REF-QRIS-20261114"
+                                    placeholder="{{ __('messages.pos.qris_ref_placeholder') }}"
                                     class="w-full px-3 py-2 bg-cream-50/70 border border-coffee-200 rounded-xl text-xs text-coffee-950 focus:ring-2 focus:ring-coffee-400 focus:bg-white"
                                 />
                             </div>
@@ -680,7 +700,7 @@
                                     class="mt-0.5 rounded border-coffee-300 text-coffee-900 focus:ring-coffee-500"
                                 />
                                 <span class="text-xs text-coffee-800 font-semibold leading-snug">
-                                    Saya konfirmasi bahwa dana QRIS sebesar <strong>Rp {{ number_format($total, 0, ',', '.') }}</strong> telah masuk ke rekening merchant.
+                                    {!! __('messages.pos.qris_confirm_checkbox', ['amount' => number_format($total, 0, ',', '.')]) !!}
                                 </span>
                             </label>
                         </div>
@@ -691,12 +711,12 @@
                         <div class="space-y-3">
                             <div>
                                 <label class="block text-xs font-bold uppercase tracking-wider text-coffee-800 mb-1">
-                                    Nomor Referensi EDC (Opsional)
+                                    {{ __('messages.pos.debit_ref_label') }}
                                 </label>
                                 <input
                                     type="text"
                                     wire:model="debitReferenceNumber"
-                                    placeholder="misal: EDC-REF-20261114"
+                                    placeholder="{{ __('messages.pos.debit_ref_placeholder') }}"
                                     class="w-full px-3 py-2 bg-cream-50/70 border border-coffee-200 rounded-xl text-xs text-coffee-950 focus:ring-2 focus:ring-coffee-400 focus:bg-white"
                                 />
                             </div>
@@ -707,7 +727,7 @@
                                     class="mt-0.5 rounded border-coffee-300 text-coffee-900 focus:ring-coffee-500"
                                 />
                                 <span class="text-xs text-coffee-800 font-semibold leading-snug">
-                                    Saya konfirmasi bahwa mesin EDC menampilkan transaksi berhasil (Approved) untuk pembayaran <strong>Rp {{ number_format($total, 0, ',', '.') }}</strong>.
+                                    {!! __('messages.pos.debit_confirm_checkbox', ['amount' => number_format($total, 0, ',', '.')]) !!}
                                 </span>
                             </label>
                         </div>
@@ -717,24 +737,24 @@
                     <div class="space-y-3 pt-2 border-t border-coffee-100">
                         <div>
                             <label class="block text-xs font-bold uppercase tracking-wider text-coffee-800 mb-1">
-                                Nama Pelanggan (Panggilan Antrean)
+                                {{ __('messages.pos.customer_name_label') }}
                             </label>
                             <input
                                 type="text"
                                 wire:model="customerName"
-                                placeholder="misal: Bpk. Budi / Kak Sarah"
+                                placeholder="{{ __('messages.pos.customer_name_placeholder') }}"
                                 class="w-full px-3 py-2 bg-cream-50/70 border border-coffee-200 rounded-xl text-xs text-coffee-950 focus:ring-2 focus:ring-coffee-400 focus:bg-white"
                             />
                         </div>
 
                         <div>
                             <label class="block text-xs font-bold uppercase tracking-wider text-coffee-800 mb-1">
-                                Catatan Pesanan Keseluruhan
+                                {{ __('messages.pos.order_notes_label') }}
                             </label>
                             <input
                                 type="text"
                                 wire:model="orderNotes"
-                                placeholder="misal: Bawa pulang kantong terpisah"
+                                placeholder="{{ __('messages.pos.order_notes_placeholder') }}"
                                 class="w-full px-3 py-2 bg-cream-50/70 border border-coffee-200 rounded-xl text-xs text-coffee-950 focus:ring-2 focus:ring-coffee-400 focus:bg-white"
                             />
                         </div>
@@ -749,7 +769,7 @@
                         size="sm"
                         wire:click="$set('showPaymentModal', false)"
                     >
-                        Batal
+                        {{ __('messages.pos.cancel') }}
                     </x-button>
 
                     <x-button
@@ -761,13 +781,13 @@
                         :disabled="$isProcessingPayment || ($paymentMethod === 'qris' && !$qrisCashierConfirmed) || ($paymentMethod === 'debit' && !$debitCashierConfirmed)"
                         class="shadow-md font-bold bg-emerald-700 hover:bg-emerald-800 relative"
                     >
-                        <span wire:loading.remove wire:target="processPayment">Bayar</span>
+                        <span wire:loading.remove wire:target="processPayment">{{ __('messages.pos.pay_button') }}</span>
                         <span wire:loading wire:target="processPayment" class="flex items-center gap-2">
                             <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
                             </svg>
-                            Memproses...
+                            {{ __('messages.pos.processing') }}
                         </span>
                     </x-button>
                 </div>
@@ -793,8 +813,8 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
                         </svg>
                     </div>
-                    <h3 class="text-xl font-black tracking-tight">Pembayaran Berhasil!</h3>
-                    <p class="text-emerald-100 text-xs mt-1">Transaksi telah disimpan ke sistem</p>
+                    <h3 class="text-xl font-black tracking-tight">{{ __('messages.pos.payment_success_title') }}</h3>
+                    <p class="text-emerald-100 text-xs mt-1">{{ __('messages.pos.payment_success_subtitle') }}</p>
                 </div>
 
                 <!-- Order Details -->
@@ -802,7 +822,7 @@
                     <!-- Call Number (large) -->
                     @if ($lastCallNumber)
                         <div class="text-center">
-                            <span class="text-xs font-bold text-coffee-500 uppercase tracking-wider block">Nomor Panggilan</span>
+                            <span class="text-xs font-bold text-coffee-500 uppercase tracking-wider block">{{ __('messages.pos.call_number') }}</span>
                             <span class="text-5xl font-black text-coffee-950 tracking-tight">{{ $lastCallNumber }}</span>
                         </div>
                     @endif
@@ -811,30 +831,30 @@
                     <div class="space-y-2 text-sm">
                         @if ($lastOrderNumber)
                             <div class="flex items-center justify-between text-coffee-600">
-                                <span class="text-xs">No. Pesanan</span>
+                                <span class="text-xs">{{ __('messages.pos.order_number') }}</span>
                                 <span class="font-bold text-coffee-950 font-mono text-xs">{{ $lastOrderNumber }}</span>
                             </div>
                         @endif
 
                         <div class="flex items-center justify-between text-coffee-600">
-                            <span class="text-xs">Total Dibayar</span>
+                            <span class="text-xs">{{ __('messages.pos.total_paid') }}</span>
                             <span class="font-extrabold text-coffee-950">Rp {{ number_format($lastTotal ?? 0, 0, ',', '.') }}</span>
                         </div>
 
                         @if ($lastPaymentMethod === 'cash' && $lastCashGiven !== null)
                             <div class="flex items-center justify-between text-coffee-600">
-                                <span class="text-xs">Uang Diterima</span>
+                                <span class="text-xs">{{ __('messages.pos.cash_given') }}</span>
                                 <span class="font-semibold text-coffee-800">Rp {{ number_format($lastCashGiven, 0, ',', '.') }}</span>
                             </div>
                             <div class="flex items-center justify-between text-emerald-700 font-bold">
-                                <span class="text-xs">Kembalian</span>
+                                <span class="text-xs">{{ __('messages.pos.change') }}</span>
                                 <span class="text-base">Rp {{ number_format($lastChange ?? 0, 0, ',', '.') }}</span>
                             </div>
                         @endif
 
                         @if ($lastPaymentMethod)
                             <div class="flex items-center justify-between text-coffee-600">
-                                <span class="text-xs">Metode</span>
+                                <span class="text-xs">{{ __('messages.pos.payment_method_label') }}</span>
                                 <span class="font-semibold text-coffee-800 uppercase text-xs">{{ $lastPaymentMethod }}</span>
                             </div>
                         @endif
@@ -852,22 +872,22 @@
                     ">
                         @if ($lastPrintJobStatus === 'pending')
                             <svg class="animate-spin w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
-                            Mengantre cetak...
+                            {{ __('messages.pos.print_status_pending') }}
                         @elseif ($lastPrintJobStatus === 'processing')
                             <svg class="animate-spin w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
-                            Sedang mencetak...
+                            {{ __('messages.pos.print_status_processing') }}
                         @elseif ($lastPrintJobStatus === 'completed')
                             <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" /></svg>
-                            Struk berhasil dicetak ✓
+                            {{ __('messages.pos.print_status_completed') }}
                         @elseif ($lastPrintJobStatus === 'failed')
                             <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                            Gagal mencetak
+                            {{ __('messages.pos.print_status_failed') }}
                         @elseif ($lastPrintJobStatus === 'uncertain')
                             <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                            Status cetak tidak pasti — periksa fisik printer
+                            {{ __('messages.pos.print_status_uncertain') }}
                         @else
                             <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                            Printer tidak aktif
+                            {{ __('messages.pos.print_status_inactive') }}
                         @endif
                     </div>
 
@@ -882,7 +902,7 @@
                                     wire:click="reprintReceipt"
                                     class="text-xs"
                                 >
-                                    Cetak Ulang
+                                    {{ __('messages.pos.reprint') }}
                                 </x-button>
                             @endif
 
@@ -894,7 +914,7 @@
                                     wire:click="retryPrint"
                                     class="text-xs text-rose-700 border-rose-300 hover:bg-rose-50"
                                 >
-                                    Coba Cetak Lagi
+                                    {{ __('messages.pos.retry_print') }}
                                 </x-button>
                             @endif
 
@@ -905,7 +925,7 @@
                                 wire:click="closeSuccessModal"
                                 class="col-span-2 text-sm font-bold bg-coffee-900 hover:bg-coffee-800"
                             >
-                                Pesanan Baru
+                                {{ __('messages.pos.new_order') }}
                             </x-button>
                         </div>
                     </div>

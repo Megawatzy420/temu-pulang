@@ -60,6 +60,13 @@
         >
             Format Struk
         </button>
+        <button
+            type="button"
+            wire:click="$set('activeTab', 'qris')"
+            class="px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap {{ $activeTab === 'qris' ? 'bg-coffee-900 text-cream-50 shadow-xs' : 'text-coffee-700 hover:bg-cream-100 hover:text-coffee-950' }}"
+        >
+            {{ __('messages.settings.tab_qris') }}
+        </button>
     </div>
 
     <!-- TAB 1: PROFIL USAHA -->
@@ -411,6 +418,65 @@
                     </label>
                 </div>
             </div>
+        </div>
+    @endif
+
+    <!-- TAB 6: QRIS -->
+    @if ($activeTab === 'qris')
+        <div class="bg-white rounded-3xl border border-coffee-200/80 p-6 shadow-sm space-y-4">
+            <div class="pb-3 border-b border-coffee-100">
+                <h3 class="text-base font-bold text-coffee-950">{{ __('messages.settings.qris_title') }}</h3>
+                <p class="text-xs text-coffee-500 mt-0.5">{{ __('messages.settings.qris_subtitle') }}</p>
+            </div>
+
+            @if ($qrisImagePath !== '')
+                <div class="flex flex-col items-center gap-3 p-4 rounded-2xl bg-cream-50 border border-coffee-200/80">
+                    <img
+                        src="{{ Storage::url($qrisImagePath) }}"
+                        alt="QRIS"
+                        class="max-h-56 w-auto object-contain rounded-xl border border-coffee-200 shadow-sm"
+                    />
+                    <button
+                        type="button"
+                        wire:click="removeQrisImage"
+                        wire:confirm="{{ __('messages.settings.qris_remove_confirm') }}"
+                        class="text-xs font-bold text-rose-600 hover:text-rose-800 underline underline-offset-2 cursor-pointer"
+                    >
+                        {{ __('messages.settings.qris_remove_btn') }}
+                    </button>
+                </div>
+            @else
+                <div class="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-900 font-semibold">
+                    {{ __('messages.settings.qris_not_set') }}
+                </div>
+            @endif
+
+            <div>
+                <label class="block text-xs font-bold text-coffee-800 mb-2">
+                    {{ $qrisImagePath !== '' ? __('messages.settings.qris_replace_label') : __('messages.settings.qris_upload_label') }}
+                    <span class="text-coffee-400 font-normal">({{ __('messages.settings.qris_hint') }})</span>
+                </label>
+                <input
+                    type="file"
+                    wire:model="qrisImageUpload"
+                    accept=".png,.webp,image/png,image/webp"
+                    class="block w-full text-xs text-coffee-900 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-coffee-900 file:text-cream-50 hover:file:bg-coffee-800 file:cursor-pointer cursor-pointer"
+                />
+                @error('qrisImageUpload')
+                    <p class="text-xs text-rose-600 mt-1">{{ $message }}</p>
+                @enderror
+            </div>
+
+            <x-button
+                type="button"
+                variant="primary"
+                size="sm"
+                wire:click="uploadQrisImage"
+                wire:loading.attr="disabled"
+                class="bg-coffee-900 hover:bg-caramel-600 text-white cursor-pointer"
+            >
+                {{ __('messages.settings.qris_upload_btn') }}
+            </x-button>
         </div>
     @endif
 

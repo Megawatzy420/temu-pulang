@@ -808,3 +808,36 @@ Implemented Part 1 of 4 for Task 5.6:
 - **Laravel Pint:** ✅ Clean (0 violations)
 - **Vite Build (`npm run build`):** ✅ Compiled successfully in 1.03s
 
+---
+
+## Phase 5 — Task 5.6 (Part 2A of 4): Owner QRIS Image Upload & POS Display
+
+**Date:** 2026-11-25  
+**Status:** ⏳ IN PROGRESS (Part 2A Completed; Task 5.6 Overall Remains In Progress)
+
+### Summary
+Implemented Part 2A of 4 for Task 5.6 (QRIS image management and POS display only; cash payment panel untouched):
+1. **Owner-Only QRIS Image Management (`App\Livewire\Settings\ShopSettingsManager`):** Added a `QRIS` tab allowing Owners to upload, preview, replace, and remove the shop's QRIS image. Enforced `isOwner()` authorization (`abort(403)` for cashiers), PNG/WebP validation with real MIME-type inspection via `finfo`, 2 MB max size, storage on the `public` disk under `storage/app/public/qris`, automatic deletion of superseded files on replace/remove, persistence in `application_settings` (`key: payment.qris_image_path`, `group: payment`, `type: string`), and `ActivityLog` auditing.
+2. **POS QRIS Modal Display (`App\Livewire\Pos\CashierPos` & Blade):** When QRIS is selected in the checkout modal, displays the uploaded QRIS image large alongside the prominent total amount to pay, or a localized notice instructing the cashier to ask the Shop Owner to upload one if unset. Existing confirmation checkbox and reference number flow remain unchanged.
+3. **Bilingual Localization:** Added identical translation keys to `lang/id/messages.php` and `lang/en/messages.php` under `messages.pos.*` and `messages.settings.*`.
+
+### Deliverables
+
+#### New Files Created
+- `tests/Feature/QrisImageSettingsTest.php` — 8 feature tests (45 assertions) covering PNG/WebP upload, JPG/GIF/SVG/oversized/spoofed-extension rejection, old-file deletion on replace, setting clearing on remove, Cashier `403` guard, and POS display/fallback notice.
+
+#### Files Modified
+- `app/Livewire/Settings/ShopSettingsManager.php` — Added `WithFileUploads`, `$qrisImageUpload`, `$qrisImagePath`, `uploadQrisImage()`, and `removeQrisImage()`.
+- `resources/views/livewire/settings/shop-settings-manager.blade.php` — Added the `QRIS` tab and upload/preview/remove UI.
+- `app/Livewire/Pos/CashierPos.php` — Passed `qrisImagePath` from `ApplicationSetting` to the view in `render()`.
+- `resources/views/livewire/pos/cashier-pos.blade.php` — Rendered the QRIS image + prominent amount to pay (or localized missing-image notice) inside the QRIS payment panel.
+- `lang/id/messages.php` & `lang/en/messages.php` — Added matching QRIS settings and POS keys.
+- `docs/ARCHITECTURE.md`, `docs/DATABASE_DESIGN.md`, `docs/DEVELOPMENT_LOG.md` — Documented `payment.qris_image_path` and Part 2A deliverables.
+
+#### Automated Test Results
+- **QRIS Image Settings Tests (`QrisImageSettingsTest`):** 8 tests, 45 assertions — 100% passing
+- **Full Test Suite (`php artisan test --compact`):** 352 tests, 1199 assertions — 100% passing (0 failures, 0 errors)
+- **Laravel Pint (`php vendor/bin/pint --test`):** ✅ Clean (0 violations)
+- **Vite Build (`npm run build`):** ✅ Compiled successfully in 1.05s
+
+

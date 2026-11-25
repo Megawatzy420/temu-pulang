@@ -176,6 +176,7 @@ Shop settings are managed by the Owner-only Livewire component `App\Livewire\Set
 - **Jam Operasional**: 7-day schedule with open/close hours (supporting schedules crossing midnight) and a configurable `business_day_start_time` (e.g. 04:00) using the `Asia/Jakarta` timezone.
 - **Pajak & Finansial**: Confirmed defaults are **0% Tax** and **0% Service Charge**, stored as basis points integer (`0` = 0.00%, `1000` = 10.00%).
 - **Printer Thermal USB**: Direct USB connection mode (`printer_connection = 'usb'`), 58mm / 80mm paper widths, display name identifier, and optional kitchen printer toggle. IP address and port fields are non-mandatory and set to null for USB mode. (*Note: Physical Windows ESC/POS driver integration, raw printing helper, and receipt printing spooler were delivered in Phase 5 Task 5.5.*)
+- **QRIS Payment Image (Phase 5 Task 5.6 Part 2A)**: Owner-only upload, preview, replacement, and removal of the shop's QRIS image under the `QRIS` tab. Validates real file MIME types (`image/png`, `image/webp`) via `finfo`, enforces a 2 MB maximum, stores files on the `public` disk under `storage/app/public/qris`, deletes superseded files on replace or remove, persists the path in `application_settings` (`payment.qris_image_path`), and logs updates via `ActivityLog`. `CashierPos` displays the configured QRIS image and prominent amount to pay in the QRIS checkout modal, or a localized notice if none is configured.
 
 ---
 

@@ -2,12 +2,14 @@
 
 namespace Tests\Feature\Printing;
 
+use App\Livewire\Pos\CashierPos;
 use App\Livewire\Printing\PrintJobIndex;
 use App\Models\ActivityLog;
 use App\Models\Order;
 use App\Models\PrintJob;
 use App\Models\Shift;
 use App\Models\User;
+use App\Services\OrderService;
 use App\Services\PrintService;
 use Database\Seeders\RoleAndPermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -234,5 +236,89 @@ class OwnerPrintJobResolutionTest extends TestCase
         // Verify both translations mention contacting the owner / Pemilik
         $this->assertStringContainsString('Pemilik Toko', $idMessage);
         $this->assertStringContainsString('Shop Owner', $enMessage);
+    }
+
+    public function test_payment_error_shows_generic_translated_message_in_indonesian_and_never_exposes_raw_exception(): void
+    {
+        app()->setLocale('id');
+
+        Shift::factory()->create([
+            'user_id' => $this->cashier->id,
+            'status' => 'open',
+        ]);
+
+        $rawError = 'Fatal internal PDOException: password_secret_leak_123';
+        $orderServiceMock = $this->createMock(OrderService::class);
+        $orderServiceMock->method('createOrder')
+            ->willThrowException(new \RuntimeException($rawError));
+        $this->app->instance(OrderService::class, $orderServiceMock);
+
+        $test = Livewire::actingAs($this->cashier)
+            ->test(CashierPos::class)
+            ->set('cart', [[
+                'id' => 'item_1',
+                'product_id' => 1,
+                'name' => 'Kopi Tubruk',
+                'sku' => 'KOP-01',
+                'variant_name' => 'Standar',
+                'variant_id' => null,
+                'base_price' => 15000,
+                'unit_price' => 15000,
+                'quantity' => 1,
+                'modifiers_text' => '',
+                'modifier_ids' => [],
+                'notes' => '',
+            ]])
+            ->set('paymentMethod', 'cash')
+            ->set('cashGiven', 20000)
+            ->call('processPayment');
+
+        $test->assertDispatched('notify', function ($event, $params) use ($rawError) {
+            return $params['type'] === 'error'
+                && $params['message'] === __('messages.pos.payment_failed_generic', [], 'id')
+                && ! str_contains($params['message'], $rawError);
+        });
+    }
+
+    public function test_payment_error_shows_generic_translated_message_in_english_and_never_exposes_raw_exception(): void
+    {
+        app()->setLocale('en');
+
+        Shift::factory()->create([
+            'user_id' => $this->cashier->id,
+            'status' => 'open',
+        ]);
+
+        $rawError = 'Fatal internal PDOException: password_secret_leak_123';
+        $orderServiceMock = $this->createMock(OrderService::class);
+        $orderServiceMock->method('createOrder')
+            ->willThrowException(new \RuntimeException($rawError));
+        $this->app->instance(OrderService::class, $orderServiceMock);
+
+        $test = Livewire::actingAs($this->cashier)
+            ->test(CashierPos::class)
+            ->set('cart', [[
+                'id' => 'item_1',
+                'product_id' => 1,
+                'name' => 'Kopi Tubruk',
+                'sku' => 'KOP-01',
+                'variant_name' => 'Standar',
+                'variant_id' => null,
+                'base_price' => 15000,
+                'unit_price' => 15000,
+                'quantity' => 1,
+                'modifiers_text' => '',
+                'modifier_ids' => [],
+                'notes' => '',
+            ]])
+            ->set('paymentMethod', 'cash')
+            ->set('cashGiven', 20000)
+            ->call('processPayment');
+
+        $test->assertDispatched('notify', function ($event, $params) use ($rawError) {
+            return $params['type'] === 'error'
+                && $params['message'] === __('messages.pos.payment_failed_generic', [], 'en')
+                && ! str_contains($params['message'], $rawError);
+        });
     }
 }
