@@ -10,6 +10,7 @@ use App\Livewire\Menu\ModifierManager;
 use App\Livewire\Menu\ProductForm;
 use App\Livewire\Menu\ProductIndex;
 use App\Livewire\Orders\OrderIndex;
+use App\Livewire\Orders\OrderRefund;
 use App\Livewire\Pos\CashierPos;
 use App\Livewire\Printing\PrintJobIndex;
 use App\Livewire\Settings\ShopSettingsManager;
@@ -57,6 +58,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/printing/jobs', PrintJobIndex::class)
         ->middleware('role:owner')
         ->name('printing.jobs');
+
+    Route::get('/orders/{order}/refund', OrderRefund::class)
+        ->middleware('role:owner')
+        ->name('orders.refund');
 
     // Menu Management Backoffice: Owner Only
     Route::prefix('menu')->middleware('role:owner')->name('menu.')->group(function () {

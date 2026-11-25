@@ -263,7 +263,7 @@
                             wire:click="removeItem({{ $index }})"
                             :disabled="$paymentInFlight"
                             class="text-coffee-300 hover:text-rose-600 p-1 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                            title="Hapus"
+                            title="{{ __('messages.pos.delete_item') }}"
                         >
                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -438,7 +438,7 @@
                                     {{ $group['name'] }}
                                 </label>
                                 <span class="text-[10px] font-semibold text-coffee-500">
-                                    {{ $group['is_required'] ? '(Wajib Pilih 1)' : '(Opsional)' }}
+                                    {{ $group['is_required'] ? __('messages.pos.required_select_one') : __('messages.pos.optional') }}
                                 </span>
                             </div>
 
@@ -607,10 +607,41 @@
 
                     <!-- Cash payment details -->
                     @if ($paymentMethod === 'cash')
-                        <div class="space-y-2">
+                        <div
+                            class="space-y-2"
+                            x-data="{
+                                cash: $wire.entangle('cashGiven').live,
+                                format(val) {
+                                    const n = parseInt(val || 0, 10);
+                                    return n > 0 ? n.toLocaleString('id-ID') : '';
+                                },
+                                onInput(e) {
+                                    const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
+                                    const num = digits === '' ? 0 : parseInt(digits, 10);
+                                    this.cash = num;
+                                    e.target.value = num > 0 ? num.toLocaleString('id-ID') : '';
+                                }
+                            }"
+                            x-init="$nextTick(() => $refs.cashInput?.focus())"
+                        >
                             <label class="block text-xs font-bold uppercase tracking-wider text-coffee-800">
                                 {{ __('messages.pos.cash_received') }}
                             </label>
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-xs font-bold text-coffee-600 pointer-events-none">
+                                    Rp
+                                </span>
+                                <input
+                                    x-ref="cashInput"
+                                    type="text"
+                                    inputmode="numeric"
+                                    maxlength="13"
+                                    :value="format(cash)"
+                                    @input="onInput($event)"
+                                    placeholder="0"
+                                    class="w-full pl-10 pr-3.5 py-2.5 bg-cream-50/70 border border-coffee-200 rounded-xl text-sm font-bold text-coffee-950 focus:outline-none focus:ring-2 focus:ring-coffee-400 focus:bg-white"
+                                />
+                            </div>
                             <div class="grid grid-cols-3 gap-2">
                                 <button
                                     type="button"
@@ -619,20 +650,15 @@
                                 >
                                     {{ __('messages.pos.exact_cash') }}
                                 </button>
-                                <button
-                                    type="button"
-                                    wire:click="$set('cashGiven', 50000)"
-                                    class="py-2 px-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer {{ $cashGiven === 50000 ? 'bg-caramel-500 text-white border-caramel-600' : 'bg-cream-50 border-coffee-200 text-coffee-800' }}"
-                                >
-                                    Rp 50.000
-                                </button>
-                                <button
-                                    type="button"
-                                    wire:click="$set('cashGiven', 100000)"
-                                    class="py-2 px-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer {{ $cashGiven === 100000 ? 'bg-caramel-500 text-white border-caramel-600' : 'bg-cream-50 border-coffee-200 text-coffee-800' }}"
-                                >
-                                    Rp 100.000
-                                </button>
+                                @foreach ($cashSuggestions as $suggestedAmount)
+                                    <button
+                                        type="button"
+                                        wire:click="$set('cashGiven', {{ $suggestedAmount }})"
+                                        class="py-2 px-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer {{ $cashGiven === $suggestedAmount ? 'bg-caramel-500 text-white border-caramel-600' : 'bg-cream-50 border-coffee-200 text-coffee-800' }}"
+                                    >
+                                        Rp {{ number_format($suggestedAmount, 0, ',', '.') }}
+                                    </button>
+                                @endforeach
                             </div>
 
                             @if ($cashGiven >= $total)

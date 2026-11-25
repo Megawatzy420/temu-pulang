@@ -249,23 +249,21 @@ flowchart TD
   - Test print command (`PrintTestCommand`, `php artisan print:test`) for hardware verification without creating database records.
   - Additive migration adding `cashier_name` to `payment_transactions`.
   - Comprehensive automated test suite: 7 test classes (Unit + Feature), 245 total suite tests, 861 assertions, 100% passing.
-- [ ] **Task 5.6 — POS Checkout UI Integration (PLANNED — PARTIALLY DONE)**
+- [x] **Task 5.6 — POS Checkout UI Integration (COMPLETED ✅)**
   - *Delivered*:
-    - Livewire `CashierPos` wired to `OrderService::createOrder()` and `PaymentService::settlePayment()`.
-    - Single-tender payment modal: Tunai (with quick amounts & change calculator), QRIS (with `QrisConfirmation` creation), and Debit (with reference number and cashier confirmation).
-    - Comprehensive checkout idempotency key lifecycle (`checkoutIdempotencyKey`, `pay_` prefix for payments, draft resets on cart edits, persistence across reloads, recovery of in-flight and unpaid orders).
-    - Success modal with real-time print job status polling, reprint (`reprintReceipt`), and failed-job retry (`retryPrint`).
-    - 23 feature tests in `PosCheckoutIntegrationTest.php` (122 assertions — 100% passing).
-  - *Missing to Complete*:
-    - Split payment UI support (multi-tender split e.g. partial cash + partial QRIS).
-    - Credit and Transfer tender options in the checkout modal.
-    - Owner UI / modal for resolving uncertain print jobs (`PrintService::resolveUncertainJob`).
-    - Owner-only Livewire UI / routes for issuing refunds via `RefundService`.
-    - Localization of POS notifications and validation errors across `lang/id` and `lang/en` (currently hardcoded in Indonesian).
-- [ ] **Task 5.7 — Full Phase 5 Verification & Hardening (PLANNED — NOT DONE)**
-  - *Missing to Complete*:
-    - End-to-end integration test file/suite chaining full Phase 5 lifecycle: order creation -> payment settlement -> print job generation & processing -> refund transaction -> shift reconciliation.
-    - Formal Phase 5 hardening audit and edge-case verification.
+    - Livewire `CashierPos` wired to `OrderService::createOrder()` and `PaymentService::settlePayment()` (`PosCheckoutIntegrationTest.php`: 23 tests, 122 assertions).
+    - Full POS localization (`lang/id` & `lang/en`) and exception masking (`CashierPos::mapPaymentExceptionToMessage()`).
+    - Owner-only print-job resolution UI (`App\Livewire\Printing\PrintJobIndex` at `/printing/jobs`, `OwnerPrintJobResolutionTest.php`: 13 tests, 36 assertions).
+    - Owner-only QRIS image upload/preview/replace/remove in `ShopSettingsManager` (`payment.qris_image_path`, `storage/app/public/qris`, `QrisImageSettingsTest.php`: 8 tests, 45 assertions) and QRIS modal display in `CashierPos`.
+    - Computed integer quick-cash suggestion buttons (`CashierPos::suggestCashAmounts()`, `PosCashSuggestionTest.php`: 3 tests) and Alpine-formatted typed cash received input (`PosCashQuickButtonsTest.php`: 2 tests).
+    - Owner-only refund screen (`App\Livewire\Orders\OrderRefund` at `/orders/{order}/refund`, `OrderRefundScreenTest.php`: 9 tests, 30 assertions).
+  - *Deliberate Deferrals & Known Cleanup (Not Done)*:
+    - (a) Split-payment UI and credit/transfer tender buttons are out of v1 scope.
+    - (b) `ShopSettingsManager` (`shop-settings-manager.blade.php`) and `order-index.blade.php` still contain hardcoded Indonesian text and need localization.
+    - (c) `CashierPos.php` and `OrderRefund.php` choose user messages by matching words in exception text (`str_contains`), and should be replaced by specific exception classes thrown from the services.
+- [x] **Task 5.7 — Full Phase 5 Verification & Hardening (COMPLETED ✅)**
+  - Continuous end-to-end lifecycle test (`tests/Feature/Phase5EndToEndTest.php`: 1 test, 37 assertions) covering open shift -> manual cash movements -> order creation -> split payment settlement -> fake spooler print job completion -> partial cash refund -> full refund -> shift close.
+  - Full Phase 5 verification: **367 tests, 1361 assertions — 100% passing**, Pint clean, Vite build passing.
 
 ---
 

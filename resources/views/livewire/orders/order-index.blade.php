@@ -221,6 +221,12 @@
                                 Detail
                             </button>
 
+                            @if(auth()->user()?->isOwner() && in_array($order->payment_status, [\App\Models\Order::PAYMENT_STATUS_PAID, \App\Models\Order::PAYMENT_STATUS_PARTIALLY_REFUNDED], true))
+                                <a href="{{ route('orders.refund', $order) }}" class="px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-amber-300 text-amber-800 hover:bg-amber-50 transition">
+                                    {{ __('messages.refund.action_btn') }}
+                                </a>
+                            @endif
+
                             <!-- Advance Status Buttons -->
                             @if($order->status === 'awaiting_payment')
                                 <button type="button" wire:click="advanceStatus({{ $order->id }}, 'paid')" class="flex-1 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition">

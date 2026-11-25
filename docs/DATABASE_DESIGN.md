@@ -780,7 +780,7 @@ erDiagram
     users ||--o{ stock_movements : performed_by
 ```
 
-### 14.1 `ingredient_categories`
+### 6.1 `ingredient_categories`
 
 | Column | Type | Null | Default | Constraint | Notes |
 |---|---|---|---|---|---|
@@ -790,7 +790,7 @@ erDiagram
 | `sort_order` | `INT` | No | `0` | - | Display ordering |
 | `created_at` / `updated_at` | `TIMESTAMP` | Yes | `NULL` | - | Standard timestamps |
 
-### 14.2 `ingredients`
+### 6.2 `ingredients`
 
 | Column | Type | Null | Default | Constraint | Notes |
 |---|---|---|---|---|---|
@@ -807,7 +807,7 @@ erDiagram
 
 **Indexes**: `idx_ingredients_category_id`, `idx_ingredients_is_active`
 
-### 14.3 `ingredient_balances`
+### 6.3 `ingredient_balances`
 
 Tracks current on-hand stock per branch (NULL = default single store).
 
@@ -825,7 +825,7 @@ Tracks current on-hand stock per branch (NULL = default single store).
 > [!IMPORTANT]
 > **Why a generated column?** MySQL's standard `UNIQUE INDEX` on a nullable column treats `NULL != NULL`, allowing unlimited duplicate rows with `branch_id = NULL`. The `branch_slot` generated column collapses `NULL → 0` so the unique index fires correctly. The same pattern is used by the existing `shifts.active_branch_slot` constraint.
 
-### 14.4 `recipe_items`
+### 6.4 `recipe_items`
 
 Bill of Materials (BOM): ingredients consumed per unit of a product or variant.
 
@@ -841,7 +841,7 @@ Bill of Materials (BOM): ingredients consumed per unit of a product or variant.
 
 **Unique**: `uk_recipe_item (product_id, variant_slot, ingredient_id)` — prevents duplicate ingredient entries in the same recipe. Base recipe (NULL variant) and each variant-override are distinct by `variant_slot`.
 
-### 14.5 `modifier_recipe_items`
+### 6.5 `modifier_recipe_items`
 
 Ingredient changes triggered when a modifier option is selected.
 
@@ -857,7 +857,7 @@ Ingredient changes triggered when a modifier option is selected.
 
 **Unique**: `uk_modifier_ingredient (modifier_id, ingredient_id)` — one entry per modifier-ingredient combination.
 
-### 14.6 `stock_movements`
+### 6.6 `stock_movements`
 
 Append-only audit ledger of all inventory changes. No `updated_at` column.
 

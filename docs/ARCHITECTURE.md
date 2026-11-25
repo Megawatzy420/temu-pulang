@@ -283,6 +283,8 @@ flowchart TD
    - Child `Payment.order_id` is assigned explicitly by `PaymentService` to satisfy foreign key constraints without exposing the column to mass assignment.
 8. **Audit Trail**:
    - Logs `ActivityLog::record(action: 'payment.settled', module: 'payments', ...)`.
+9. **POS Checkout UI (`App\Livewire\Pos\CashierPos`)**:
+   - Single-tender payment modal supporting Cash (Alpine-formatted integer `cashGiven` input with `id-ID` thousand separators, `Uang Pas`, and up to 4 integer-computed quick-cash suggestions via `suggestCashAmounts()`), QRIS (displays `payment.qris_image_path` + prominent amount to pay, or localized notice if unset), and Debit.
 
 ---
 
@@ -364,6 +366,12 @@ Allocations are sorted by `[payment_id, amount, refund_method]` before hashing t
 - Queries `MAX(daily_sequence)` from `refund_transactions` for the given `business_date`.
 - Format: `RFD-YYYYMMDD-0001`. Database-level composite unique constraints enforce collision prevention.
 
+#### Owner-Only Refund UI (`App\Livewire\Orders\OrderRefund`, Phase 5 Task 5.6 Part 3)
+- Accessible at `/orders/{order}/refund` under `role:owner` middleware (plus `isOwner()` re-checks in `mount()` and `submitRefund()`). Hidden from Cashiers in `OrderIndex`.
+- Displays order summary, each payment's `remainingRefundableBalance()`, Alpine-formatted integer Rupiah inputs, `refund_method` selector (`cash`, `qris_reversal`, `manual_transfer`), and required reason.
+- Generates a stable `idempotencyKey` once per form mount and preserves it on retries; passes the active open `Shift` only when at least one `cash` allocation exists.
+- Maps known `RefundService` domain/conflict errors to localized keys (`messages.refund.*`) and logs unexpected exceptions via `Log::error` without exposing raw exception text.
+
 ---
 
 ## 13. Printing Infrastructure & Spooler Architecture (Task 5.5)
@@ -388,7 +396,7 @@ Allocations are sorted by `[payment_id, amount, refund_method]` before hashing t
 - **Payment & Print Atomicity**: Queuing is safely isolated such that even if printing or queueing fails, the committed payment and order settlement are never rolled back.
 - **Reprint Workflow (`queueReprint`)**: Explicit reprints create a new distinct `PrintJob` record marked with `is_reprint = true` and referencing `original_print_job_id`. The original job is immutable and audited via `ActivityLog`.
 - **Manual Retry (`retryFailedJob`)**: Only jobs with status `failed` (safe failures) can be retried. Attempting to retry `uncertain` or `completed` jobs throws `DomainException`.
-- **Owner Resolution (`resolveUncertainJob`)**: Ambiguous `uncertain` jobs require owner intervention to mark as `completed` or `failed` with audit logging.
+- **Owner Resolution (`resolveUncertainJob`)**: Ambiguous `uncertain` jobs require owner intervention to mark as `completed` or `failed` with audit logging, exposed via the Owner-only Livewire UI `App\Livewire\Printing\PrintJobIndex` (`/printing/jobs`).
 
 ### 13.4. Print Worker & Crash Recovery (`App\Console\Commands\PrintWorkerCommand`)
 - **Worker Execution (`php artisan print:work`)**: Designed to run as a single-instance background worker managed by Windows Task Scheduler ("Do not start a new instance" policy).

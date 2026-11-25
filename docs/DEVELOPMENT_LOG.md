@@ -503,8 +503,8 @@ Implemented a fully auditable, append-only refund engine supporting partial and 
 - `Order.payment_status` updated via explicit attribute assignment (`$order->payment_status = $val; $order->save()`) — not in `$fillable`.
 
 **Cancellation on full refund:**
-- Fully refunded order in non-terminal status (e.g. `pending`, `in_process`, `ready`; not `completed` or `cancelled`) → cancelled via direct `DB::table('orders')->update(...)` (bypasses `cancelOrder()` which blocks paid+ statuses) with `cancellation_reason`, `cancelled_by_user_id`, `cancelled_at`.
-- Fully refunded order in terminal status (`completed`, `cancelled`) → status remains unchanged (`completed` remains `completed`, `cancelled` remains `cancelled`).
+- Fully refunded orders in `paid`, `queued`, `preparing`, or `ready` become `cancelled` via direct `DB::table('orders')->update(...)` (bypasses `cancelOrder()` which blocks paid+ statuses) with `cancellation_reason`, `cancelled_by_user_id`, `cancelled_at`.
+- Fully refunded orders in `completed` or `cancelled` keep their status (`completed` remains `completed`, `cancelled` remains `cancelled`).
 - `OrderStatusHistory` recorded for both order-status and payment-status transitions.
 
 **Immutability preserved:**
@@ -839,5 +839,114 @@ Implemented Part 2A of 4 for Task 5.6 (QRIS image management and POS display onl
 - **Full Test Suite (`php artisan test --compact`):** 352 tests, 1199 assertions — 100% passing (0 failures, 0 errors)
 - **Laravel Pint (`php vendor/bin/pint --test`):** ✅ Clean (0 violations)
 - **Vite Build (`npm run build`):** ✅ Compiled successfully in 1.05s
+
+---
+
+## Phase 5 — Task 5.6 (Part 2B of 4): Dynamic Cash Quick-Amount Suggestions
+
+**Date:** 2026-11-25  
+**Status:** ⏳ IN PROGRESS (Part 2B Completed; Task 5.6 Overall Remains In Progress)
+
+### Summary
+Implemented Part 2B of 4 for Task 5.6:
+- Added `CashierPos::suggestCashAmounts(int $total): array` using pure integer arithmetic (`intdiv`) over `[5000, 10000, 20000, 50000, 100000]` to compute up to 4 unique, ascending quick-cash amounts strictly greater than the order total.
+- Replaced the hardcoded `Rp 50.000` and `Rp 100.000` buttons in `resources/views/livewire/pos/cashier-pos.blade.php` with `Uang Pas` first followed by `$cashSuggestions`. Clicking a button only sets `cashGiven` without touching the cart, checkout idempotency key, or in-flight payment state.
+
+### Deliverables
+- **Created:** `tests/Unit/PosCashSuggestionTest.php` (3 unit tests), `tests/Feature/PosCashQuickButtonsTest.php` (1 feature test)
+- **Modified:** `app/Livewire/Pos/CashierPos.php`, `resources/views/livewire/pos/cashier-pos.blade.php`, `docs/DEVELOPMENT_LOG.md`
+
+### Automated Test Results
+- **Full Test Suite (`php artisan test --compact`):** 356 tests, 1275 assertions — 100% passing (0 failures, 0 errors)
+- **Laravel Pint (`php vendor/bin/pint --test`):** ✅ Clean (0 violations)
+- **Vite Build (`npm run build`):** ✅ Compiled successfully in 608ms
+
+---
+
+## Phase 5 — Task 5.6 (Part 2C): Cash Received Input & Blade String Cleanup
+
+**Date:** 2026-11-25  
+**Status:** ⏳ IN PROGRESS (Part 2C Completed; Task 5.6 Overall Remains In Progress)
+
+### Summary
+Implemented Part 2C for Task 5.6:
+- Confirmed via `git diff` that no typed cash input existed in `resources/views/livewire/pos/cashier-pos.blade.php` prior to Part 2B.
+- Added an Alpine-formatted numeric `cashGiven` input (`inputmode="numeric"`, `Rp` prefix, thousand-separator display in `id-ID`, digit-only stripping capped at 10 digits, empty -> `0`, auto-focused when cash is selected, synced live to integer `cashGiven`) above the quick-amount buttons.
+- Replaced the leftover hardcoded `title="Hapus"` and `(Wajib Pilih 1)` / `(Opsional)` strings in `cashier-pos.blade.php` with `__('messages.pos.delete_item')`, `__('messages.pos.required_select_one')`, and `__('messages.pos.optional')`.
+
+### Deliverables
+- **Modified:** `resources/views/livewire/pos/cashier-pos.blade.php`, `tests/Feature/PosCashQuickButtonsTest.php`, `docs/DEVELOPMENT_LOG.md`
+
+### Automated Test Results
+- **Full Test Suite (`php artisan test --compact`):** 357 tests, 1294 assertions — 100% passing (0 failures, 0 errors)
+- **Laravel Pint (`php vendor/bin/pint --test`):** ✅ Clean (0 violations)
+- **Vite Build (`npm run build`):** ✅ Compiled successfully in 901ms
+
+---
+
+## Phase 5 — Task 5.6 (Part 3 of 4): Owner-Only Refund Screen
+
+**Date:** 2026-11-25  
+**Status:** ⏳ IN PROGRESS (Part 3 Completed; Task 5.6 Overall Remains In Progress)
+
+### Summary
+Implemented Part 3 of 4 for Task 5.6:
+- Built `App\Livewire\Orders\OrderRefund` and `resources/views/livewire/orders/order-refund.blade.php` at `/orders/{order}/refund` (`role:owner` middleware + `isOwner()` checks in `mount()` and `submitRefund()`).
+- Shows order payments with `remainingRefundableBalance()`, Alpine-formatted integer Rupiah inputs, `refund_method` (`cash`, `qris_reversal`, `manual_transfer`), required reason, stable `idempotencyKey` preserved on retry, active shift guard for cash refunds, and translated error masking with `Log::error` fallback.
+- Added an Owner-only refund link in `order-index.blade.php` and identical `messages.refund.*` keys in `lang/id/messages.php` and `lang/en/messages.php`.
+
+### Deliverables
+- **Created:** `app/Livewire/Orders/OrderRefund.php`, `resources/views/livewire/orders/order-refund.blade.php`, `tests/Feature/Refund/OrderRefundScreenTest.php` (9 tests, 30 assertions)
+- **Modified:** `routes/web.php`, `resources/views/livewire/orders/order-index.blade.php`, `lang/id/messages.php`, `lang/en/messages.php`, `docs/ARCHITECTURE.md`, `docs/DEVELOPMENT_LOG.md`
+
+### Automated Test Results
+- **Order Refund Screen Tests (`OrderRefundScreenTest`):** 9 tests, 30 assertions — 100% passing
+- **Full Test Suite (`php artisan test --compact`):** 366 tests, 1324 assertions — 100% passing (0 failures, 0 errors)
+- **Laravel Pint (`php vendor/bin/pint --test`):** ✅ Clean (0 violations)
+- **Vite Build (`npm run build`):** ✅ Compiled successfully in 760ms
+
+---
+
+## Phase 5 — Task 5.6 (Consolidated Summary): POS Checkout, QRIS Image, Cash Input & Owner Refund UI
+
+**Date:** 2026-11-24 to 2026-11-25  
+**Status:** ✅ COMPLETED
+
+### Summary
+Completed all parts of Task 5.6 across the POS checkout, settings, printing resolution, and refund workflows:
+- **Initial POS Settlement Integration:** Wired `CashierPos` to `OrderService::createOrder()` and `PaymentService::settlePayment()` with `PosCheckoutIntegrationTest.php` (23 tests, 122 assertions).
+- **Part 1 — POS Localization & Owner Print Job Resolution:** Localized `CashierPos` and `cashier-pos.blade.php` across `lang/id` and `lang/en`, added `mapPaymentExceptionToMessage()`, and built `App\Livewire\Printing\PrintJobIndex` (`/printing/jobs`) with `OwnerPrintJobResolutionTest.php` (13 tests, 36 assertions).
+- **Part 2A — QRIS Image Upload & POS Display:** Added Owner-only QRIS upload/preview/replace/remove in `ShopSettingsManager` (`payment.qris_image_path`, PNG/WebP, real MIME validation via `finfo`, max 2 MB, `storage/app/public/qris`) and QRIS modal display in `CashierPos` (`QrisImageSettingsTest.php`: 8 tests, 45 assertions).
+- **Part 2B — Computed Quick-Cash Buttons:** Added pure integer `CashierPos::suggestCashAmounts(int $total)` (`PosCashSuggestionTest.php`: 3 tests, 47 assertions) replacing hardcoded `Rp 50.000` / `Rp 100.000` buttons.
+- **Part 2C — Typed Cash Received Input & Blade Cleanup:** Added Alpine-formatted numeric `cashGiven` input (`id-ID` thousand separators, digit-only stripping) and localized remaining hardcoded strings in `cashier-pos.blade.php` (`PosCashQuickButtonsTest.php`: 2 tests, 24 assertions).
+- **Part 3 — Owner-Only Refund Screen:** Built `App\Livewire\Orders\OrderRefund` (`/orders/{order}/refund`) with per-payment `remainingRefundableBalance()`, `refund_method`, required reason, stable `idempotencyKey`, active shift guard for cash refunds, and exception masking (`OrderRefundScreenTest.php`: 9 tests, 30 assertions).
+
+*Suite Growth Note:* At the end of Task 5.5, the suite stood at **245 tests (861 assertions)**. The suite grew to **367 tests (1,361 assertions)** through `PosCheckoutIntegrationTest` (+23 tests), Phase 6 Tasks 6.1–6.2 (+52 tests across `InventoryFoundationTest` and `IngredientAndRecipeManagementTest`), Task 5.6 Parts 1–3 (+46 tests across `OwnerPrintJobResolutionTest`, `QrisImageSettingsTest`, `PosCashSuggestionTest`, `PosCashQuickButtonsTest`, and `OrderRefundScreenTest`), and Task 5.7 (+1 end-to-end test).
+
+---
+
+## Phase 5 — Task 5.7: Full Phase 5 Verification & Hardening
+
+**Date:** 2026-11-25  
+**Status:** ✅ COMPLETED
+
+### Summary
+Completed final Phase 5 end-to-end verification and documentation synchronization:
+- Added `tests/Feature/Phase5EndToEndTest.php` executing one continuous lifecycle: open shift -> manual cash movements -> order creation -> split payment settlement (cash + QRIS) -> fake spooler print job completion -> partial cash refund -> full refund -> shift close, asserting order status, `payment_status`, expected cash (`opening + manual in - manual out + net cash sales - cash refunds`), append-only immutability, and `ActivityLog` entries at each step.
+- Synchronized `PROJECT_PLAN.md`, `DEVELOPMENT_LOG.md`, `DATABASE_DESIGN.md` (fixed Phase 6 `### 6.1`–`### 6.6` sub-section numbering), and `ARCHITECTURE.md`.
+
+### Deliverables
+- **Created:** `tests/Feature/Phase5EndToEndTest.php` (1 test, 37 assertions)
+- **Modified:** `docs/PROJECT_PLAN.md`, `docs/DEVELOPMENT_LOG.md`, `docs/DATABASE_DESIGN.md`, `docs/ARCHITECTURE.md`
+
+### Automated Test Results
+- **Phase 5 End-to-End Test (`Phase5EndToEndTest`):** 1 test, 37 assertions — 100% passing
+- **Full Test Suite (`php artisan test --compact`):** 367 tests, 1361 assertions — 100% passing (0 failures, 0 errors)
+- **Laravel Pint (`php vendor/bin/pint --test`):** ✅ Clean (0 violations)
+- **Vite Build (`npm run build`):** ✅ Compiled successfully in 1.05s
+
+
+
+
 
 

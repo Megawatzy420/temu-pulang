@@ -30,6 +30,13 @@ class CashierPos extends Component
 
     private const SESSION_PAYMENT_INFLIGHT = 'pos_payment_inflight';
 
+    /**
+     * Common cash denomination steps (in integer Rupiah) for quick-amount suggestions.
+     *
+     * @var list<int>
+     */
+    private const CASH_DENOMINATION_STEPS = [5000, 10000, 20000, 50000, 100000];
+
     // ── Catalog & order-type state ─────────────────────────────────────────────
 
     /**
@@ -1057,6 +1064,7 @@ class CashierPos extends Component
         $realProducts = $productsQuery->get();
 
         $qrisImagePath = (string) ApplicationSetting::get('payment.qris_image_path', '');
+        $total = $this->getTotalProperty();
 
         return view('livewire.pos.cashier-pos', [
             'activeShift' => $activeShift,
@@ -1065,7 +1073,8 @@ class CashierPos extends Component
             'subtotal' => $this->getSubtotalProperty(),
             'tax' => $this->getTaxProperty(),
             'serviceCharge' => $this->getServiceChargeProperty(),
-            'total' => $this->getTotalProperty(),
+            'total' => $total,
+            'cashSuggestions' => self::suggestCashAmounts($total),
             'paymentInFlight' => $this->paymentInFlight,
             'qrisImagePath' => $qrisImagePath,
         ])->layout('components.layouts.app', [
@@ -1120,5 +1129,33 @@ class CashierPos extends Component
         ]);
 
         return __('messages.pos.payment_failed_generic');
+    }
+
+    /**
+     * Compute up to 4 unique, ascending quick-cash suggestion amounts
+     * strictly greater than the given order total using pure integer arithmetic.
+     *
+     * @return list<int>
+     */
+    public static function suggestCashAmounts(int $total): array
+    {
+        if ($total <= 0) {
+            return [];
+        }
+
+        $suggestions = [];
+
+        foreach (self::CASH_DENOMINATION_STEPS as $step) {
+            $rounded = intdiv($total + $step - 1, $step) * $step;
+
+            if ($rounded > $total) {
+                $suggestions[] = $rounded;
+            }
+        }
+
+        $suggestions = array_values(array_unique($suggestions));
+        sort($suggestions);
+
+        return array_slice($suggestions, 0, 4);
     }
 }
