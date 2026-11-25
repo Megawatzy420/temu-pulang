@@ -320,7 +320,7 @@ flowchart TD
   - *Deliberate Deferrals & Known Cleanup (Not Done)*:
     - (a) Supplier records and purchase orders are not implemented (the supplier name goes in the `stock_in` note).
     - (b) Restock exists only through the Owner refund screen and only for full refunds; partial refunds need a manual stock-in or adjustment.
-    - (c) Hardcoded Indonesian text remains in the remaining unlocalized screens identified in the Localization Part A audit: `ShiftManager` (`shift-manager.blade.php`), `ProductForm` (`product-form.blade.php`), `ModifierManager` (`modifier-manager.blade.php`), `CategoryManager` (`category-manager.blade.php`), `ProductIndex` (`product-index.blade.php`), `RecipeManager` (`recipe-manager.blade.php`), `ActivityLogIndex` (`activity-log-index.blade.php`), plus minor residual literals in `cashier-pos.blade.php` and `print-job-index.blade.php`.
+    - (c) Hardcoded Indonesian text remains in the remaining unlocalized screens identified in the Localization Part A audit: `ProductForm` (`product-form.blade.php`), `ModifierManager` (`modifier-manager.blade.php`), `CategoryManager` (`category-manager.blade.php`), `ProductIndex` (`product-index.blade.php`), `RecipeManager` (`recipe-manager.blade.php`), and `ActivityLogIndex` (`activity-log-index.blade.php`).
 
 ---
 

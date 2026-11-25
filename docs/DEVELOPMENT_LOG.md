@@ -1233,6 +1233,79 @@ Audited all 43 files in `app/Livewire` and `resources/views` for hardcoded user-
 - **Laravel Pint (`php vendor/bin/pint --test`):** ✅ Clean (0 violations)
 - **Vite Build (`npm run build`):** ✅ Compiled successfully in 756ms
 
+---
+
+## Hardening & Cleanup — Localization Cleanup (Part C1: Cashier-Facing Screens)
+
+**Date:** 2026-11-25  
+**Status:** ✅ COMPLETED
+
+### Summary
+Audited and localized all remaining hardcoded user-facing literals across the three Part C1 cashier-facing and printing screens (`ShiftManager` + `shift-manager.blade.php`, `cashier-pos.blade.php`, and `print-job-index.blade.php`) using additive translation keys under `messages.shifts.*`, `messages.pos.*`, and `messages.printing.*` in `lang/id/messages.php` and `lang/en/messages.php` with identical key sets. All Indonesian values match the original screen strings verbatim so the Indonesian UI and all existing tests remain visually and behaviorally unchanged.
+
+### Before / After Hardcoded Literal Counts (Three Part C1 Scope Areas)
+| Area | File | Before | After |
+|---|---|---|---|
+| 1. Shift & Cash Drawer (Livewire) | `app/Livewire/Shifts/ShiftManager.php` | 10 | 0 |
+| 1. Shift & Cash Drawer (Blade) | `resources/views/livewire/shifts/shift-manager.blade.php` | 95 | 0 |
+| 2. POS Terminal (Blade) | `resources/views/livewire/pos/cashier-pos.blade.php` | 8 (7 ID + 1 EN `'Service Charge'`) | 0 |
+| 3. Print Jobs Resolution (Blade) | `resources/views/livewire/printing/print-job-index.blade.php` | 3 (1 ID `'(Cetak Ulang)'` + 2 EN `'Uncertain'`/`'Failed'`) | 0 |
+| **Total (Three Part C1 Areas)** | **4 files** | **116** | **0** |
+
+### Deliverables
+- **Files Created:**
+  - `tests/Feature/Localization/CashierScreensTest.php` (3 tests, 91 assertions)
+- **Files Modified:**
+  - `app/Livewire/Shifts/ShiftManager.php`
+  - `resources/views/livewire/shifts/shift-manager.blade.php`
+  - `resources/views/livewire/pos/cashier-pos.blade.php`
+  - `resources/views/livewire/printing/print-job-index.blade.php`
+  - `lang/id/messages.php`, `lang/en/messages.php`
+  - `docs/PROJECT_PLAN.md`, `docs/DEVELOPMENT_LOG.md`
+
+### Step 3 Report — Known Follow-Ups (Reported Only, Not Changed)
+1. **Step 3(a) — Raw Service Exception Messages Displayed Directly in `ShiftManager`:**
+   - `ShiftManager::submitOpenShift()` (`app/Livewire/Shifts/ShiftManager.php:82`) catches `DomainException` and passes `$e->getMessage()` to `$this->addError('openingCash', $e->getMessage())`:
+     - `app/Services/ShiftService.php:35`: `'Jumlah kas awal tidak boleh bernilai negatif.'`
+     - `app/Services/ShiftService.php:53`: `'Masih ada shift yang aktif. Tutup shift aktif terlebih dahulu sebelum membuka shift baru.'`
+     - `app/Services/ShiftService.php:72`: `'Masih ada shift yang aktif. Tutup shift aktif terlebih dahulu sebelum membuka shift baru.'`
+   - `ShiftManager::submitCashMovement()` (`app/Livewire/Shifts/ShiftManager.php:130`) catches `DomainException` and passes `$e->getMessage()` to `$this->addError('movementAmount', $e->getMessage())`:
+     - `app/Services/CashMovementService.php:37`: `'Jumlah uang pergerakan kas harus lebih besar dari 0 Rupiah.'`
+     - `app/Services/CashMovementService.php:41`: `'Keterangan atau alasan pergerakan kas wajib diisi.'`
+     - `app/Services/CashMovementService.php:45`: `'Tidak dapat mencatat pergerakan kas pada shift yang sudah ditutup.'`
+     - `app/Services/CashMovementService.php:52`: `'Tidak dapat mencatat pergerakan kas pada shift yang sudah ditutup.'`
+     - *(Note: `app/Services/CashMovementService.php:33` also throws `InvalidArgumentException("Tipe pergerakan kas tidak valid: '{$type}'. Gunakan 'in' atau 'out'.")`).*
+   - `ShiftManager::submitReversal()` (`app/Livewire/Shifts/ShiftManager.php:170`) catches `DomainException` and passes `$e->getMessage()` to `$this->addError('reversalReason', $e->getMessage())`:
+     - `app/Services/CashMovementService.php:96`: `'Alasan pembatalan/pembalikan pergerakan kas wajib diisi.'`
+     - `app/Services/CashMovementService.php:100`: `'Transaksi pembalikan tidak dapat dibatalkan kembali.'`
+     - `app/Services/CashMovementService.php:104`: `'Pergerakan kas ini sudah pernah dibatalkan sebelumnya.'`
+     - `app/Services/CashMovementService.php:109`: `'Tidak dapat membatalkan pergerakan kas pada shift yang sudah ditutup.'`
+     - `app/Services/CashMovementService.php:120`: `'Transaksi pembalikan tidak dapat dibatalkan kembali.'`
+     - `app/Services/CashMovementService.php:124`: `'Pergerakan kas ini sudah pernah dibatalkan sebelumnya.'`
+     - `app/Services/CashMovementService.php:133`: `'Tidak dapat membatalkan pergerakan kas pada shift yang sudah ditutup.'`
+     - `app/Services/CashMovementService.php:154`: `'Pergerakan kas ini sudah pernah dibatalkan sebelumnya.'`
+   - `ShiftManager::submitCloseShift()` (`app/Livewire/Shifts/ShiftManager.php:218`) catches `DomainException` and passes `$e->getMessage()` to `$this->addError('closingNote', $e->getMessage())`:
+     - `app/Services/ShiftService.php:132`: `'Jumlah kas fisik tidak boleh bernilai negatif.'`
+     - `app/Services/ShiftService.php:136`: `'Shift ini sudah ditutup dan tidak dapat diubah kembali.'`
+     - `app/Services/ShiftService.php:141`: `'Anda tidak berwenang menutup shift milik kasir lain.'`
+     - `app/Services/ShiftService.php:152`: `'Shift ini sudah ditutup.'`
+     - `app/Services/ShiftService.php:160`: `'Catatan penutupan wajib diisi apabila terdapat selisih kas.'`
+     - `app/Models/Shift.php:62` (via `$lockedShift->update(...)` at `ShiftService.php:163`): `'Shift yang sudah ditutup bersifat permanen dan tidak dapat diubah.'`
+2. **Step 3(b) — Non-Locale-Aware Date/Month Formatting & Hardcoded `'WIB'` Suffixes:**
+   - Carbon `->format('d M Y...')` (which always emits English short month names regardless of active locale) is used instead of `->locale(app()->getLocale())->translatedFormat(...)`, and `SetLocale` middleware (`app/Http/Middleware/SetLocale.php:21`) sets `app()->setLocale($locale)` without `Carbon::setLocale($locale)`:
+     - `resources/views/livewire/shifts/shift-manager.blade.php:25`: `$activeShift->opened_at->timezone('Asia/Jakarta')->format('d M Y, H:i')`
+     - `resources/views/livewire/orders/order-index.blade.php:318`: `$selectedOrder->created_at->format('d M Y, H:i:s')`
+     - `resources/views/livewire/activity-logs/activity-log-index.blade.php:94`: `$log->created_at->timezone('Asia/Jakarta')->format('d M Y')`
+   - Hardcoded `'WIB'` timezone suffix appears in `shift-manager.blade.php:25` (`messages.shifts.opened_by_meta`), `order-index.blade.php:176`, `order-index.blade.php:318` (`messages.orders.detail_created_meta`), `owner-dashboard.blade.php:90` (`messages.owner_dashboard.shift_opened_at`), `activity-log-index.blade.php:97`, and `activity-log-index.blade.php:173`.
+
+### Automated Test Results
+- **Cashier Screens Localization Tests (`CashierScreensTest`):** 3 tests, 91 assertions — 100% passing
+- **Language Key Parity Test (Reused in `DomainExceptionsMappingTest` & `LowStockAlertTest`):** 100% passing
+- **Existing Test Suites (Unmodified):** 426 tests, 1867 assertions — 100% passing
+- **Full Test Suite (`php artisan test --compact`):** 429 tests, 1958 assertions — 100% passing (0 failures, 0 errors)
+- **Laravel Pint (`php vendor/bin/pint --test`):** ✅ Clean (0 violations)
+- **Vite Build (`npm run build`):** ✅ Compiled successfully
+
 
 
 

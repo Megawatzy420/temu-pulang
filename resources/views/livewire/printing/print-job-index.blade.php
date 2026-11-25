@@ -57,7 +57,7 @@
                                     {{ $job->job_type === 'receipt' ? __('messages.printing.job_type_receipt') : __('messages.printing.job_type_kitchen') }}
                                 </span>
                                 @if ($job->is_reprint)
-                                    <span class="ml-1 text-[10px] text-coffee-500 font-semibold">(Cetak Ulang)</span>
+                                    <span class="ml-1 text-[10px] text-coffee-500 font-semibold">{{ __('messages.printing.reprint_tag') }}</span>
                                 @endif
                             </td>
                             <td class="px-4 py-3.5">
@@ -66,14 +66,14 @@
                                         <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                         </svg>
-                                        Uncertain
+                                        {{ __('messages.printing.status_uncertain') }}
                                     </span>
                                 @elseif ($job->status === 'failed')
                                     <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
                                         <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                                         </svg>
-                                        Failed
+                                        {{ __('messages.printing.status_failed') }}
                                     </span>
                                 @else
                                     <span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-gray-100 text-gray-800">

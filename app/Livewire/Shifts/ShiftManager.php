@@ -77,7 +77,7 @@ class ShiftManager extends Component
             );
 
             $this->showOpenShiftModal = false;
-            $this->dispatch('notify', message: 'Shift kasir berhasil dibuka.', type: 'success');
+            $this->dispatch('notify', message: __('messages.shifts.shift_opened_notification'), type: 'success');
         } catch (DomainException $e) {
             $this->addError('openingCash', $e->getMessage());
         }
@@ -109,7 +109,7 @@ class ShiftManager extends Component
 
         $activeShift = $shiftService->getActiveShift();
         if (! $activeShift) {
-            $this->addError('movementAmount', 'Tidak ada shift aktif untuk mencatat pergerakan kas.');
+            $this->addError('movementAmount', __('messages.shifts.no_active_shift_for_movement'));
 
             return;
         }
@@ -125,7 +125,7 @@ class ShiftManager extends Component
             );
 
             $this->showMovementModal = false;
-            $this->dispatch('notify', message: 'Pergerakan kas drawer berhasil dicatat.', type: 'success');
+            $this->dispatch('notify', message: __('messages.shifts.movement_recorded_notification'), type: 'success');
         } catch (DomainException $e) {
             $this->addError('movementAmount', $e->getMessage());
         }
@@ -152,7 +152,7 @@ class ShiftManager extends Component
 
         $movement = CashMovement::find($this->selectedMovementId);
         if (! $movement) {
-            $this->addError('reversalReason', 'Data pergerakan kas tidak ditemukan.');
+            $this->addError('reversalReason', __('messages.shifts.movement_not_found'));
 
             return;
         }
@@ -165,7 +165,7 @@ class ShiftManager extends Component
             );
 
             $this->showReversalModal = false;
-            $this->dispatch('notify', message: 'Pergerakan kas berhasil dibatalkan/dibalikkan.', type: 'info');
+            $this->dispatch('notify', message: __('messages.shifts.movement_reversed_notification'), type: 'info');
         } catch (DomainException $e) {
             $this->addError('reversalReason', $e->getMessage());
         }
@@ -199,7 +199,7 @@ class ShiftManager extends Component
 
         $activeShift = $shiftService->getActiveShift();
         if (! $activeShift) {
-            $this->addError('actualCash', 'Tidak ada shift aktif untuk ditutup.');
+            $this->addError('actualCash', __('messages.shifts.no_active_shift_to_close'));
 
             return;
         }
@@ -213,7 +213,7 @@ class ShiftManager extends Component
             );
 
             $this->showCloseShiftModal = false;
-            $this->dispatch('notify', message: 'Shift kasir berhasil ditutup dan direkonsiliasi.', type: 'success');
+            $this->dispatch('notify', message: __('messages.shifts.shift_closed_notification'), type: 'success');
         } catch (DomainException $e) {
             $this->addError('closingNote', $e->getMessage());
         }
@@ -244,9 +244,9 @@ class ShiftManager extends Component
             'movements' => $movements,
             'pastShifts' => $pastShifts,
         ])->layout('components.layouts.app', [
-            'title' => 'Kelola Shift & Kas Drawer',
-            'headerTitle' => 'Manajemen Shift & Kas Drawer',
-            'headerSubtitle' => 'Pantau status shift aktif, arus kas masuk/keluar, dan penutupan kasir',
+            'title' => __('messages.shifts.page_title'),
+            'headerTitle' => __('messages.shifts.header_title'),
+            'headerSubtitle' => __('messages.shifts.header_subtitle'),
         ]);
     }
 }

@@ -97,7 +97,7 @@
                             <!-- Category Badge -->
                             <div class="absolute top-2 left-2">
                                 <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-white/95 text-coffee-800 border border-coffee-200/80 shadow-2xs">
-                                    {{ $product->category?->name ?? 'Menu' }}
+                                    {{ $product->category?->name ?? __('messages.pos.menu_category_fallback') }}
                                 </span>
                             </div>
 
@@ -120,13 +120,13 @@
                             @if ($product->has_variants)
                                 <div class="absolute bottom-2 right-2">
                                     <span class="px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-caramel-500 text-white shadow-2xs">
-                                        {{ count($product->variants) }} Varian
+                                        {{ __('messages.pos.variant_count', ['count' => count($product->variants)]) }}
                                     </span>
                                 </div>
                             @elseif ($product->modifierGroups->isNotEmpty())
                                 <div class="absolute bottom-2 right-2">
                                     <span class="px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-coffee-800 text-white shadow-2xs">
-                                        Kustom
+                                        {{ __('messages.pos.custom_badge') }}
                                     </span>
                                 </div>
                             @endif
@@ -145,7 +145,7 @@
                         <!-- Price and Add Action -->
                         <div class="mt-3 pt-2.5 border-t border-coffee-100 flex items-center justify-between">
                             <div>
-                                <span class="text-xs text-coffee-500 block text-[10px]">Harga</span>
+                                <span class="text-xs text-coffee-500 block text-[10px]">{{ __('messages.pos.price_label') }}</span>
                                 <span class="text-sm font-extrabold text-coffee-950">
                                     Rp {{ number_format($product->effective_price, 0, ',', '.') }}
                                 </span>
@@ -253,7 +253,7 @@
 
                             @if (!empty($item['notes']))
                                 <p class="text-[11px] text-caramel-700 italic mt-0.5">
-                                    Catatan: "{{ $item['notes'] }}"
+                                    {{ __('messages.pos.notes_prefix', ['notes' => $item['notes']]) }}
                                 </p>
                             @endif
                         </div>
@@ -332,7 +332,7 @@
                 </div>
                 @if ($serviceCharge > 0)
                     <div class="flex items-center justify-between text-coffee-600">
-                        <span>Service Charge</span>
+                        <span>{{ __('messages.pos.service_charge') }}</span>
                         <span class="font-semibold text-coffee-800">Rp {{ number_format($serviceCharge, 0, ',', '.') }}</span>
                     </div>
                 @endif
@@ -465,7 +465,7 @@
                                                 +Rp {{ number_format($mod['price'], 0, ',', '.') }}
                                             </span>
                                         @else
-                                            <span class="text-[10px] opacity-75">Gratis</span>
+                                            <span class="text-[10px] opacity-75">{{ __('messages.pos.free') }}</span>
                                         @endif
                                     </button>
                                 @endforeach
@@ -491,7 +491,7 @@
                 <!-- Modal Footer -->
                 <div class="p-4 bg-cream-50 border-t border-coffee-200/80 flex items-center justify-between">
                     <div>
-                        <span class="text-[11px] text-coffee-500 block">Harga Item</span>
+                        <span class="text-[11px] text-coffee-500 block">{{ __('messages.pos.item_price') }}</span>
                         <span class="text-base font-extrabold text-coffee-950">
                             Rp {{ number_format($selectedVariantPrice, 0, ',', '.') }}
                         </span>
