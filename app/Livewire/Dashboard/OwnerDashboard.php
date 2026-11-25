@@ -7,6 +7,8 @@ use App\Models\Product;
 use App\Models\Shift;
 use App\Models\ShopSetting;
 use App\Models\User;
+use App\Services\Inventory\LowStockService;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 use Livewire\Component;
 
@@ -101,6 +103,10 @@ class OwnerDashboard extends Component
             ];
         });
 
+        $lowStockItems = Auth::user()?->isOwner()
+            ? app(LowStockService::class)->lowStockIngredients(limit: 5)
+            : collect();
+
         return view('livewire.dashboard.owner-dashboard', [
             'shopSetting' => $shopSetting,
             'productCount' => $productCount,
@@ -110,6 +116,7 @@ class OwnerDashboard extends Component
             'metrics' => $metrics,
             'recentOrders' => $recentOrders,
             'topProducts' => $topProducts,
+            'lowStockItems' => $lowStockItems,
         ])->layout('components.layouts.app', [
             'title' => __('messages.nav.dashboard'),
             'headerTitle' => __('messages.dashboard.welcome'),

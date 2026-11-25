@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -24,6 +25,9 @@ class IngredientManager extends Component
     public ?int $selectedCategoryId = null;
 
     public bool $filterLowStock = false;
+
+    #[Url(as: 'stock', except: 'all')]
+    public string $stockFilter = 'all'; // 'all', 'low_or_out', 'out'
 
     public string $activeSection = 'ingredients'; // 'ingredients' or 'categories'
 
@@ -106,6 +110,11 @@ class IngredientManager extends Component
     }
 
     public function updatedFilterLowStock(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedStockFilter(): void
     {
         $this->resetPage();
     }
@@ -359,24 +368,34 @@ class IngredientManager extends Component
         $categories = IngredientCategory::ordered()->withCount('ingredients')->get();
 
         $ingredientsQuery = Ingredient::query()
+            ->select('ingredients.*')
             ->with(['category', 'balances'])
             ->when($this->search, function ($query) {
                 $query->where(function ($q) {
-                    $q->where('name', 'like', '%'.$this->search.'%')
-                        ->orWhere('sku', 'like', '%'.$this->search.'%');
+                    $q->where('ingredients.name', 'like', '%'.$this->search.'%')
+                        ->orWhere('ingredients.sku', 'like', '%'.$this->search.'%');
                 });
             })
             ->when($this->selectedCategoryId, function ($query) {
-                $query->where('category_id', $this->selectedCategoryId);
+                $query->where('ingredients.category_id', $this->selectedCategoryId);
             })
-            ->orderBy('name');
+            ->when(in_array($this->stockFilter, ['low_or_out', 'out'], true), function ($query) {
+                $query->leftJoin('ingredient_balances', function ($join) {
+                    $join->on('ingredient_balances.ingredient_id', '=', 'ingredients.id')
+                        ->whereNull('ingredient_balances.branch_id');
+                })
+                    ->where('ingredients.is_active', true)
+                    ->where('ingredients.min_stock_alert', '>', 0);
+
+                if ($this->stockFilter === 'out') {
+                    $query->whereRaw('COALESCE(ingredient_balances.current_stock, 0) <= 0');
+                } else {
+                    $query->whereRaw('COALESCE(ingredient_balances.current_stock, 0) <= ingredients.min_stock_alert');
+                }
+            })
+            ->orderBy('ingredients.name');
 
         $ingredients = $ingredientsQuery->paginate(15);
-
-        // If filtering low stock, evaluate collection on current page or filtered
-        if ($this->filterLowStock) {
-            // Note: in Task 6.5 dedicated low-stock query scope will be added
-        }
 
         return view('livewire.inventory.ingredient-manager', [
             'ingredients' => $ingredients,

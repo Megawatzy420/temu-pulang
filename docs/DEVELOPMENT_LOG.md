@@ -1018,6 +1018,43 @@ Implemented automatic post-commit inventory deduction upon payment settlement fo
 - Refunds and cancellations do not restock inventory until Task 6.7.
 - Orders paid before this feature are never deducted retroactively.
 
+---
+
+## Phase 6 — Task 6.5: Low-Stock Alerts
+
+**Date:** 2026-11-25  
+**Status:** ✅ COMPLETED
+
+### Summary
+Implemented read-only Owner-only low-stock alerts for Phase 6 Task 6.5:
+- **Low-Stock Query Service (`App\Services\Inventory\LowStockService`):** Evaluates active, non-deleted ingredients where `min_stock_alert > 0` and `COALESCE(ingredient_balances.current_stock, 0) <= min_stock_alert` (missing balance rows count as `0.000`). Classifies `out` (`<= 0`) vs `low` (`> 0` and `<= min_stock_alert`), ordered `out` first, smallest margin `(current_stock - min_stock_alert)`, then `name`. `count()` runs as a single uncached `COUNT(*)` query.
+- **Three Owner-Only UI Touch Points:**
+  - `IngredientManager`: per-row `OK` / `Low` / `Out` badge and 3-way filter (`all`, `low_or_out`, `out`) combined with search and category filters.
+  - Sidebar (`app.blade.php`): Owner-only count badge on the `/inventory/stock` link when `count() > 0` (hidden at `0`).
+  - `OwnerDashboard`: Owner-only `Low Stock` card showing up to 5 items, `"View all"` link to `/inventory/ingredients?stock=low_or_out`, and empty state.
+- **Bilingual Localization:** Added identical `messages.stock_alert.*` keys in `lang/id/messages.php` and `lang/en/messages.php`.
+
+### Deliverables
+- **Files Created:**
+  - `app/Services/Inventory/LowStockService.php`
+  - `tests/Unit/Inventory/LowStockServiceTest.php` (1 test, 11 assertions)
+  - `tests/Feature/Inventory/LowStockAlertTest.php` (4 tests, 37 assertions)
+- **Files Modified:**
+  - `app/Livewire/Inventory/IngredientManager.php`, `resources/views/livewire/inventory/ingredient-manager.blade.php`, `app/Livewire/Dashboard/OwnerDashboard.php`, `resources/views/livewire/dashboard/owner-dashboard.blade.php`, `resources/views/components/layouts/app.blade.php`, `lang/id/messages.php`, `lang/en/messages.php`, `docs/PROJECT_PLAN.md`, `docs/DEVELOPMENT_LOG.md`, `docs/ARCHITECTURE.md`
+
+### Automated Test Results
+- **Unit & Feature Low-Stock Tests:** 5 tests, 48 assertions — 100% passing
+- **Existing Test Suites (Unmodified):** 100% passing
+- **Full Test Suite (`php artisan test --compact`):** 391 tests, 1519 assertions — 100% passing (0 failures, 0 errors)
+- **Laravel Pint (`php vendor/bin/pint --test`):** ✅ Clean (0 violations)
+- **Vite Build (`npm run build`):** ✅ Compiled successfully in 1.33s
+
+### Scope Boundaries Respected
+- Read-only on-screen alerts for the Owner only (hidden from Cashiers).
+- Threshold sourced from `ingredients.min_stock_alert`; `0` never alerts.
+- No emails, push notifications, scheduled jobs, or new settings.
+
+
 
 
 

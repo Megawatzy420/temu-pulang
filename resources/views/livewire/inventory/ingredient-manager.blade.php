@@ -104,6 +104,17 @@
                         @endforeach
                     </select>
                 </div>
+
+                <div class="w-full sm:w-52">
+                    <select
+                        wire:model.live="stockFilter"
+                        class="w-full px-3.5 py-2 rounded-xl border border-coffee-200 text-sm text-coffee-950 focus:outline-none focus:ring-2 focus:ring-coffee-500/20 focus:border-coffee-700 bg-white"
+                    >
+                        <option value="all">{{ __('messages.stock_alert.filter_all') }}</option>
+                        <option value="low_or_out">{{ __('messages.stock_alert.filter_low_or_out') }}</option>
+                        <option value="out">{{ __('messages.stock_alert.filter_out') }}</option>
+                    </select>
+                </div>
             </div>
         </div>
 
@@ -127,8 +138,12 @@
                         @forelse ($ingredients as $ingredient)
                             @php
                                 $balance = $ingredient->balances->firstWhere('branch_id', null);
-                                $currentStock = $balance ? $balance->current_stock : '0.000';
-                                $isLow = $balance ? $balance->isLowStock() : true;
+                                $stockMilli = $balance ? $balance->current_stock_milli : 0;
+                                $thresholdMilli = \App\Models\Ingredient::toMilli($ingredient->min_stock_alert ?? '0.000');
+                                $currentStock = \App\Models\Ingredient::fromMilli($stockMilli);
+                                $stockLevel = ($thresholdMilli > 0 && $stockMilli <= 0)
+                                    ? 'out'
+                                    : (($thresholdMilli > 0 && $stockMilli <= $thresholdMilli) ? 'low' : 'ok');
                             @endphp
                             <tr class="hover:bg-cream-50/50 transition-colors">
                                 <td class="px-5 py-3.5 font-mono text-xs text-coffee-600">
@@ -151,12 +166,20 @@
                                 </td>
                                 <td class="px-5 py-3.5 text-right font-mono font-bold">
                                     <div class="flex items-center justify-end gap-1.5">
-                                        <span class="{{ $isLow ? 'text-amber-700' : 'text-coffee-950' }}">
+                                        <span class="{{ $stockLevel === 'out' ? 'text-rose-700' : ($stockLevel === 'low' ? 'text-amber-700' : 'text-coffee-950') }}">
                                             {{ rtrim(rtrim($currentStock, '0'), '.') ?: '0' }} {{ $ingredient->unit }}
                                         </span>
-                                        @if ($isLow)
+                                        @if ($stockLevel === 'out')
+                                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                                                {{ __('messages.stock_alert.badge_out') }}
+                                            </span>
+                                        @elseif ($stockLevel === 'low')
                                             <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
-                                                Menipis
+                                                {{ __('messages.stock_alert.badge_low') }}
+                                            </span>
+                                        @else
+                                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                                {{ __('messages.stock_alert.badge_ok') }}
                                             </span>
                                         @endif
                                     </div>

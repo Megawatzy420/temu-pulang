@@ -312,6 +312,21 @@ return [
         'error_generic' => 'Failed to record stock movement. Please check system logs.',
     ],
 
+    // Low-Stock Alerts (Owner only)
+    'stock_alert' => [
+        'badge_ok' => 'OK',
+        'badge_low' => 'Low',
+        'badge_out' => 'Out',
+        'filter_all' => 'All Stock Levels',
+        'filter_low_or_out' => 'Low or Out',
+        'filter_out' => 'Out Only',
+        'dashboard_title' => 'Low Stock',
+        'dashboard_subtitle' => 'Active ingredients at or below minimum threshold',
+        'threshold_label' => 'Min',
+        'view_all' => 'View all',
+        'empty_state' => 'All ingredient stock levels are healthy.',
+    ],
+
     // Printing Management (Owner only)
     'printing' => [
         'title' => 'Problematic Print Jobs',

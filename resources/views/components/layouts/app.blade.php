@@ -215,6 +215,9 @@
                                 <span>Resep Menu (BOM)</span>
                             </a>
 
+                            @php
+                                $sidebarLowStockCount = app(\App\Services\Inventory\LowStockService::class)->count();
+                            @endphp
                             <a
                                 href="{{ route('inventory.stock') }}"
                                 class="flex items-center gap-3 px-3.5 py-2 rounded-xl text-sm font-medium transition-colors {{ request()->routeIs('inventory.stock*') ? 'bg-coffee-800 text-white font-semibold shadow-xs' : 'text-coffee-300 hover:bg-coffee-800/60 hover:text-white' }}"
@@ -223,6 +226,11 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
                                 </svg>
                                 <span>{{ __('messages.nav.stock') }}</span>
+                                @if ($sidebarLowStockCount > 0)
+                                    <span class="ml-auto inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-500 text-white">
+                                        {{ $sidebarLowStockCount }}
+                                    </span>
+                                @endif
                             </a>
 
                             <a

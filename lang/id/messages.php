@@ -312,6 +312,21 @@ return [
         'error_generic' => 'Gagal mencatat pergerakan stok. Silakan periksa log sistem.',
     ],
 
+    // Low-Stock Alerts (Owner only)
+    'stock_alert' => [
+        'badge_ok' => 'Aman',
+        'badge_low' => 'Menipis',
+        'badge_out' => 'Habis',
+        'filter_all' => 'Semua Level Stok',
+        'filter_low_or_out' => 'Menipis atau Habis',
+        'filter_out' => 'Habis Saja',
+        'dashboard_title' => 'Peringatan Stok Menipis',
+        'dashboard_subtitle' => 'Bahan baku aktif di bawah atau sama dengan batas minimum',
+        'threshold_label' => 'Min',
+        'view_all' => 'Lihat Semua',
+        'empty_state' => 'Semua stok bahan baku dalam kondisi aman.',
+    ],
+
     // Printing Management (Owner only)
     'printing' => [
         'title' => 'Pekerjaan Cetak Bermasalah',

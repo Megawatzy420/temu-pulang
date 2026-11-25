@@ -178,6 +178,44 @@
         <!-- Right Column: Top Products & Store Hardware (1/3 width) -->
         <div class="space-y-6">
 
+            @if (auth()->user()?->isOwner())
+                <!-- Low Stock Alert Card (Owner Only) -->
+                <x-card
+                    :title="__('messages.stock_alert.dashboard_title')"
+                    :subtitle="__('messages.stock_alert.dashboard_subtitle')"
+                >
+                    @if ($lowStockItems->isEmpty())
+                        <p class="text-xs text-coffee-500 italic py-2">{{ __('messages.stock_alert.empty_state') }}</p>
+                    @else
+                        <div class="space-y-2.5">
+                            @foreach ($lowStockItems as $lowItem)
+                                <div class="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-cream-50 border border-coffee-200/60 text-xs">
+                                    <div class="min-w-0">
+                                        <p class="font-bold text-coffee-950 truncate">{{ $lowItem['name'] }}</p>
+                                        <p class="text-[11px] text-coffee-500">
+                                            {{ $lowItem['current_stock'] }} {{ $lowItem['unit'] }}
+                                            ({{ __('messages.stock_alert.threshold_label') }}: {{ $lowItem['min_stock_alert'] }} {{ $lowItem['unit'] }})
+                                        </p>
+                                    </div>
+                                    <span class="shrink-0 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold {{ $lowItem['level'] === 'out' ? 'bg-rose-100 text-rose-800 border border-rose-200' : 'bg-amber-100 text-amber-800 border border-amber-200' }}">
+                                        {{ $lowItem['level'] === 'out' ? __('messages.stock_alert.badge_out') : __('messages.stock_alert.badge_low') }}
+                                    </span>
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
+
+                    <x-slot:footer>
+                        <a
+                            href="{{ route('inventory.ingredients', ['stock' => 'low_or_out']) }}"
+                            class="text-xs font-bold text-caramel-700 hover:text-caramel-900 underline underline-offset-2"
+                        >
+                            {{ __('messages.stock_alert.view_all') }} &rarr;
+                        </a>
+                    </x-slot:footer>
+                </x-card>
+            @endif
+
             <!-- Top Products Card -->
             <x-card
                 :title="__('messages.dashboard.best_sellers')"

@@ -305,7 +305,11 @@ flowchart TD
   - Minimal post-commit & replay-branch hook in `PaymentService` (`attemptInventoryDeduction()`) logging `order_deduction_failed` on failure, plus `php artisan inventory:retry-deductions {--apply}` for recovery.
   - Automated tests: `RecipeResolutionServiceTest.php` (4 tests, 14 assertions) & `OrderDeductionTest.php` (5 tests, 26 assertions) — 100% passing.
   - Full suite: **386 tests, 1471 assertions — 100% passing**; Pint clean; Vite build passing.
-- [ ] **Task 6.5 — Low-Stock Alerts (PLANNED)**
+- [x] **Task 6.5 — Low-Stock Alerts (COMPLETED ✅)**
+  - `App\Services\Inventory\LowStockService`: read-only SQL/milli-unit low-stock query (`lowStockIngredients()` ordered `out` first, smallest margin, `name`; single-query uncached `count()`), excluding `min_stock_alert = 0`, inactive, and soft-deleted ingredients.
+  - Owner-only UI integration: 3-state stock-level badges (`OK` / `Low` / `Out`) and 3-way filter (`all` / `low_or_out` / `out`) in `IngredientManager`, Owner-only sidebar count badge on `/inventory/stock` (hidden at 0), and Owner-only `Low Stock` dashboard card (top 5 + `"View all"` link + empty state).
+  - Automated tests: `LowStockServiceTest.php` (1 test, 11 assertions) & `LowStockAlertTest.php` (4 tests, 37 assertions) — 100% passing.
+  - Full suite: **391 tests, 1519 assertions — 100% passing**; Pint clean; Vite build passing.
 - [ ] **Task 6.6 — Stock Movement History Viewer (PLANNED)**
 - [ ] **Task 6.7 — Refund & Cancellation Inventory Rules (PLANNED)**
 
