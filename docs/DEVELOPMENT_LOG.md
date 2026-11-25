@@ -1054,6 +1054,73 @@ Implemented read-only Owner-only low-stock alerts for Phase 6 Task 6.5:
 - Threshold sourced from `ingredients.min_stock_alert`; `0` never alerts.
 - No emails, push notifications, scheduled jobs, or new settings.
 
+---
+
+## Phase 6 — Task 6.6: Stock Movement History Viewer
+
+**Date:** 2026-11-25  
+**Status:** ✅ COMPLETED
+
+### Summary
+Implemented the Owner-only, read-only stock movement audit viewer for Phase 6 Task 6.6:
+- **History Viewer (`App\Livewire\Inventory\StockMovementHistory` at `/inventory/movements`):** Protected by `role:owner` middleware and `isOwner()` re-checks in `mount()` and `render()`. Displays movements newest-first (`created_at desc, id desc`) at 25 per page with `withTrashed()` eager-loading for soft-deleted ingredients and users, a single bulk query for `Order` references on the current page, and graceful sanitization of invalid URL filters.
+- **URL Filters & Single-Ingredient Totals:** Supports combinable `#[Url]` filters (`ingredient`, `type`, `from`, `to`, `actor`) plus ingredient search. When a single ingredient is selected, displays exact milli-unit `Total In`, `Total Out`, and `Net Change` (no floats).
+- **Navigation & Bilingual Localization:** Added Owner-only sidebar link (`messages.nav.stock_history`), per-row `History` links on `IngredientManager` preselecting the ingredient, and identical `messages.stock_history.*` keys in `lang/id/messages.php` and `lang/en/messages.php`.
+
+### Deliverables
+- **Files Created:**
+  - `app/Livewire/Inventory/StockMovementHistory.php`
+  - `resources/views/livewire/inventory/stock-movement-history.blade.php`
+  - `tests/Feature/Inventory/StockMovementHistoryTest.php` (5 tests, 43 assertions)
+- **Files Modified:**
+  - `routes/web.php`, `resources/views/components/layouts/app.blade.php`, `resources/views/livewire/inventory/ingredient-manager.blade.php`, `lang/id/messages.php`, `lang/en/messages.php`, `docs/PROJECT_PLAN.md`, `docs/DEVELOPMENT_LOG.md`, `docs/ARCHITECTURE.md`
+
+### Automated Test Results
+- **Stock Movement History Tests (`StockMovementHistoryTest`):** 5 tests, 43 assertions — 100% passing
+- **Existing Test Suites (Unmodified):** 100% passing
+- **Full Test Suite (`php artisan test --compact`):** 396 tests, 1562 assertions — 100% passing (0 failures, 0 errors)
+- **Laravel Pint (`php vendor/bin/pint --test`):** ✅ Clean (0 violations)
+- **Vite Build (`npm run build`):** ✅ Compiled successfully in 2.69s
+
+### Scope Boundaries Respected
+- Strictly read-only, Owner-only audit viewer (no create, edit, delete, or export actions).
+- Totals are displayed only when a single ingredient is selected.
+- No schema or index changes.
+
+---
+
+## Phase 6 — Task 6.7: Refund & Cancellation Inventory Rules
+
+**Date:** 2026-11-25  
+**Status:** ✅ COMPLETED
+
+### Summary
+Implemented full-refund inventory restocking and cancellation safeguards for Phase 6 Task 6.7:
+- **Exact-Reversal Restock (`App\Services\Inventory\InventoryService::restockForRefund()` + `StockAdjustmentService::recordRefundCreditRow()`):** Only runs when `Order.payment_status === 'refunded'` (partial refunds and unpaid-order cancellations never restock). Reads original `order_deduction` movements minus any existing `refund_credit` movements for the order (never re-resolving recipes), locks `ingredient_balances` in ascending `ingredient_id` order, and writes positive `refund_credit` movements keyed by `RefundTransaction.ulid`.
+- **Owner Refund Screen Integration (`App\Livewire\Orders\OrderRefund`):** Displays the restock checkbox only when full-refund allocations are entered and uncredited deductions exist; defaults checked for `paid`/`queued` and unchecked for `preparing`/`ready`/`completed`. Runs restock post-refund inside `try/catch(\Throwable)` so restock failures never block refunds, recording `refund_restock_failed` in `ActivityLog`.
+- **Recovery Command (`App\Console\Commands\RetryInventoryRestocksCommand`):** Added `php artisan inventory:retry-restocks {--apply}` (dry-run by default) to recover failed restocks logged in `ActivityLog`.
+
+### Deliverables
+- **Files Created:**
+  - `app/Console/Commands/RetryInventoryRestocksCommand.php`
+  - `tests/Feature/Inventory/RefundRestockTest.php` (6 tests, 51 assertions)
+- **Files Modified:**
+  - `app/Services/Inventory/InventoryService.php`, `app/Services/Inventory/StockAdjustmentService.php`, `app/Livewire/Orders/OrderRefund.php`, `resources/views/livewire/orders/order-refund.blade.php`, `lang/id/messages.php`, `lang/en/messages.php`, `docs/PROJECT_PLAN.md`, `docs/DEVELOPMENT_LOG.md`, `docs/ARCHITECTURE.md`, `docs/DATABASE_DESIGN.md`
+
+### Automated Test Results
+- **Refund Restock Tests (`RefundRestockTest`):** 6 tests, 51 assertions — 100% passing
+- **Existing Test Suites (Unmodified):** 100% passing
+- **Full Test Suite (`php artisan test --compact`):** 402 tests, 1613 assertions — 100% passing (0 failures, 0 errors)
+- **Laravel Pint (`php vendor/bin/pint --test`):** ✅ Clean (0 violations)
+- **Vite Build (`npm run build`):** ✅ Compiled successfully in 684ms
+
+### Scope Boundaries Respected
+- `RefundService`, `PaymentService`, `OrderService`, and print code were not modified.
+- Restock applies only to full refunds via the Owner refund screen; partial refunds require manual `stock_in` or `adjustment`.
+- No schema changes.
+
+
+
 
 
 

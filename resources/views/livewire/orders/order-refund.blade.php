@@ -26,6 +26,19 @@
                 {{ __('messages.refund.result_status') }}:
                 <span class="font-extrabold">{{ __('messages.refund.status_'.$updatedPaymentStatus) }}</span>
             </p>
+            @if ($restockStatus === 'credited')
+                <p class="text-xs font-semibold text-emerald-800 pt-1">
+                    {{ __('messages.refund.restock_credited') }}
+                </p>
+            @elseif ($restockStatus === 'nothing_to_return')
+                <p class="text-xs font-semibold text-coffee-700 pt-1">
+                    {{ __('messages.refund.restock_nothing') }}
+                </p>
+            @elseif ($restockStatus === 'failed')
+                <p class="text-xs font-semibold text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 mt-2">
+                    {{ __('messages.refund.restock_failed_warning') }}
+                </p>
+            @endif
         </div>
     @endif
 
@@ -147,6 +160,24 @@
                 <p class="text-xs text-rose-600 mt-1">{{ $message }}</p>
             @enderror
         </div>
+
+        @if ($showRestockOption)
+            <div class="p-4 rounded-2xl bg-cream-50 border border-coffee-200 space-y-1">
+                <label class="flex items-start gap-2.5 cursor-pointer">
+                    <input
+                        type="checkbox"
+                        wire:model="returnToStock"
+                        class="mt-0.5 rounded border-coffee-300 text-coffee-900 focus:ring-coffee-500"
+                    />
+                    <span class="text-xs font-bold text-coffee-950">
+                        {{ __('messages.refund.restock_checkbox') }}
+                    </span>
+                </label>
+                <p class="text-[11px] text-coffee-600 pl-6">
+                    {{ __('messages.refund.restock_hint') }}
+                </p>
+            </div>
+        @endif
 
         <div class="flex justify-end">
             <x-button

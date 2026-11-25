@@ -2,7 +2,9 @@
 
 namespace App\Livewire\Orders;
 
+use App\Models\ActivityLog;
 use App\Models\Order;
+use App\Services\Inventory\InventoryService;
 use App\Services\RefundService;
 use App\Services\ShiftService;
 use Illuminate\Support\Facades\Auth;
@@ -33,6 +35,12 @@ class OrderRefund extends Component
 
     public ?string $updatedPaymentStatus = null;
 
+    public bool $returnToStock = false;
+
+    public bool $hasUncreditedDeductions = false;
+
+    public ?string $restockStatus = null;
+
     public function mount(Order $order): void
     {
         if (! Auth::user()?->isOwner()) {
@@ -42,6 +50,8 @@ class OrderRefund extends Component
         $this->order = $order->load(['payments.refunds', 'refundTransactions']);
         $this->idempotencyKey = (string) Str::uuid();
         $this->updatedPaymentStatus = $this->order->payment_status;
+        $this->hasUncreditedDeductions = app(InventoryService::class)->hasUncreditedDeductions($this->order);
+        $this->returnToStock = in_array($this->order->status, [Order::STATUS_PAID, Order::STATUS_QUEUED], true);
 
         foreach ($this->order->payments as $payment) {
             $defaultMethod = match ($payment->payment_method) {
@@ -65,6 +75,7 @@ class OrderRefund extends Component
         }
 
         $this->errorMessage = null;
+        $this->restockStatus = null;
 
         if (trim($this->reason) === '') {
             $this->errorMessage = __('messages.refund.reason_required');
@@ -131,6 +142,35 @@ class OrderRefund extends Component
             $this->completedRefundNumber = $transaction->refund_transaction_number;
             $this->updatedPaymentStatus = $this->order->payment_status;
 
+            if ($this->returnToStock && $this->order->payment_status === Order::PAYMENT_STATUS_REFUNDED) {
+                try {
+                    $result = app(InventoryService::class)->restockForRefund($transaction, true, $user);
+                    $this->restockStatus = $result;
+                    $this->hasUncreditedDeductions = app(InventoryService::class)->hasUncreditedDeductions($this->order);
+                } catch (\Throwable $e) {
+                    Log::error('Refund inventory restock failed: '.$e->getMessage(), [
+                        'order_id' => $this->order->id,
+                        'refund_transaction_id' => $transaction->id,
+                        'exception_class' => $e::class,
+                    ]);
+
+                    ActivityLog::record(
+                        action: 'refund_restock_failed',
+                        description: "Inventory restock failed for refund {$transaction->refund_transaction_number}.",
+                        subject: $transaction,
+                        properties: [
+                            'order_id' => $this->order->id,
+                            'refund_transaction_id' => $transaction->id,
+                            'exception_class' => $e::class,
+                        ],
+                        user: $user,
+                        module: 'inventory'
+                    );
+
+                    $this->restockStatus = 'failed';
+                }
+            }
+
             $this->dispatch('notify', message: __('messages.refund.success', ['number' => $transaction->refund_transaction_number]), type: 'success');
         } catch (\Throwable $e) {
             $this->errorMessage = $this->mapRefundExceptionToMessage($e);
@@ -180,8 +220,13 @@ class OrderRefund extends Component
         $statusKey = 'messages.refund.status_'.$this->order->payment_status;
         $statusLabel = __($statusKey);
 
+        $totalRemaining = (int) $this->order->payments->sum(static fn ($p): int => $p->remainingRefundableBalance());
+        $enteredTotal = (int) collect($this->allocations)->sum(static fn ($a): int => max(0, (int) ($a['amount'] ?? 0)));
+        $showRestockOption = $totalRemaining > 0 && $enteredTotal === $totalRemaining && $this->hasUncreditedDeductions;
+
         return view('livewire.orders.order-refund', [
             'statusLabel' => $statusLabel,
+            'showRestockOption' => $showRestockOption,
         ])->layout('components.layouts.app', [
             'title' => __('messages.refund.title'),
             'headerTitle' => __('messages.refund.title'),

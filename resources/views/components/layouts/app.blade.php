@@ -234,6 +234,16 @@
                             </a>
 
                             <a
+                                href="{{ route('inventory.movements') }}"
+                                class="flex items-center gap-3 px-3.5 py-2 rounded-xl text-sm font-medium transition-colors {{ request()->routeIs('inventory.movements*') ? 'bg-coffee-800 text-white font-semibold shadow-xs' : 'text-coffee-300 hover:bg-coffee-800/60 hover:text-white' }}"
+                            >
+                                <svg class="w-4.5 h-4.5 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span>{{ __('messages.nav.stock_history') }}</span>
+                            </a>
+
+                            <a
                                 href="#reports"
                                 class="flex items-center gap-3 px-3.5 py-2 rounded-xl text-sm font-medium text-coffee-300 hover:bg-coffee-800/60 hover:text-white transition-colors"
                             >

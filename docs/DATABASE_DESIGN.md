@@ -883,7 +883,7 @@ Append-only audit ledger of all inventory changes. No `updated_at` column.
 
 **Indexes**: `idx_movements_ingredient_date (ingredient_id, created_at)`, `idx_movements_reference (reference_type, reference_id)`, `idx_movements_branch_id`.
 
-**Active Movement Types (Tasks 6.3–6.4):** `stock_in`, `wastage`, and `adjustment` are written by `App\Services\Inventory\StockAdjustmentService` (in addition to `opening_stock` from Task 6.2). `order_deduction` is written by `App\Services\Inventory\InventoryService::deductForPayment()` with `reference_type = 'orders'`, `reference_id = order.id`, negative `quantity`, and `idempotency_key = PaymentTransaction.ulid`. `refund_credit` remains reserved for Task 6.7.
+**Active Movement Types (Tasks 6.3–6.7):** `stock_in`, `wastage`, and `adjustment` are written by `App\Services\Inventory\StockAdjustmentService` (in addition to `opening_stock` from Task 6.2). `order_deduction` is written by `App\Services\Inventory\InventoryService::deductForPayment()` with `reference_type = 'orders'`, `reference_id = order.id`, negative `quantity`, and `idempotency_key = PaymentTransaction.ulid`. `refund_credit` is written by `App\Services\Inventory\InventoryService::restockForRefund()` with positive `quantity`, `reference_type = 'orders'`, `reference_id = order.id`, and `idempotency_key = RefundTransaction.ulid`.
 
 > [!NOTE]
 > `StockMovement::booted()` registers `updating` and `deleting` listeners that throw `DomainException`, making records application-level immutable as well as structurally append-only (no `updated_at` column).

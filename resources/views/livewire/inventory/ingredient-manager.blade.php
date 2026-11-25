@@ -198,6 +198,13 @@
                                 </td>
                                 <td class="px-5 py-3.5 text-right">
                                     <div class="flex items-center justify-end gap-1.5">
+                                        <a
+                                            href="{{ route('inventory.movements', ['ingredient' => $ingredient->id]) }}"
+                                            class="px-2 py-1 rounded-lg text-xs font-semibold text-coffee-700 hover:text-coffee-950 hover:bg-coffee-100 transition"
+                                            title="{{ __('messages.stock_history.row_history_link') }}"
+                                        >
+                                            {{ __('messages.stock_history.row_history_link') }}
+                                        </a>
                                         <button
                                             type="button"
                                             wire:click="openEditIngredientModal({{ $ingredient->id }})"

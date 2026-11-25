@@ -338,4 +338,40 @@ class StockAdjustmentService
             'notes' => $notes,
         ]);
     }
+
+    /**
+     * Low-level posting helper for full-refund restock credits inside an active locked transaction.
+     */
+    public function recordRefundCreditRow(
+        IngredientBalance $balance,
+        int $ingredientId,
+        int $creditMilli,
+        int $unitCost,
+        int $userId,
+        int $orderId,
+        string $idempotencyKey,
+        string $notes
+    ): StockMovement {
+        $beforeMilli = $balance->current_stock_milli;
+        $afterMilli = $beforeMilli + $creditMilli;
+
+        $balance->setCurrentStockMilli($afterMilli);
+        $balance->save();
+
+        return StockMovement::create([
+            'ulid' => (string) Str::ulid(),
+            'branch_id' => null,
+            'ingredient_id' => $ingredientId,
+            'user_id' => $userId,
+            'movement_type' => StockMovement::TYPE_REFUND_CREDIT,
+            'quantity' => Ingredient::fromMilli($creditMilli),
+            'balance_before' => Ingredient::fromMilli($beforeMilli),
+            'balance_after' => Ingredient::fromMilli($afterMilli),
+            'unit_cost' => $unitCost,
+            'reference_type' => 'orders',
+            'reference_id' => $orderId,
+            'idempotency_key' => $idempotencyKey,
+            'notes' => $notes,
+        ]);
+    }
 }

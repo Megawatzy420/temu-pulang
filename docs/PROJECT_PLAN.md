@@ -14,7 +14,7 @@ flowchart TD
     P2 --> P3["Phase 3: Operational Foundation (COMPLETED)"]
     P3 --> P4["Phase 4: Menu Management & Order Engine (COMPLETED)"]
     P4 --> P5["Phase 5: Payments & Printing (COMPLETED)"]
-    P5 --> P6["Phase 6: Inventory & Purchasing (IN PROGRESS)"]
+    P5 --> P6["Phase 6: Inventory & Purchasing (COMPLETED)"]
     P6 --> P7["Phase 7: Finance & Analytics"]
     P7 --> P8["Phase 8: Deployment & Reliability"]
 ```
@@ -310,8 +310,20 @@ flowchart TD
   - Owner-only UI integration: 3-state stock-level badges (`OK` / `Low` / `Out`) and 3-way filter (`all` / `low_or_out` / `out`) in `IngredientManager`, Owner-only sidebar count badge on `/inventory/stock` (hidden at 0), and Owner-only `Low Stock` dashboard card (top 5 + `"View all"` link + empty state).
   - Automated tests: `LowStockServiceTest.php` (1 test, 11 assertions) & `LowStockAlertTest.php` (4 tests, 37 assertions) — 100% passing.
   - Full suite: **391 tests, 1519 assertions — 100% passing**; Pint clean; Vite build passing.
-- [ ] **Task 6.6 — Stock Movement History Viewer (PLANNED)**
-- [ ] **Task 6.7 — Refund & Cancellation Inventory Rules (PLANNED)**
+- [x] **Task 6.6 — Stock Movement History Viewer (COMPLETED ✅)**
+  - `App\Livewire\Inventory\StockMovementHistory` (`/inventory/movements`, `role:owner` middleware + `isOwner()` re-checks, sidebar link `messages.nav.stock_history`, per-row `History` link from `IngredientManager`): newest-first (`created_at desc, id desc`), 25 per page, URL-persisted filters (`ingredient`, `type`, `from`, `to`, `actor`) with graceful invalid-input handling, `withTrashed()` for soft-deleted ingredients/users, single bulk query for `Order` references, and single-ingredient exact milli-unit summary (`total in`, `total out`, `net`).
+  - Automated tests: `StockMovementHistoryTest.php` (5 tests, 43 assertions) — 100% passing.
+  - Full suite: **396 tests, 1562 assertions — 100% passing**; Pint clean; Vite build passing.
+- [x] **Task 6.7 — Refund & Cancellation Inventory Rules (COMPLETED ✅)**
+  - `App\Services\Inventory\InventoryService::restockForRefund()`: post-refund restock for completed full refunds (`payment_status === 'refunded'`), crediting back exact uncredited `order_deduction` quantities (`refund_credit`, positive `quantity`, `unit_cost` copied from deduction, `idempotency_key = RefundTransaction.ulid`, ascending `ingredient_id` `lockForUpdate()`).
+  - `OrderRefund` UI checkbox (`returnToStock`): shown only for full-refund allocations when uncredited `order_deduction` movements exist; defaults checked for `paid`/`queued`, unchecked for `preparing`/`ready`/`completed`; non-blocking `try/catch(\Throwable)` logging `refund_restock_failed` on error; `php artisan inventory:retry-restocks {--apply}` recovery command.
+  - Automated tests: `RefundRestockTest.php` (6 tests, 51 assertions) — 100% passing.
+  - Full suite: **402 tests, 1613 assertions — 100% passing**; Pint clean; Vite build passing.
+  - *Deliberate Deferrals & Known Cleanup (Not Done)*:
+    - (a) Supplier records and purchase orders are not implemented (the supplier name goes in the `stock_in` note).
+    - (b) Restock exists only through the Owner refund screen and only for full refunds; partial refunds need a manual stock-in or adjustment.
+    - (c) Hardcoded Indonesian text remains in `ShopSettingsManager`, `order-index`, `IngredientManager`, the owner dashboard, and the sidebar.
+    - (d) `CashierPos` and `OrderRefund` still choose messages by matching words in exception text (`str_contains`).
 
 ---
 
