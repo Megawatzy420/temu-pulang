@@ -2,6 +2,13 @@
 
 namespace App\Services;
 
+use App\Exceptions\Payment\InsufficientCashTenderedException;
+use App\Exceptions\Payment\OrderAlreadyPaidException;
+use App\Exceptions\Payment\OrderCancelledForPaymentException;
+use App\Exceptions\Payment\PaymentIdempotencyConflictException;
+use App\Exceptions\Payment\QrisConfirmationExpiredOrUsedException;
+use App\Exceptions\Payment\QrisConfirmationInvalidException;
+use App\Exceptions\Payment\ShiftClosedForPaymentException;
 use App\Models\ActivityLog;
 use App\Models\Order;
 use App\Models\OrderStatusHistory;
@@ -49,11 +56,11 @@ class PaymentService
         }
 
         if ($order->payment_status === Order::PAYMENT_STATUS_PAID) {
-            throw new DomainException('Pesanan ini sudah dibayar.');
+            throw new OrderAlreadyPaidException('Pesanan ini sudah dibayar.');
         }
 
         if ($order->status === Order::STATUS_CANCELLED) {
-            throw new DomainException('Tidak dapat membuat konfirmasi QRIS untuk pesanan yang dibatalkan.');
+            throw new OrderCancelledForPaymentException('Tidak dapat membuat konfirmasi QRIS untuk pesanan yang dibatalkan.');
         }
 
         return QrisConfirmation::create([
@@ -165,7 +172,7 @@ class PaymentService
                 }
 
                 if ($tendered < $amount) {
-                    throw new InvalidArgumentException('Uang tunai yang diterima (Rp '.number_format($tendered, 0, ',', '.').') kurang dari nilai tagihan (Rp '.number_format($amount, 0, ',', '.').').');
+                    throw new InsufficientCashTenderedException('Uang tunai yang diterima (Rp '.number_format($tendered, 0, ',', '.').') kurang dari nilai tagihan (Rp '.number_format($amount, 0, ',', '.').').');
                 }
 
                 $expectedChange = $tendered - $amount;
@@ -195,7 +202,7 @@ class PaymentService
 
                 if ($method === 'qris') {
                     if (! is_int($qrisConfirmationId) || $qrisConfirmationId <= 0) {
-                        throw new InvalidArgumentException('Pembayaran QRIS memerlukan konfirmasi server yang valid (qris_confirmation_id).');
+                        throw new QrisConfirmationInvalidException('Pembayaran QRIS memerlukan konfirmasi server yang valid (qris_confirmation_id).');
                     }
                 }
 
@@ -241,7 +248,7 @@ class PaymentService
     ): PaymentTransaction {
         // 1. Pre-flight shift check
         if (! $shift->isOpen()) {
-            throw new InvalidArgumentException('Shift kasir sudah ditutup. Tidak dapat memproses pembayaran.');
+            throw new ShiftClosedForPaymentException('Shift kasir sudah ditutup. Tidak dapat memproses pembayaran.');
         }
 
         // 2. Pre-flight cashier permission check
@@ -251,11 +258,11 @@ class PaymentService
 
         // 3. Pre-flight order status checks
         if ($order->payment_status === Order::PAYMENT_STATUS_PAID) {
-            throw new DomainException('Pesanan ini sudah dibayar.');
+            throw new OrderAlreadyPaidException('Pesanan ini sudah dibayar.');
         }
 
         if ($order->status === Order::STATUS_CANCELLED) {
-            throw new DomainException('Tidak dapat memproses pembayaran untuk pesanan yang dibatalkan.');
+            throw new OrderCancelledForPaymentException('Tidak dapat memproses pembayaran untuk pesanan yang dibatalkan.');
         }
 
         if (! in_array($order->status, [Order::STATUS_AWAITING_PAYMENT, Order::STATUS_DRAFT], true)) {
@@ -283,7 +290,7 @@ class PaymentService
                 return $tx;
             }
 
-            throw new ConflictHttpException('Kunci idempotensi sudah digunakan dengan parameter pembayaran berbeda.');
+            throw new PaymentIdempotencyConflictException('Kunci idempotensi sudah digunakan dengan parameter pembayaran berbeda.');
         }
 
         // 6. Atomic Transaction
@@ -298,7 +305,7 @@ class PaymentService
             // Re-validate & lock shift inside transaction
             $lockedShift = Shift::where('id', $shift->id)->lockForUpdate()->first();
             if (! $lockedShift || ! $lockedShift->isOpen()) {
-                throw new InvalidArgumentException('Shift kasir sudah ditutup. Tidak dapat memproses pembayaran.');
+                throw new ShiftClosedForPaymentException('Shift kasir sudah ditutup. Tidak dapat memproses pembayaran.');
             }
             if ($cashier->id !== $lockedShift->user_id && ! $cashier->hasRole('owner')) {
                 throw new InvalidArgumentException('Kasir tidak memiliki akses ke shift ini.');
@@ -311,15 +318,15 @@ class PaymentService
             }
 
             if ($lockedOrder->payment_status === Order::PAYMENT_STATUS_PAID) {
-                throw new DomainException('Pesanan ini sudah dibayar.');
+                throw new OrderAlreadyPaidException('Pesanan ini sudah dibayar.');
             }
 
             if ($lockedOrder->paymentTransaction()->exists()) {
-                throw new DomainException('Transaksi pembayaran untuk pesanan ini sudah ada.');
+                throw new OrderAlreadyPaidException('Transaksi pembayaran untuk pesanan ini sudah ada.');
             }
 
             if ($lockedOrder->status === Order::STATUS_CANCELLED) {
-                throw new DomainException('Tidak dapat memproses pembayaran untuk pesanan yang dibatalkan.');
+                throw new OrderCancelledForPaymentException('Tidak dapat memproses pembayaran untuk pesanan yang dibatalkan.');
             }
 
             if (! in_array($lockedOrder->status, [Order::STATUS_AWAITING_PAYMENT, Order::STATUS_DRAFT], true)) {
@@ -344,23 +351,23 @@ class PaymentService
                     $qris = QrisConfirmation::where('id', $qrisId)->lockForUpdate()->first();
 
                     if (! $qris) {
-                        throw new InvalidArgumentException('Data konfirmasi QRIS tidak ditemukan.');
+                        throw new QrisConfirmationInvalidException('Data konfirmasi QRIS tidak ditemukan.');
                     }
 
                     if ($qris->order_id !== $lockedOrder->id) {
-                        throw new InvalidArgumentException('Konfirmasi QRIS bukan milik pesanan ini.');
+                        throw new QrisConfirmationInvalidException('Konfirmasi QRIS bukan milik pesanan ini.');
                     }
 
                     if ($qris->user_id !== $cashier->id && ! $cashier->hasRole('owner')) {
-                        throw new InvalidArgumentException('Konfirmasi QRIS hanya dapat diproses oleh kasir yang mengonfirmasinya atau Owner.');
+                        throw new QrisConfirmationInvalidException('Konfirmasi QRIS hanya dapat diproses oleh kasir yang mengonfirmasinya atau Owner.');
                     }
 
                     if (! $qris->isPending()) {
-                        throw new DomainException('Konfirmasi QRIS sudah pernah digunakan atau kadaluarsa.');
+                        throw new QrisConfirmationExpiredOrUsedException('Konfirmasi QRIS sudah pernah digunakan atau kadaluarsa.');
                     }
 
                     if ($qris->expected_amount !== $tender['amount']) {
-                        throw new InvalidArgumentException('Nominal konfirmasi QRIS tidak sesuai dengan nilai pembayaran.');
+                        throw new QrisConfirmationInvalidException('Nominal konfirmasi QRIS tidak sesuai dengan nilai pembayaran.');
                     }
 
                     // Atomically consume QRIS confirmation

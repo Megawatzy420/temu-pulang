@@ -1119,6 +1119,73 @@ Implemented full-refund inventory restocking and cancellation safeguards for Pha
 - Restock applies only to full refunds via the Owner refund screen; partial refunds require manual `stock_in` or `adjustment`.
 - No schema changes.
 
+---
+
+## Hardening & Cleanup — Typed Domain Exceptions (Part B)
+
+**Date:** 2026-11-25  
+**Status:** ✅ COMPLETED
+
+### Summary
+Replaced all string-matching (`str_contains`) on exception messages in `CashierPos::mapPaymentExceptionToMessage()` and `OrderRefund::mapRefundExceptionToMessage()` with typed domain exception classes thrown from `OrderService`, `PaymentService`, and `RefundService`. **Behaviour is completely unchanged**: the exact same conditions throw under the exact same rules, carry the exact same Indonesian message strings, and extend the exact same parent exception types (`InvalidArgumentException`, `DomainException`, or `Symfony\Component\HttpKernel\Exception\ConflictHttpException` with HTTP 409 status).
+
+### Exception Inventory Table (Mapped Throws Replaced)
+| Service & Line(s) | Old Exception Type | Original Indonesian Message (Unchanged) | New Exception Class | Parent Class | UI Mapper & Translation Key |
+|---|---|---|---|---|---|
+| `OrderService.php` L101, L124 | `InvalidArgumentException` | `'Shift kasir sudah ditutup. Tidak dapat memproses transaksi baru.'` | `App\Exceptions\Order\ShiftClosedForOrderException` | `InvalidArgumentException` | `CashierPos` → `messages.pos.shift_closed_error` |
+| `OrderService.php` L333, L339, L345, L353, L384 | `ConflictHttpException` | `'Kunci idempotensi sudah digunakan untuk ...'` | `App\Exceptions\Order\OrderIdempotencyConflictException` | `ConflictHttpException` | `CashierPos` → `messages.pos.error_conflict` |
+| `PaymentService.php` L251, L308 | `InvalidArgumentException` | `'Shift kasir sudah ditutup. Tidak dapat memproses pembayaran.'` | `App\Exceptions\Payment\ShiftClosedForPaymentException` | `InvalidArgumentException` | `CashierPos` → `messages.pos.shift_closed_error` |
+| `PaymentService.php` L175 | `InvalidArgumentException` | `'Uang tunai yang diterima (Rp ...) kurang dari nilai tagihan (Rp ...).'` | `App\Exceptions\Payment\InsufficientCashTenderedException` | `InvalidArgumentException` | `CashierPos` → `messages.pos.insufficient_cash` |
+| `PaymentService.php` L205, L354, L358, L362, L370 | `InvalidArgumentException` | `'Pembayaran QRIS memerlukan konfirmasi server yang valid...'` / `'Data konfirmasi QRIS tidak ditemukan.'` / `'Konfirmasi QRIS bukan milik pesanan ini.'` / `'Konfirmasi QRIS hanya dapat diproses oleh kasir...'` / `'Nominal konfirmasi QRIS tidak sesuai...'` | `App\Exceptions\Payment\QrisConfirmationInvalidException` | `InvalidArgumentException` | `CashierPos` → `messages.pos.qris_confirmation_invalid` |
+| `PaymentService.php` L366 | `DomainException` | `'Konfirmasi QRIS sudah pernah digunakan atau kadaluarsa.'` | `App\Exceptions\Payment\QrisConfirmationExpiredOrUsedException` | `DomainException` | `CashierPos` → `messages.pos.qris_expired_or_used` |
+| `PaymentService.php` L59, L261, L321, L325 | `DomainException` | `'Pesanan ini sudah dibayar.'` / `'Transaksi pembayaran untuk pesanan ini sudah ada.'` | `App\Exceptions\Payment\OrderAlreadyPaidException` | `DomainException` | `CashierPos` → `messages.pos.order_already_paid` |
+| `PaymentService.php` L63, L265, L329 | `DomainException` | `'Tidak dapat membuat konfirmasi QRIS untuk pesanan yang dibatalkan.'` / `'Tidak dapat memproses pembayaran untuk pesanan yang dibatalkan.'` | `App\Exceptions\Payment\OrderCancelledForPaymentException` | `DomainException` | `CashierPos` → `messages.pos.order_cancelled_error` |
+| `PaymentService.php` L293 | `ConflictHttpException` | `'Kunci idempotensi sudah digunakan dengan parameter pembayaran berbeda.'` | `App\Exceptions\Payment\PaymentIdempotencyConflictException` | `ConflictHttpException` | `CashierPos` → `messages.pos.error_conflict` |
+| `RefundService.php` L91, L308 | `ConflictHttpException` | `'Kunci idempotensi sudah digunakan dengan parameter refund berbeda.'` | `App\Exceptions\Refund\RefundIdempotencyConflictException` | `ConflictHttpException` | `OrderRefund` → `messages.refund.error_conflict` |
+| `RefundService.php` L58 | `InvalidArgumentException` | `'Alasan refund wajib diisi.'` | `App\Exceptions\Refund\RefundReasonRequiredException` | `InvalidArgumentException` | `OrderRefund` → `messages.refund.reason_required` |
+| `RefundService.php` L63, L128 | `DomainException` | `'Pesanan ini belum dibayar dan tidak dapat direfund.'` | `App\Exceptions\Refund\UnpaidOrderNotRefundableException` | `DomainException` | `OrderRefund` → `messages.refund.error_unpaid_order` |
+| `RefundService.php` L67, L132 | `DomainException` | `'Pesanan ini sudah sepenuhnya direfund.'` | `App\Exceptions\Refund\OrderAlreadyRefundedException` | `DomainException` | `OrderRefund` → `messages.refund.error_already_refunded` |
+| `RefundService.php` L112, L117 | `InvalidArgumentException` | `'Refund tunai memerlukan shift kasir yang sedang aktif (open).'` / `'Shift kasir sudah ditutup. Refund tunai tidak dapat diproses.'` | `App\Exceptions\Refund\CashRefundRequiresOpenShiftException` | `InvalidArgumentException` | `OrderRefund` → `messages.refund.no_open_shift_cash` |
+| `RefundService.php` L170 | `InvalidArgumentException` | `'Jumlah refund untuk pembayaran #... melebihi saldo yang dapat direfund...'` | `App\Exceptions\Refund\RefundExceedsRemainingBalanceException` | `InvalidArgumentException` | `OrderRefund` → `messages.refund.error_over_refund` |
+| `RefundService.php` L183 | `DomainException` | `'Total refund melebihi total pembayaran untuk pesanan ini.'` | `App\Exceptions\Refund\RefundTotalExceedsPaidAmountException` | `DomainException` | `OrderRefund` → `messages.refund.error_over_refund` |
+
+*(Unmapped throws in `OrderService`, `PaymentService`, `RefundService`, and all throws in `PrintService` remain untouched).*
+
+### Deliverables
+- **Files Created (17):**
+  - `app/Exceptions/Order/ShiftClosedForOrderException.php`
+  - `app/Exceptions/Order/OrderIdempotencyConflictException.php`
+  - `app/Exceptions/Payment/ShiftClosedForPaymentException.php`
+  - `app/Exceptions/Payment/InsufficientCashTenderedException.php`
+  - `app/Exceptions/Payment/QrisConfirmationInvalidException.php`
+  - `app/Exceptions/Payment/QrisConfirmationExpiredOrUsedException.php`
+  - `app/Exceptions/Payment/OrderAlreadyPaidException.php`
+  - `app/Exceptions/Payment/OrderCancelledForPaymentException.php`
+  - `app/Exceptions/Payment/PaymentIdempotencyConflictException.php`
+  - `app/Exceptions/Refund/RefundIdempotencyConflictException.php`
+  - `app/Exceptions/Refund/RefundReasonRequiredException.php`
+  - `app/Exceptions/Refund/UnpaidOrderNotRefundableException.php`
+  - `app/Exceptions/Refund/OrderAlreadyRefundedException.php`
+  - `app/Exceptions/Refund/CashRefundRequiresOpenShiftException.php`
+  - `app/Exceptions/Refund/RefundExceedsRemainingBalanceException.php`
+  - `app/Exceptions/Refund/RefundTotalExceedsPaidAmountException.php`
+  - `tests/Feature/DomainExceptionsMappingTest.php` (19 tests, 169 assertions)
+- **Files Modified:**
+  - `app/Services/OrderService.php` (throw statements + `use` imports only)
+  - `app/Services/PaymentService.php` (throw statements + `use` imports only)
+  - `app/Services/RefundService.php` (throw statements + `use` imports only)
+  - `app/Livewire/Pos/CashierPos.php` (`mapPaymentExceptionToMessage()` rewritten to `instanceof`)
+  - `app/Livewire/Orders/OrderRefund.php` (`mapRefundExceptionToMessage()` rewritten to `instanceof`)
+  - `docs/PROJECT_PLAN.md`, `docs/DEVELOPMENT_LOG.md`, `docs/ARCHITECTURE.md`
+
+### Automated Test Results
+- **Domain Exception Mapping Tests (`DomainExceptionsMappingTest`):** 19 tests, 169 assertions — 100% passing
+- **Existing Test Suites (Unmodified):** 402 tests, 1613 assertions — 100% passing
+- **Full Test Suite (`php artisan test --compact`):** 421 tests, 1782 assertions — 100% passing (0 failures, 0 errors)
+- **Laravel Pint (`php vendor/bin/pint --test`):** ✅ Clean (0 violations)
+- **Vite Build (`npm run build`):** ✅ Compiled successfully in 566ms
+
+
 
 
 

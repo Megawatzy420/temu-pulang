@@ -2,6 +2,13 @@
 
 namespace App\Livewire\Orders;
 
+use App\Exceptions\Refund\CashRefundRequiresOpenShiftException;
+use App\Exceptions\Refund\OrderAlreadyRefundedException;
+use App\Exceptions\Refund\RefundExceedsRemainingBalanceException;
+use App\Exceptions\Refund\RefundIdempotencyConflictException;
+use App\Exceptions\Refund\RefundReasonRequiredException;
+use App\Exceptions\Refund\RefundTotalExceedsPaidAmountException;
+use App\Exceptions\Refund\UnpaidOrderNotRefundableException;
 use App\Models\ActivityLog;
 use App\Models\Order;
 use App\Services\Inventory\InventoryService;
@@ -180,29 +187,30 @@ class OrderRefund extends Component
 
     protected function mapRefundExceptionToMessage(\Throwable $e): string
     {
-        if ($e instanceof ConflictHttpException) {
+        if ($e instanceof RefundIdempotencyConflictException || $e instanceof ConflictHttpException) {
             return __('messages.refund.error_conflict');
         }
 
-        $lower = strtolower($e->getMessage());
-
-        if (str_contains($lower, 'melebihi') || str_contains($lower, 'exceed')) {
+        if (
+            $e instanceof RefundExceedsRemainingBalanceException
+            || $e instanceof RefundTotalExceedsPaidAmountException
+        ) {
             return __('messages.refund.error_over_refund');
         }
 
-        if (str_contains($lower, 'belum dibayar') || str_contains($lower, 'unpaid')) {
+        if ($e instanceof UnpaidOrderNotRefundableException) {
             return __('messages.refund.error_unpaid_order');
         }
 
-        if (str_contains($lower, 'sudah sepenuhnya direfund') || str_contains($lower, 'already refunded') || str_contains($lower, 'fully refunded')) {
+        if ($e instanceof OrderAlreadyRefundedException) {
             return __('messages.refund.error_already_refunded');
         }
 
-        if (str_contains($lower, 'shift')) {
+        if ($e instanceof CashRefundRequiresOpenShiftException) {
             return __('messages.refund.no_open_shift_cash');
         }
 
-        if (str_contains($lower, 'alasan') || str_contains($lower, 'reason')) {
+        if ($e instanceof RefundReasonRequiredException) {
             return __('messages.refund.reason_required');
         }
 

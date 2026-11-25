@@ -2,6 +2,15 @@
 
 namespace App\Livewire\Pos;
 
+use App\Exceptions\Order\OrderIdempotencyConflictException;
+use App\Exceptions\Order\ShiftClosedForOrderException;
+use App\Exceptions\Payment\InsufficientCashTenderedException;
+use App\Exceptions\Payment\OrderAlreadyPaidException;
+use App\Exceptions\Payment\OrderCancelledForPaymentException;
+use App\Exceptions\Payment\PaymentIdempotencyConflictException;
+use App\Exceptions\Payment\QrisConfirmationExpiredOrUsedException;
+use App\Exceptions\Payment\QrisConfirmationInvalidException;
+use App\Exceptions\Payment\ShiftClosedForPaymentException;
 use App\Models\ApplicationSetting;
 use App\Models\Category;
 use App\Models\Order;
@@ -1087,38 +1096,39 @@ class CashierPos extends Component
     }
 
     /**
-     * Map a payment or print exception to a user-friendly localized message.
+     * Map a payment or print exception to a user-friendly localized message by exception class.
      */
     protected function mapPaymentExceptionToMessage(\Throwable $e): string
     {
-        if ($e instanceof ConflictHttpException) {
+        if (
+            $e instanceof OrderIdempotencyConflictException
+            || $e instanceof PaymentIdempotencyConflictException
+            || $e instanceof ConflictHttpException
+        ) {
             return __('messages.pos.error_conflict');
         }
 
-        $lowerMsg = strtolower($e->getMessage());
-
-        if (str_contains($lowerMsg, 'shift')) {
+        if ($e instanceof ShiftClosedForOrderException || $e instanceof ShiftClosedForPaymentException) {
             return __('messages.pos.shift_closed_error');
         }
 
-        if (str_contains($lowerMsg, 'kurang') || str_contains($lowerMsg, 'insufficient')) {
+        if ($e instanceof InsufficientCashTenderedException) {
             return __('messages.pos.insufficient_cash');
         }
 
-        if (str_contains($lowerMsg, 'qris')) {
-            if (str_contains($lowerMsg, 'digunakan') || str_contains($lowerMsg, 'kadaluarsa') || str_contains($lowerMsg, 'expired')) {
-                return __('messages.pos.qris_expired_or_used');
-            }
-            if (str_contains($lowerMsg, 'konfirmasi') || str_contains($lowerMsg, 'valid') || str_contains($lowerMsg, 'invalid')) {
-                return __('messages.pos.qris_confirmation_invalid');
-            }
+        if ($e instanceof QrisConfirmationExpiredOrUsedException) {
+            return __('messages.pos.qris_expired_or_used');
         }
 
-        if (str_contains($lowerMsg, 'lunas') || str_contains($lowerMsg, 'dibayar') || str_contains($lowerMsg, 'already paid')) {
+        if ($e instanceof QrisConfirmationInvalidException) {
+            return __('messages.pos.qris_confirmation_invalid');
+        }
+
+        if ($e instanceof OrderAlreadyPaidException) {
             return __('messages.pos.order_already_paid');
         }
 
-        if (str_contains($lowerMsg, 'batal') || str_contains($lowerMsg, 'cancelled') || str_contains($lowerMsg, 'canceled')) {
+        if ($e instanceof OrderCancelledForPaymentException) {
             return __('messages.pos.order_cancelled_error');
         }
 

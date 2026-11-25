@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Exceptions\Order\OrderIdempotencyConflictException;
+use App\Exceptions\Order\ShiftClosedForOrderException;
 use App\Models\ActivityLog;
 use App\Models\Modifier;
 use App\Models\Order;
@@ -96,7 +98,7 @@ class OrderService
     {
         // 1. Pre-flight shift check (fast fail before acquiring any lock)
         if (! $shift->isOpen()) {
-            throw new InvalidArgumentException('Shift kasir sudah ditutup. Tidak dapat memproses transaksi baru.');
+            throw new ShiftClosedForOrderException('Shift kasir sudah ditutup. Tidak dapat memproses transaksi baru.');
         }
 
         // 2. Idempotency Guard — return existing order if the same key is submitted again with matching payload
@@ -119,7 +121,7 @@ class OrderService
                 //    check above and this point, we abort cleanly before writing any order rows.
                 $lockedShift = Shift::where('id', $shift->id)->lockForUpdate()->first();
                 if (! $lockedShift || ! $lockedShift->isOpen()) {
-                    throw new InvalidArgumentException('Shift kasir sudah ditutup. Tidak dapat memproses transaksi baru.');
+                    throw new ShiftClosedForOrderException('Shift kasir sudah ditutup. Tidak dapat memproses transaksi baru.');
                 }
 
                 $businessDate = $this->calculateBusinessDate();
@@ -328,19 +330,19 @@ class OrderService
         // 1. Order-level attributes
         $expectedType = $orderPayload['order_type'] ?? Order::TYPE_DINE_IN;
         if ($existingOrder->order_type !== $expectedType) {
-            throw new ConflictHttpException('Kunci idempotensi sudah digunakan untuk tipe pesanan berbeda.');
+            throw new OrderIdempotencyConflictException('Kunci idempotensi sudah digunakan untuk tipe pesanan berbeda.');
         }
 
         $expectedCustomer = ! empty($orderPayload['customer_name']) ? strtolower(trim($orderPayload['customer_name'])) : null;
         $actualCustomer = ! empty($existingOrder->customer_name) ? strtolower(trim($existingOrder->customer_name)) : null;
         if ($actualCustomer !== $expectedCustomer) {
-            throw new ConflictHttpException('Kunci idempotensi sudah digunakan untuk nama pelanggan berbeda.');
+            throw new OrderIdempotencyConflictException('Kunci idempotensi sudah digunakan untuk nama pelanggan berbeda.');
         }
 
         $expectedNotes = ! empty($orderPayload['notes']) ? strtolower(trim($orderPayload['notes'])) : null;
         $actualNotes = ! empty($existingOrder->notes) ? strtolower(trim($existingOrder->notes)) : null;
         if ($actualNotes !== $expectedNotes) {
-            throw new ConflictHttpException('Kunci idempotensi sudah digunakan untuk catatan pesanan berbeda.');
+            throw new OrderIdempotencyConflictException('Kunci idempotensi sudah digunakan untuk catatan pesanan berbeda.');
         }
 
         // 2. Line items comparison (order-independent)
@@ -348,7 +350,7 @@ class OrderService
         $payloadItems = $orderPayload['items'] ?? [];
 
         if ($existingItems->count() !== count($payloadItems)) {
-            throw new ConflictHttpException('Kunci idempotensi sudah digunakan untuk pesanan dengan jumlah item berbeda.');
+            throw new OrderIdempotencyConflictException('Kunci idempotensi sudah digunakan untuk pesanan dengan jumlah item berbeda.');
         }
 
         // Canonical signatures from payload
@@ -379,7 +381,7 @@ class OrderService
         sort($existingSignatures);
 
         if ($payloadSignatures !== $existingSignatures) {
-            throw new ConflictHttpException('Kunci idempotensi sudah digunakan untuk pesanan dengan rincian item, varian, atau modifier berbeda.');
+            throw new OrderIdempotencyConflictException('Kunci idempotensi sudah digunakan untuk pesanan dengan rincian item, varian, atau modifier berbeda.');
         }
     }
 

@@ -2,6 +2,13 @@
 
 namespace App\Services;
 
+use App\Exceptions\Refund\CashRefundRequiresOpenShiftException;
+use App\Exceptions\Refund\OrderAlreadyRefundedException;
+use App\Exceptions\Refund\RefundExceedsRemainingBalanceException;
+use App\Exceptions\Refund\RefundIdempotencyConflictException;
+use App\Exceptions\Refund\RefundReasonRequiredException;
+use App\Exceptions\Refund\RefundTotalExceedsPaidAmountException;
+use App\Exceptions\Refund\UnpaidOrderNotRefundableException;
 use App\Models\ActivityLog;
 use App\Models\Order;
 use App\Models\OrderStatusHistory;
@@ -48,16 +55,16 @@ class RefundService
 
         // 2. Reason is mandatory
         if (trim($reason) === '') {
-            throw new InvalidArgumentException('Alasan refund wajib diisi.');
+            throw new RefundReasonRequiredException('Alasan refund wajib diisi.');
         }
 
         // 3. Order must have a successful payment
         if ($order->payment_status === Order::PAYMENT_STATUS_UNPAID) {
-            throw new DomainException('Pesanan ini belum dibayar dan tidak dapat direfund.');
+            throw new UnpaidOrderNotRefundableException('Pesanan ini belum dibayar dan tidak dapat direfund.');
         }
 
         if ($order->payment_status === Order::PAYMENT_STATUS_REFUNDED) {
-            throw new DomainException('Pesanan ini sudah sepenuhnya direfund.');
+            throw new OrderAlreadyRefundedException('Pesanan ini sudah sepenuhnya direfund.');
         }
 
         // 4. Normalize and pre-validate allocations
@@ -81,7 +88,7 @@ class RefundService
                 return $existing->load(['refunds', 'order', 'authorizedByUser']);
             }
 
-            throw new ConflictHttpException('Kunci idempotensi sudah digunakan dengan parameter refund berbeda.');
+            throw new RefundIdempotencyConflictException('Kunci idempotensi sudah digunakan dengan parameter refund berbeda.');
         }
 
         // 7. Atomic transaction with idempotency collision recovery
@@ -102,12 +109,12 @@ class RefundService
                 $lockedShift = null;
                 if ($hasCashAllocation) {
                     if (! $shift || ! $shift->isOpen()) {
-                        throw new InvalidArgumentException('Refund tunai memerlukan shift kasir yang sedang aktif (open).');
+                        throw new CashRefundRequiresOpenShiftException('Refund tunai memerlukan shift kasir yang sedang aktif (open).');
                     }
 
                     $lockedShift = Shift::where('id', $shift->id)->lockForUpdate()->first();
                     if (! $lockedShift || ! $lockedShift->isOpen()) {
-                        throw new InvalidArgumentException('Shift kasir sudah ditutup. Refund tunai tidak dapat diproses.');
+                        throw new CashRefundRequiresOpenShiftException('Shift kasir sudah ditutup. Refund tunai tidak dapat diproses.');
                     }
                 }
 
@@ -118,11 +125,11 @@ class RefundService
                 }
 
                 if ($lockedOrder->payment_status === Order::PAYMENT_STATUS_UNPAID) {
-                    throw new DomainException('Pesanan ini belum dibayar dan tidak dapat direfund.');
+                    throw new UnpaidOrderNotRefundableException('Pesanan ini belum dibayar dan tidak dapat direfund.');
                 }
 
                 if ($lockedOrder->payment_status === Order::PAYMENT_STATUS_REFUNDED) {
-                    throw new DomainException('Pesanan ini sudah sepenuhnya direfund.');
+                    throw new OrderAlreadyRefundedException('Pesanan ini sudah sepenuhnya direfund.');
                 }
 
                 // Collect unique payment IDs from allocations (already canonical and sorted ascending)
@@ -160,7 +167,7 @@ class RefundService
                     $remaining = $payment->remainingRefundableBalance();
 
                     if ($alloc['amount'] > $remaining) {
-                        throw new InvalidArgumentException(
+                        throw new RefundExceedsRemainingBalanceException(
                             "Jumlah refund untuk pembayaran #{$pid} (Rp ".number_format($alloc['amount'], 0, ',', '.').
                             ') melebihi saldo yang dapat direfund (Rp '.number_format($remaining, 0, ',', '.').').
                         ');
@@ -173,7 +180,7 @@ class RefundService
                 $newRefundTotal = array_sum(array_column($normalizedAllocations, 'amount'));
 
                 if (($alreadyRefunded + $newRefundTotal) > $totalPaid) {
-                    throw new DomainException(
+                    throw new RefundTotalExceedsPaidAmountException(
                         'Total refund melebihi total pembayaran untuk pesanan ini.'
                     );
                 }
@@ -298,7 +305,7 @@ class RefundService
                         return $winningTransaction->load(['refunds', 'order', 'authorizedByUser']);
                     }
 
-                    throw new ConflictHttpException('Kunci idempotensi sudah digunakan dengan parameter refund berbeda.');
+                    throw new RefundIdempotencyConflictException('Kunci idempotensi sudah digunakan dengan parameter refund berbeda.');
                 }
             }
 

@@ -370,7 +370,35 @@ Allocations are sorted by `[payment_id, amount, refund_method]` before hashing t
 - Accessible at `/orders/{order}/refund` under `role:owner` middleware (plus `isOwner()` re-checks in `mount()` and `submitRefund()`). Hidden from Cashiers in `OrderIndex`.
 - Displays order summary, each payment's `remainingRefundableBalance()`, Alpine-formatted integer Rupiah inputs, `refund_method` selector (`cash`, `qris_reversal`, `manual_transfer`), and required reason.
 - Generates a stable `idempotencyKey` once per form mount and preserves it on retries; passes the active open `Shift` only when at least one `cash` allocation exists.
-- Maps known `RefundService` domain/conflict errors to localized keys (`messages.refund.*`) and logs unexpected exceptions via `Log::error` without exposing raw exception text.
+- Maps known `RefundService` domain/conflict errors to localized keys (`messages.refund.*`) by exception class (`instanceof`) and logs unexpected exceptions via `Log::error` without exposing raw exception text.
+
+---
+
+### 12.4. Domain Exceptions & UI Error Mapping
+
+UI components (`CashierPos::mapPaymentExceptionToMessage()` and `OrderRefund::mapRefundExceptionToMessage()`) map service exceptions exclusively by exception class (`instanceof`), never by matching substrings (`str_contains`) in the exception message text. Each typed exception extends the exact base exception type (`InvalidArgumentException`, `DomainException`, or `Symfony\Component\HttpKernel\Exception\ConflictHttpException`) so existing catch blocks and HTTP 409 status behavior remain unchanged:
+
+| Domain | Exception Class | Extends | UI Mapper Translation Key |
+|---|---|---|---|
+| Order | `App\Exceptions\Order\ShiftClosedForOrderException` | `InvalidArgumentException` | `messages.pos.shift_closed_error` |
+| Order | `App\Exceptions\Order\OrderIdempotencyConflictException` | `ConflictHttpException` | `messages.pos.error_conflict` |
+| Payment | `App\Exceptions\Payment\ShiftClosedForPaymentException` | `InvalidArgumentException` | `messages.pos.shift_closed_error` |
+| Payment | `App\Exceptions\Payment\InsufficientCashTenderedException` | `InvalidArgumentException` | `messages.pos.insufficient_cash` |
+| Payment | `App\Exceptions\Payment\QrisConfirmationInvalidException` | `InvalidArgumentException` | `messages.pos.qris_confirmation_invalid` |
+| Payment | `App\Exceptions\Payment\QrisConfirmationExpiredOrUsedException` | `DomainException` | `messages.pos.qris_expired_or_used` |
+| Payment | `App\Exceptions\Payment\OrderAlreadyPaidException` | `DomainException` | `messages.pos.order_already_paid` |
+| Payment | `App\Exceptions\Payment\OrderCancelledForPaymentException` | `DomainException` | `messages.pos.order_cancelled_error` |
+| Payment | `App\Exceptions\Payment\PaymentIdempotencyConflictException` | `ConflictHttpException` | `messages.pos.error_conflict` |
+| Refund | `App\Exceptions\Refund\RefundIdempotencyConflictException` | `ConflictHttpException` | `messages.refund.error_conflict` |
+| Refund | `App\Exceptions\Refund\RefundReasonRequiredException` | `InvalidArgumentException` | `messages.refund.reason_required` |
+| Refund | `App\Exceptions\Refund\UnpaidOrderNotRefundableException` | `DomainException` | `messages.refund.error_unpaid_order` |
+| Refund | `App\Exceptions\Refund\OrderAlreadyRefundedException` | `DomainException` | `messages.refund.error_already_refunded` |
+| Refund | `App\Exceptions\Refund\CashRefundRequiresOpenShiftException` | `InvalidArgumentException` | `messages.refund.no_open_shift_cash` |
+| Refund | `App\Exceptions\Refund\RefundExceedsRemainingBalanceException` | `InvalidArgumentException` | `messages.refund.error_over_refund` |
+| Refund | `App\Exceptions\Refund\RefundTotalExceedsPaidAmountException` | `DomainException` | `messages.refund.error_over_refund` |
+| Inventory | `App\Exceptions\Inventory\InvalidStockQuantityException` | `InvalidArgumentException` | `messages.stock.error_invalid_quantity` |
+| Inventory | `App\Exceptions\Inventory\InsufficientStockException` | `DomainException` | `messages.stock.error_insufficient_stock` |
+| Inventory | `App\Exceptions\Inventory\StockReasonRequiredException` | `InvalidArgumentException` | `messages.stock.error_reason_required` |
 
 ---
 
