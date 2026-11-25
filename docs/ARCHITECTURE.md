@@ -470,14 +470,14 @@ The Owner backoffice interfaces for inventory and recipe management are implemen
 | `App\Livewire\Menu\ProductForm` | `/menu/products/{id}/edit` | `livewire/menu/product-form.blade.php` | Tab 5 ("Resep Bahan / BOM"): per-product base recipe and per-variant override management |
 | `App\Livewire\Menu\ModifierManager` | `/menu/modifiers` | `livewire/menu/modifier-manager.blade.php` | Recipe delta configuration per modifier option (`add` / `replace` actions, target and replacement ingredients) |
 
-**Delivered Phase 6 Services (Task 6.3):**
-- `App\Services\Inventory\StockAdjustmentService`: Atomic `stockIn()`, `recordWastage()`, and `adjust()` (`counted` and `difference` modes) using `Ingredient::toMilli()` / `fromMilli()` integer arithmetic, `lockForUpdate()` on `ingredient_balances`, `(idempotency_key, ingredient_id)` deduplication, and typed exceptions (`InvalidStockQuantityException`, `InsufficientStockException`, `StockReasonRequiredException`).
+**Delivered Phase 6 Services (Tasks 6.3–6.4):**
+- `App\Services\Inventory\StockAdjustmentService`: Atomic `stockIn()`, `recordWastage()`, and `adjust()` (`counted` and `difference` modes) using `Ingredient::toMilli()` / `fromMilli()` integer arithmetic, `lockForUpdate()` on `ingredient_balances`, `(idempotency_key, ingredient_id)` deduplication, and typed exceptions (`InvalidStockQuantityException`, `InsufficientStockException`, `StockReasonRequiredException`). Also provides `recordOrderDeductionRow()` for low-level deduction posting.
+- `App\Services\Inventory\RecipeResolutionService`: Resolves per-order ingredient totals in integer milli-units by merging base `RecipeItem` (`product_variant_id IS NULL`), variant overrides (replacing matching ingredients while keeping base-only items and adding variant-only items), and `ModifierRecipeItem` deltas (`add` adds `quantity`; `replace` sets `replaces_ingredient_id` resolved per-unit quantity to `0`—never below `0`—and adds `quantity` of the replacement ingredient), multiplied by `OrderItem.quantity`. Skips items whose product/variant no longer exists (`Log::warning`).
+- `App\Services\Inventory\InventoryService`: `deductForPayment(PaymentTransaction $tx)` executes in its own `DB::transaction()` after `PaymentService::settlePayment()` commits (and on the idempotent replay branch). Locks `ingredient_balances` **last**, in **ascending `ingredient_id` order**, after all payment locks have released, and writes one `order_deduction` `StockMovement` per ingredient keyed by `PaymentTransaction::ulid` (`reference_type = 'orders'`, `reference_id = order.id`, negative `quantity`, `balance_after` allowed below `0`).
+- **Payment Hook & Retry Path**: `PaymentService::attemptInventoryDeduction()` wraps `InventoryService::deductForPayment()` in `try/catch(\Throwable)` so deduction failures never block or roll back payment settlement; failures are written to `Log::error` and `ActivityLog` (`module: 'inventory'`, `action: 'order_deduction_failed'`). Operators recover failed deductions via `php artisan inventory:retry-deductions {--apply}` (dry-run by default; ignores legacy orders without an `order_deduction_failed` log).
 
 ### 14.7. Planned Phase 6 Services (Not Yet Implemented)
 
-| Service | Responsibility |
-|---|---|
-| `App\Services\Inventory\InventoryService` | Coordinator: resolves recipe, locks balances, delegates to sub-services |
-| `App\Services\Inventory\RecipeResolutionService` | Merges base recipe + variant overrides + modifier deltas into final ingredient list |
+All core Phase 6 inventory deduction services (`StockAdjustmentService`, `RecipeResolutionService`, `InventoryService`) are now delivered. Future tasks cover low-stock alerts, movement history viewer UI, and refund/cancellation restocking rules (Tasks 6.5–6.7).
 
 **Planned locking strategy**: Sort ingredient IDs in ascending order before acquiring `lockForUpdate()` on `ingredient_balances` rows — prevents deadlocks when multiple concurrent deductions share ingredients.

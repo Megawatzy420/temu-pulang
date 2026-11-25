@@ -982,6 +982,43 @@ Implemented the Owner-only manual stock movement service and UI for Phase 6 Task
 - `ingredients.cost_per_unit` is not modified by `stock_in`.
 - Automatic order deduction, low-stock alerts, stock movement history viewer, and refund inventory rules (Tasks 6.4–6.7) remain unimplemented.
 
+---
+
+## Phase 6 — Task 6.4: Automatic Order Deduction
+
+**Date:** 2026-11-25  
+**Status:** ✅ COMPLETED
+
+### Summary
+Implemented automatic post-commit inventory deduction upon payment settlement for Phase 6 Task 6.4:
+- **Recipe Resolution (`App\Services\Inventory\RecipeResolutionService`):** Resolves per-ingredient milli-units from base `RecipeItem` (`product_variant_id IS NULL`), variant overrides (replacing matching base ingredients while keeping base-only items and adding variant-only items), and modifier deltas (`add` adds quantity; `replace` clears the replaced ingredient's per-unit quantity to `0`—never below `0`—and adds the replacement quantity), multiplied by `OrderItem.quantity`. Skips items whose product/variant no longer exists.
+- **Inventory Deduction (`App\Services\Inventory\InventoryService` + `StockAdjustmentService::recordOrderDeductionRow()`):** Runs in its own `DB::transaction()` after payment commit, creates missing single-store `ingredient_balances` rows, locks balances in ascending `ingredient_id` order, and records one `order_deduction` `StockMovement` per ingredient (`reference_type = 'orders'`, `reference_id = order.id`, negative `quantity`, `idempotency_key = PaymentTransaction.ulid`).
+- **Non-Blocking Payment Hook & Retry Command:** Added minimal post-commit + replay-branch calls in `PaymentService::attemptInventoryDeduction()` wrapped in `try/catch(\Throwable)` logging `order_deduction_failed` in `ActivityLog` on error. Added `php artisan inventory:retry-deductions {--apply}` (dry-run by default) to recover failed deductions without touching legacy orders.
+
+### Deliverables
+- **Files Created:**
+  - `app/Services/Inventory/RecipeResolutionService.php`
+  - `app/Services/Inventory/InventoryService.php`
+  - `app/Console/Commands/RetryInventoryDeductionsCommand.php`
+  - `tests/Unit/Inventory/RecipeResolutionServiceTest.php` (4 tests, 14 assertions)
+  - `tests/Feature/Inventory/OrderDeductionTest.php` (5 tests, 26 assertions)
+- **Files Modified:**
+  - `app/Services/Inventory/StockAdjustmentService.php`, `app/Services/PaymentService.php`, `docs/PROJECT_PLAN.md`, `docs/DEVELOPMENT_LOG.md`, `docs/ARCHITECTURE.md`, `docs/DATABASE_DESIGN.md`
+
+### Automated Test Results
+- **Unit & Feature Deduction Tests:** 9 tests, 40 assertions — 100% passing
+- **Existing Payment/POS/Refund/E2E Suites (Unmodified):** 100% passing
+- **Full Test Suite (`php artisan test --compact`):** 386 tests, 1471 assertions — 100% passing (0 failures, 0 errors)
+- **Laravel Pint (`php vendor/bin/pint --test`):** ✅ Clean (0 violations)
+- **Vite Build (`npm run build`):** ✅ Compiled successfully in 710ms
+
+### Scope Boundaries Respected
+- Deduction runs after payment commit and never blocks, delays, or rolls back a payment.
+- Stock balances (`ingredient_balances.current_stock`) may go below zero.
+- Refunds and cancellations do not restock inventory until Task 6.7.
+- Orders paid before this feature are never deducted retroactively.
+
+
 
 
 

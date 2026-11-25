@@ -11,6 +11,7 @@ use App\Models\QrisConfirmation;
 use App\Models\Shift;
 use App\Models\ShopSetting;
 use App\Models\User;
+use App\Services\Inventory\InventoryService;
 use DomainException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -276,14 +277,17 @@ class PaymentService
         $existingTransaction = PaymentTransaction::where('idempotency_key', $idempotencyKey)->first();
         if ($existingTransaction) {
             if ($existingTransaction->request_fingerprint === $requestFingerprint) {
-                return $existingTransaction->load(['payments', 'order']);
+                $tx = $existingTransaction->load(['payments', 'order']);
+                $this->attemptInventoryDeduction($tx);
+
+                return $tx;
             }
 
             throw new ConflictHttpException('Kunci idempotensi sudah digunakan dengan parameter pembayaran berbeda.');
         }
 
         // 6. Atomic Transaction
-        return DB::transaction(function () use (
+        $transaction = DB::transaction(function () use (
             $cashier,
             $shift,
             $order,
@@ -470,5 +474,38 @@ class PaymentService
 
             return $paymentTransaction->fresh(['payments', 'order']);
         });
+
+        $this->attemptInventoryDeduction($transaction);
+
+        return $transaction;
+    }
+
+    /**
+     * Trigger automatic inventory deduction after payment commit.
+     * Failures are logged and audited without ever rolling back or blocking payment settlement.
+     */
+    private function attemptInventoryDeduction(PaymentTransaction $transaction): void
+    {
+        try {
+            app(InventoryService::class)->deductForPayment($transaction);
+        } catch (\Throwable $e) {
+            Log::error('Order inventory deduction failed: '.$e->getMessage(), [
+                'order_id' => $transaction->order_id,
+                'payment_transaction_id' => $transaction->id,
+                'exception_class' => $e::class,
+            ]);
+
+            ActivityLog::record(
+                action: 'order_deduction_failed',
+                description: "Automatic inventory deduction failed for payment {$transaction->payment_transaction_number}.",
+                subject: $transaction,
+                properties: [
+                    'order_id' => $transaction->order_id,
+                    'payment_transaction_id' => $transaction->id,
+                    'exception_class' => $e::class,
+                ],
+                module: 'inventory'
+            );
+        }
     }
 }

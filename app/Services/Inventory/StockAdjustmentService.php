@@ -301,4 +301,42 @@ class StockAdjustmentService
             ->lockForUpdate()
             ->firstOrFail();
     }
+
+    /**
+     * Low-level posting helper for automatic order deductions inside an active locked transaction.
+     * Allows resulting balance_after to go below zero without blocking payment settlement.
+     */
+    public function recordOrderDeductionRow(
+        IngredientBalance $balance,
+        Ingredient $ingredient,
+        int $deductMilli,
+        int $userId,
+        int $orderId,
+        string $idempotencyKey,
+        string $notes
+    ): StockMovement {
+        $beforeMilli = $balance->current_stock_milli;
+        $deltaMilli = -$deductMilli;
+        $afterMilli = $beforeMilli + $deltaMilli;
+
+        $balance->setCurrentStockMilli($afterMilli);
+        $balance->save();
+
+        return StockMovement::create([
+            'ulid' => (string) Str::ulid(),
+            'branch_id' => null,
+            'ingredient_id' => $ingredient->id,
+            'user_id' => $userId,
+            'movement_type' => StockMovement::TYPE_ORDER_DEDUCTION,
+            'quantity' => Ingredient::fromMilli($deltaMilli),
+            'balance_before' => Ingredient::fromMilli($beforeMilli),
+            'balance_after' => Ingredient::fromMilli($afterMilli),
+            'unit_cost' => (int) $ingredient->cost_per_unit,
+            'reference_type' => 'orders',
+            'reference_id' => $orderId,
+            'idempotency_key' => $idempotencyKey,
+            'notes' => $notes,
+        ]);
+    }
 }
+

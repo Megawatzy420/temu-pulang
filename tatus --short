@@ -1,0 +1,71 @@
+[1mdiff --git a/app/Services/PaymentService.php b/app/Services/PaymentService.php[m
+[1mindex ed57704..4147f2b 100644[m
+[1m--- a/app/Services/PaymentService.php[m
+[1m+++ b/app/Services/PaymentService.php[m
+[36m@@ -11,6 +11,7 @@[m
+ use App\Models\Shift;[m
+ use App\Models\ShopSetting;[m
+ use App\Models\User;[m
+[32m+[m[32muse App\Services\Inventory\InventoryService;[m
+ use DomainException;[m
+ use Illuminate\Support\Facades\DB;[m
+ use Illuminate\Support\Facades\Log;[m
+[36m@@ -276,14 +277,17 @@[m [mpublic function settlePayment([m
+         $existingTransaction = PaymentTransaction::where('idempotency_key', $idempotencyKey)->first();[m
+         if ($existingTransaction) {[m
+             if ($existingTransaction->request_fingerprint === $requestFingerprint) {[m
+[31m-                return $existingTransaction->load(['payments', 'order']);[m
+[32m+[m[32m                $tx = $existingTransaction->load(['payments', 'order']);[m
+[32m+[m[32m                $this->attemptInventoryDeduction($tx);[m
+[32m+[m
+[32m+[m[32m                return $tx;[m
+             }[m
+ [m
+             throw new ConflictHttpException('Kunci idempotensi sudah digunakan dengan parameter pembayaran berbeda.');[m
+         }[m
+ [m
+         // 6. Atomic Transaction[m
+[31m-        return DB::transaction(function () use ([m
+[32m+[m[32m        $transaction = DB::transaction(function () use ([m
+             $cashier,[m
+             $shift,[m
+             $order,[m
+[36m@@ -470,5 +474,38 @@[m [mpublic function settlePayment([m
+ [m
+             return $paymentTransaction->fresh(['payments', 'order']);[m
+         });[m
+[32m+[m
+[32m+[m[32m        $this->attemptInventoryDeduction($transaction);[m
+[32m+[m
+[32m+[m[32m        return $transaction;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    /**[m
+[32m+[m[32m     * Trigger automatic inventory deduction after payment commit.[m
+[32m+[m[32m     * Failures are logged and audited without ever rolling back or blocking payment settlement.[m
+[32m+[m[32m     */[m
+[32m+[m[32m    private function attemptInventoryDeduction(PaymentTransaction $transaction): void[m
+[32m+[m[32m    {[m
+[32m+[m[32m        try {[m
+[32m+[m[32m            app(InventoryService::class)->deductForPayment($transaction);[m
+[32m+[m[32m        } catch (\Throwable $e) {[m
+[32m+[m[32m            Log::error('Order inventory deduction failed: '.$e->getMessage(), [[m
+[32m+[m[32m                'order_id' => $transaction->order_id,[m
+[32m+[m[32m                'payment_transaction_id' => $transaction->id,[m
+[32m+[m[32m                'exception_class' => $e::class,[m
+[32m+[m[32m            ]);[m
+[32m+[m
+[32m+[m[32m            ActivityLog::record([m
+[32m+[m[32m                action: 'order_deduction_failed',[m
+[32m+[m[32m                description: "Automatic inventory deduction failed for payment {$transaction->payment_transaction_number}.",[m
+[32m+[m[32m                subject: $transaction,[m
+[32m+[m[32m                properties: [[m
+[32m+[m[32m                    'order_id' => $transaction->order_id,[m
+[32m+[m[32m                    'payment_transaction_id' => $transaction->id,[m
+[32m+[m[32m                    'exception_class' => $e::class,[m
+[32m+[m[32m                ],[m
+[32m+[m[32m                module: 'inventory'[m
+[32m+[m[32m            );[m
+[32m+[m[32m        }[m
+     }[m
+ }[m

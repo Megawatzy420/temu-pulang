@@ -299,7 +299,12 @@ flowchart TD
   - `App\Livewire\Inventory\StockAdjustmentManager` (`/inventory/stock`, `role:owner` middleware + per-action checks, sidebar link under `Inventaris & Bahan`): ingredient search picker, comma/dot decimal input (up to 3 decimals, no thousand separators), Alpine-formatted Rupiah unit cost for stock-in, stable idempotency keys, and `ActivityLog` auditing (`stock_in`, `stock_wastage`, `stock_adjustment`).
   - Automated tests: `StockQuantityParsingTest.php` (3 tests, 18 assertions) & `StockAdjustmentTest.php` (7 tests, 52 assertions) — 100% passing.
   - Full suite: **377 tests, 1431 assertions — 100% passing**; Pint clean; Vite build passing.
-- [ ] **Task 6.4 — Automatic Order Deduction (PLANNED)**
+- [x] **Task 6.4 — Automatic Order Deduction (COMPLETED ✅)**
+  - `App\Services\Inventory\RecipeResolutionService`: resolves per-ingredient milli-units from base recipes, variant overrides, and modifier `add`/`replace` rules multiplied by item quantity; skips deleted products/variants with warning logs.
+  - `App\Services\Inventory\InventoryService::deductForPayment()`: post-commit deduction locking `ingredient_balances` in ascending `ingredient_id` order, writing `order_deduction` `StockMovement` rows keyed by `PaymentTransaction.ulid` (allowing negative balances, never blocking payment).
+  - Minimal post-commit & replay-branch hook in `PaymentService` (`attemptInventoryDeduction()`) logging `order_deduction_failed` on failure, plus `php artisan inventory:retry-deductions {--apply}` for recovery.
+  - Automated tests: `RecipeResolutionServiceTest.php` (4 tests, 14 assertions) & `OrderDeductionTest.php` (5 tests, 26 assertions) — 100% passing.
+  - Full suite: **386 tests, 1471 assertions — 100% passing**; Pint clean; Vite build passing.
 - [ ] **Task 6.5 — Low-Stock Alerts (PLANNED)**
 - [ ] **Task 6.6 — Stock Movement History Viewer (PLANNED)**
 - [ ] **Task 6.7 — Refund & Cancellation Inventory Rules (PLANNED)**
