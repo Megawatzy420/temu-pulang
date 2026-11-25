@@ -945,6 +945,44 @@ Completed final Phase 5 end-to-end verification and documentation synchronizatio
 - **Laravel Pint (`php vendor/bin/pint --test`):** ✅ Clean (0 violations)
 - **Vite Build (`npm run build`):** ✅ Compiled successfully in 1.05s
 
+---
+
+## Phase 6 — Task 6.3: Stock-In & Adjustment Interface
+
+**Date:** 2026-11-25  
+**Status:** ✅ COMPLETED
+
+### Summary
+Implemented the Owner-only manual stock movement service and UI for Phase 6 Task 6.3:
+- **Transactional Stock Service (`App\Services\Inventory\StockAdjustmentService`):** Implemented `stockIn()`, `recordWastage()`, and `adjust()` (`counted` and `difference` modes) inside `DB::transaction()` with `firstOrCreate()` + `lockForUpdate()` on `ingredient_balances` (`branch_id = NULL`), exact `Ingredient::toMilli()` / `fromMilli()` integer arithmetic (no PHP floats), `(idempotency_key, ingredient_id)` deduplication, and typed exceptions (`InvalidStockQuantityException`, `InsufficientStockException`, `StockReasonRequiredException`).
+- **Owner-Only Stock UI (`App\Livewire\Inventory\StockAdjustmentManager` at `/inventory/stock`):** Protected with `role:owner` middleware and per-action `isOwner()` checks; linked under `Inventaris & Bahan`. Includes ingredient search picker, comma/dot decimal input (up to 3 decimals, no thousand separators), Alpine-formatted Rupiah unit cost for stock-in, stable idempotency keys, result summary card, and `ActivityLog` auditing (`module: 'inventory'`, actions `stock_in`, `stock_wastage`, `stock_adjustment`).
+- **Bilingual Localization:** Added identical `messages.nav.stock` and `messages.stock.*` keys in `lang/id/messages.php` and `lang/en/messages.php`.
+
+### Deliverables
+- **Files Created:**
+  - `app/Exceptions/Inventory/InvalidStockQuantityException.php`
+  - `app/Exceptions/Inventory/InsufficientStockException.php`
+  - `app/Exceptions/Inventory/StockReasonRequiredException.php`
+  - `app/Services/Inventory/StockAdjustmentService.php`
+  - `app/Livewire/Inventory/StockAdjustmentManager.php`
+  - `resources/views/livewire/inventory/stock-adjustment-manager.blade.php`
+  - `tests/Unit/Inventory/StockQuantityParsingTest.php` (3 tests, 18 assertions)
+  - `tests/Feature/Inventory/StockAdjustmentTest.php` (7 tests, 52 assertions)
+- **Files Modified:**
+  - `routes/web.php`, `resources/views/components/layouts/app.blade.php`, `lang/id/messages.php`, `lang/en/messages.php`, `docs/PROJECT_PLAN.md`, `docs/DEVELOPMENT_LOG.md`, `docs/ARCHITECTURE.md`, `docs/DATABASE_DESIGN.md`
+
+### Automated Test Results
+- **Unit & Feature Stock Tests:** 10 tests, 70 assertions — 100% passing
+- **Full Test Suite (`php artisan test --compact`):** 377 tests, 1431 assertions — 100% passing (0 failures, 0 errors)
+- **Laravel Pint (`php vendor/bin/pint --test`):** ✅ Clean (0 violations)
+- **Vite Build (`npm run build`):** ✅ Compiled successfully in 1.54s
+
+### Scope Boundaries Respected
+- Supplier records are not implemented in this task; supplier names or invoice numbers can be entered in the optional `stock_in` `notes` field.
+- `ingredients.cost_per_unit` is not modified by `stock_in`.
+- Automatic order deduction, low-stock alerts, stock movement history viewer, and refund inventory rules (Tasks 6.4–6.7) remain unimplemented.
+
+
 
 
 

@@ -883,5 +883,7 @@ Append-only audit ledger of all inventory changes. No `updated_at` column.
 
 **Indexes**: `idx_movements_ingredient_date (ingredient_id, created_at)`, `idx_movements_reference (reference_type, reference_id)`, `idx_movements_branch_id`.
 
+**Active Movement Types (Task 6.3):** `stock_in`, `wastage`, and `adjustment` are written by `App\Services\Inventory\StockAdjustmentService` (in addition to `opening_stock` from Task 6.2). `order_deduction` and `refund_credit` remain reserved for Tasks 6.4 and 6.7.
+
 > [!NOTE]
 > `StockMovement::booted()` registers `updating` and `deleting` listeners that throw `DomainException`, making records application-level immutable as well as structurally append-only (no `updated_at` column).

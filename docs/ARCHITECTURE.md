@@ -466,8 +466,12 @@ The Owner backoffice interfaces for inventory and recipe management are implemen
 |---|---|---|---|
 | `App\Livewire\Inventory\IngredientManager` | `/inventory/ingredients` | `livewire/inventory/ingredient-manager.blade.php` | CRUD for ingredients & categories, opening balance posting, min-stock alerts, search/filter |
 | `App\Livewire\Inventory\RecipeManager` | `/inventory/recipes` | `livewire/inventory/recipe-manager.blade.php` | Catalog-wide recipe composition overview, real-time COGS and gross profit margin reporting |
+| `App\Livewire\Inventory\StockAdjustmentManager` | `/inventory/stock` | `livewire/inventory/stock-adjustment-manager.blade.php` | Owner-only Stock In, Adjustment (`counted`/`difference`), and Wastage interface with milli-unit precision |
 | `App\Livewire\Menu\ProductForm` | `/menu/products/{id}/edit` | `livewire/menu/product-form.blade.php` | Tab 5 ("Resep Bahan / BOM"): per-product base recipe and per-variant override management |
 | `App\Livewire\Menu\ModifierManager` | `/menu/modifiers` | `livewire/menu/modifier-manager.blade.php` | Recipe delta configuration per modifier option (`add` / `replace` actions, target and replacement ingredients) |
+
+**Delivered Phase 6 Services (Task 6.3):**
+- `App\Services\Inventory\StockAdjustmentService`: Atomic `stockIn()`, `recordWastage()`, and `adjust()` (`counted` and `difference` modes) using `Ingredient::toMilli()` / `fromMilli()` integer arithmetic, `lockForUpdate()` on `ingredient_balances`, `(idempotency_key, ingredient_id)` deduplication, and typed exceptions (`InvalidStockQuantityException`, `InsufficientStockException`, `StockReasonRequiredException`).
 
 ### 14.7. Planned Phase 6 Services (Not Yet Implemented)
 
@@ -475,6 +479,5 @@ The Owner backoffice interfaces for inventory and recipe management are implemen
 |---|---|
 | `App\Services\Inventory\InventoryService` | Coordinator: resolves recipe, locks balances, delegates to sub-services |
 | `App\Services\Inventory\RecipeResolutionService` | Merges base recipe + variant overrides + modifier deltas into final ingredient list |
-| `App\Services\Inventory\StockAdjustmentService` | Atomic stock mutations with pessimistic locking; writes `StockMovement` records |
 
 **Planned locking strategy**: Sort ingredient IDs in ascending order before acquiring `lockForUpdate()` on `ingredient_balances` rows — prevents deadlocks when multiple concurrent deductions share ingredients.

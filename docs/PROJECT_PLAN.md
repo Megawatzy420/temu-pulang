@@ -294,7 +294,11 @@ flowchart TD
   - Automated tests: `IngredientAndRecipeManagementTest.php` (14 tests, 41 assertions — 100% passing).
   - Full suite: 331 tests, 1118 assertions — 100% passing.
   - Pint: ✅ clean.
-- [ ] **Task 6.3 — Stock-In & Adjustment Interface (PLANNED)**
+- [x] **Task 6.3 — Stock-In & Adjustment Interface (COMPLETED ✅)**
+  - `App\Services\Inventory\StockAdjustmentService`: atomic `stockIn()`, `recordWastage()`, and `adjust()` (`counted` and `difference` modes) with `Ingredient::toMilli()`/`fromMilli()` integer arithmetic, `lockForUpdate()` on `ingredient_balances`, idempotent `(idempotency_key, ingredient_id)` deduplication, and typed exceptions (`App\Exceptions\Inventory\*`).
+  - `App\Livewire\Inventory\StockAdjustmentManager` (`/inventory/stock`, `role:owner` middleware + per-action checks, sidebar link under `Inventaris & Bahan`): ingredient search picker, comma/dot decimal input (up to 3 decimals, no thousand separators), Alpine-formatted Rupiah unit cost for stock-in, stable idempotency keys, and `ActivityLog` auditing (`stock_in`, `stock_wastage`, `stock_adjustment`).
+  - Automated tests: `StockQuantityParsingTest.php` (3 tests, 18 assertions) & `StockAdjustmentTest.php` (7 tests, 52 assertions) — 100% passing.
+  - Full suite: **377 tests, 1431 assertions — 100% passing**; Pint clean; Vite build passing.
 - [ ] **Task 6.4 — Automatic Order Deduction (PLANNED)**
 - [ ] **Task 6.5 — Low-Stock Alerts (PLANNED)**
 - [ ] **Task 6.6 — Stock Movement History Viewer (PLANNED)**

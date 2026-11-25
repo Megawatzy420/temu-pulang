@@ -5,6 +5,7 @@ use App\Livewire\ActivityLogs\ActivityLogIndex;
 use App\Livewire\Dashboard\OwnerDashboard;
 use App\Livewire\Inventory\IngredientManager;
 use App\Livewire\Inventory\RecipeManager;
+use App\Livewire\Inventory\StockAdjustmentManager;
 use App\Livewire\Menu\CategoryManager;
 use App\Livewire\Menu\ModifierManager;
 use App\Livewire\Menu\ProductForm;
@@ -76,6 +77,7 @@ Route::middleware('auth')->group(function () {
     Route::prefix('inventory')->middleware('role:owner')->name('inventory.')->group(function () {
         Route::get('/ingredients', IngredientManager::class)->name('ingredients');
         Route::get('/recipes', RecipeManager::class)->name('recipes');
+        Route::get('/stock', StockAdjustmentManager::class)->name('stock');
     });
 
     // POS Terminal & Shift Operations: Accessible to both Owner and Cashier

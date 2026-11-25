@@ -216,6 +216,16 @@
                             </a>
 
                             <a
+                                href="{{ route('inventory.stock') }}"
+                                class="flex items-center gap-3 px-3.5 py-2 rounded-xl text-sm font-medium transition-colors {{ request()->routeIs('inventory.stock*') ? 'bg-coffee-800 text-white font-semibold shadow-xs' : 'text-coffee-300 hover:bg-coffee-800/60 hover:text-white' }}"
+                            >
+                                <svg class="w-4.5 h-4.5 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                                </svg>
+                                <span>{{ __('messages.nav.stock') }}</span>
+                            </a>
+
+                            <a
                                 href="#reports"
                                 class="flex items-center gap-3 px-3.5 py-2 rounded-xl text-sm font-medium text-coffee-300 hover:bg-coffee-800/60 hover:text-white transition-colors"
                             >
