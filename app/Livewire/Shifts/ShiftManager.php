@@ -2,15 +2,31 @@
 
 namespace App\Livewire\Shifts;
 
+use App\Exceptions\Cash\CannotReverseReversalException;
+use App\Exceptions\Cash\InvalidCashMovementTypeException;
+use App\Exceptions\Cash\MovementAlreadyReversedException;
+use App\Exceptions\Cash\MovementDescriptionRequiredException;
+use App\Exceptions\Cash\MovementOnClosedShiftException;
+use App\Exceptions\Cash\NonPositiveMovementAmountException;
+use App\Exceptions\Cash\ReversalOnClosedShiftException;
+use App\Exceptions\Cash\ReversalReasonRequiredException;
+use App\Exceptions\Shift\ClosingNoteRequiredForDiscrepancyException;
+use App\Exceptions\Shift\NegativeCountedCashException;
+use App\Exceptions\Shift\NegativeOpeningCashException;
+use App\Exceptions\Shift\ShiftAlreadyActiveException;
+use App\Exceptions\Shift\ShiftAlreadyClosedException;
+use App\Exceptions\Shift\UnauthorizedShiftCloseException;
 use App\Models\CashMovement;
 use App\Models\Shift;
 use App\Services\CashMovementService;
 use App\Services\ShiftService;
 use DomainException;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Livewire\Component;
 use Livewire\WithPagination;
+use Throwable;
 
 class ShiftManager extends Component
 {
@@ -79,7 +95,7 @@ class ShiftManager extends Component
             $this->showOpenShiftModal = false;
             $this->dispatch('notify', message: __('messages.shifts.shift_opened_notification'), type: 'success');
         } catch (DomainException $e) {
-            $this->addError('openingCash', $e->getMessage());
+            $this->addError('openingCash', $this->mapShiftExceptionToMessage($e, 'open_shift'));
         }
     }
 
@@ -127,7 +143,7 @@ class ShiftManager extends Component
             $this->showMovementModal = false;
             $this->dispatch('notify', message: __('messages.shifts.movement_recorded_notification'), type: 'success');
         } catch (DomainException $e) {
-            $this->addError('movementAmount', $e->getMessage());
+            $this->addError('movementAmount', $this->mapShiftExceptionToMessage($e, 'cash_movement'));
         }
     }
 
@@ -167,7 +183,7 @@ class ShiftManager extends Component
             $this->showReversalModal = false;
             $this->dispatch('notify', message: __('messages.shifts.movement_reversed_notification'), type: 'info');
         } catch (DomainException $e) {
-            $this->addError('reversalReason', $e->getMessage());
+            $this->addError('reversalReason', $this->mapShiftExceptionToMessage($e, 'reversal'));
         }
     }
 
@@ -215,8 +231,40 @@ class ShiftManager extends Component
             $this->showCloseShiftModal = false;
             $this->dispatch('notify', message: __('messages.shifts.shift_closed_notification'), type: 'success');
         } catch (DomainException $e) {
-            $this->addError('closingNote', $e->getMessage());
+            $this->addError('closingNote', $this->mapShiftExceptionToMessage($e, 'close_shift'));
         }
+    }
+
+    /**
+     * Map shift and cash drawer exceptions to localized user-facing messages by exception class.
+     */
+    protected function mapShiftExceptionToMessage(Throwable $e, string $context = 'shift'): string
+    {
+        return match (true) {
+            $e instanceof NegativeOpeningCashException => __('messages.shifts.error_negative_opening_cash'),
+            $e instanceof ShiftAlreadyActiveException => __('messages.shifts.error_shift_already_active'),
+            $e instanceof NegativeCountedCashException => __('messages.shifts.error_negative_counted_cash'),
+            $e instanceof ShiftAlreadyClosedException => __('messages.shifts.error_shift_already_closed'),
+            $e instanceof UnauthorizedShiftCloseException => __('messages.shifts.error_unauthorized_shift_close'),
+            $e instanceof ClosingNoteRequiredForDiscrepancyException => __('messages.shifts.error_closing_note_required'),
+            $e instanceof InvalidCashMovementTypeException => __('messages.shifts.error_invalid_movement_type'),
+            $e instanceof NonPositiveMovementAmountException => __('messages.shifts.error_movement_amount_positive'),
+            $e instanceof MovementDescriptionRequiredException => __('messages.shifts.error_movement_note_required'),
+            $e instanceof MovementOnClosedShiftException => __('messages.shifts.error_movement_on_closed_shift'),
+            $e instanceof ReversalReasonRequiredException => __('messages.shifts.error_reversal_reason_required'),
+            $e instanceof CannotReverseReversalException => __('messages.shifts.error_cannot_reverse_reversal'),
+            $e instanceof MovementAlreadyReversedException => __('messages.shifts.error_movement_already_reversed'),
+            $e instanceof ReversalOnClosedShiftException => __('messages.shifts.error_reversal_on_closed_shift'),
+            default => (function () use ($e, $context): string {
+                Log::error('Unhandled shift or cash drawer exception in ShiftManager', [
+                    'context' => $context,
+                    'exception' => $e::class,
+                    'message' => $e->getMessage(),
+                ]);
+
+                return __('messages.shifts.error_generic');
+            })(),
+        };
     }
 
     /**

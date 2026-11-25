@@ -1306,6 +1306,76 @@ Audited and localized all remaining hardcoded user-facing literals across the th
 - **Laravel Pint (`php vendor/bin/pint --test`):** ✅ Clean (0 violations)
 - **Vite Build (`npm run build`):** ✅ Compiled successfully
 
+---
+
+## Hardening & Cleanup — Part D: Typed Exceptions for Shift & Cash Services and Locale-Aware Dates
+
+**Date:** 2026-11-25  
+**Status:** ✅ COMPLETED
+
+### Summary
+Replaced all `DomainException` and `InvalidArgumentException` throw statements in `ShiftService` and `CashMovementService` with 14 typed domain exception classes under `App\Exceptions\Shift\*` and `App\Exceptions\Cash\*` (extending their exact original parent classes and preserving the verbatim Indonesian messages for audit logs and existing service tests). Updated all 4 catch blocks in `App\Livewire\Shifts\ShiftManager` (`submitOpenShift` -> `openingCash`, `submitCashMovement` -> `movementAmount`, `submitReversal` -> `reversalReason`, `submitCloseShift` -> `closingNote`) to map exceptions via `instanceof` to localized `messages.shifts.error_*` translation keys in `lang/id/messages.php` and `lang/en/messages.php` (logging any unmatched exception via `Log::error` and returning `messages.shifts.error_generic` without ever exposing raw `$e->getMessage()` text). Added `Carbon::setLocale($locale)` to `App\Http\Middleware\SetLocale` and replaced month-name `->format(...)` calls in `shift-manager.blade.php`, `order-index.blade.php`, and `activity-log-index.blade.php` with `->translatedFormat(...)`. Service and UI behavior, validation order, locking, and database constraint checks are completely unchanged.
+
+### Shift & Cash Exception Inventory Table
+| # | Throw Site (`file:line`) | Previous Class | Condition | Target New Class | Parent Class | Translation Key |
+|---|---|---|---|---|---|---|
+| 1 | `app/Services/ShiftService.php:41` | `DomainException` | Opening cash amount is negative (`$openingCash < 0`) | `App\Exceptions\Shift\NegativeOpeningCashException` | `DomainException` | `messages.shifts.error_negative_opening_cash` |
+| 2 | `app/Services/ShiftService.php:59` | `DomainException` | Another shift is already active (`$activeCount > 0` under lock) | `App\Exceptions\Shift\ShiftAlreadyActiveException` | `DomainException` | `messages.shifts.error_shift_already_active` |
+| 3 | `app/Services/ShiftService.php:78` | `DomainException` | Another shift is already active (`uq_active_shift` / SQLSTATE `23000`) | `App\Exceptions\Shift\ShiftAlreadyActiveException` | `DomainException` | `messages.shifts.error_shift_already_active` |
+| 4 | `app/Services/ShiftService.php:138` | `DomainException` | Counted physical cash is negative (`$actualCash < 0`) | `App\Exceptions\Shift\NegativeCountedCashException` | `DomainException` | `messages.shifts.error_negative_counted_cash` |
+| 5 | `app/Services/ShiftService.php:142` | `DomainException` | Shift is already closed before lock (`$shift->isClosed()`) | `App\Exceptions\Shift\ShiftAlreadyClosedException` | `DomainException` | `messages.shifts.error_shift_already_closed` |
+| 6 | `app/Services/ShiftService.php:147` | `DomainException` | Non-owner cashier tries to close another cashier's shift | `App\Exceptions\Shift\UnauthorizedShiftCloseException` | `DomainException` | `messages.shifts.error_unauthorized_shift_close` |
+| 7 | `app/Services/ShiftService.php:158` | `DomainException` | Shift is already closed after lock (`$lockedShift->isClosed()`) | `App\Exceptions\Shift\ShiftAlreadyClosedException` | `DomainException` | `messages.shifts.error_shift_already_closed` |
+| 8 | `app/Services/ShiftService.php:166` | `DomainException` | Cash discrepancy exists (`$discrepancy !== 0`) and closing note is empty | `App\Exceptions\Shift\ClosingNoteRequiredForDiscrepancyException` | `DomainException` | `messages.shifts.error_closing_note_required` |
+| 9 | `app/Services/CashMovementService.php:41` | `InvalidArgumentException` | Movement type is neither `'in'` nor `'out'` | `App\Exceptions\Cash\InvalidCashMovementTypeException` | `InvalidArgumentException` | `messages.shifts.error_invalid_movement_type` |
+| 10 | `app/Services/CashMovementService.php:45` | `DomainException` | Movement amount is zero or negative (`$amount <= 0`) | `App\Exceptions\Cash\NonPositiveMovementAmountException` | `DomainException` | `messages.shifts.error_movement_amount_positive` |
+| 11 | `app/Services/CashMovementService.php:49` | `DomainException` | Movement description/reason is empty or whitespace | `App\Exceptions\Cash\MovementDescriptionRequiredException` | `DomainException` | `messages.shifts.error_movement_note_required` |
+| 12 | `app/Services/CashMovementService.php:53` | `DomainException` | Recording a cash movement on a closed shift (pre-lock check) | `App\Exceptions\Cash\MovementOnClosedShiftException` | `DomainException` | `messages.shifts.error_movement_on_closed_shift` |
+| 13 | `app/Services/CashMovementService.php:60` | `DomainException` | Recording a cash movement on a closed shift (under lock) | `App\Exceptions\Cash\MovementOnClosedShiftException` | `DomainException` | `messages.shifts.error_movement_on_closed_shift` |
+| 14 | `app/Services/CashMovementService.php:104` | `DomainException` | Reversal reason is empty or whitespace | `App\Exceptions\Cash\ReversalReasonRequiredException` | `DomainException` | `messages.shifts.error_reversal_reason_required` |
+| 15 | `app/Services/CashMovementService.php:108` | `DomainException` | Target movement is itself a reversal transaction (pre-lock check) | `App\Exceptions\Cash\CannotReverseReversalException` | `DomainException` | `messages.shifts.error_cannot_reverse_reversal` |
+| 16 | `app/Services/CashMovementService.php:112` | `DomainException` | Target movement has already been reversed (pre-lock check) | `App\Exceptions\Cash\MovementAlreadyReversedException` | `DomainException` | `messages.shifts.error_movement_already_reversed` |
+| 17 | `app/Services/CashMovementService.php:117` | `DomainException` | Reversing a movement whose shift is already closed (pre-lock check) | `App\Exceptions\Cash\ReversalOnClosedShiftException` | `DomainException` | `messages.shifts.error_reversal_on_closed_shift` |
+| 18 | `app/Services/CashMovementService.php:128` | `DomainException` | Target movement is itself a reversal transaction (under lock) | `App\Exceptions\Cash\CannotReverseReversalException` | `DomainException` | `messages.shifts.error_cannot_reverse_reversal` |
+| 19 | `app/Services/CashMovementService.php:132` | `DomainException` | Target movement has already been reversed (under lock) | `App\Exceptions\Cash\MovementAlreadyReversedException` | `DomainException` | `messages.shifts.error_movement_already_reversed` |
+| 20 | `app/Services/CashMovementService.php:141` | `DomainException` | Reversing a movement whose shift is already closed (under lock) | `App\Exceptions\Cash\ReversalOnClosedShiftException` | `DomainException` | `messages.shifts.error_reversal_on_closed_shift` |
+| 21 | `app/Services/CashMovementService.php:162` | `DomainException` | Target movement has already been reversed (`uq_reversed_movement_once` / SQLSTATE `23000`) | `App\Exceptions\Cash\MovementAlreadyReversedException` | `DomainException` | `messages.shifts.error_movement_already_reversed` |
+
+### Deliverables
+- **Files Created (15):**
+  - `app/Exceptions/Shift/NegativeOpeningCashException.php`
+  - `app/Exceptions/Shift/ShiftAlreadyActiveException.php`
+  - `app/Exceptions/Shift/NegativeCountedCashException.php`
+  - `app/Exceptions/Shift/ShiftAlreadyClosedException.php`
+  - `app/Exceptions/Shift/UnauthorizedShiftCloseException.php`
+  - `app/Exceptions/Shift/ClosingNoteRequiredForDiscrepancyException.php`
+  - `app/Exceptions/Cash/InvalidCashMovementTypeException.php`
+  - `app/Exceptions/Cash/NonPositiveMovementAmountException.php`
+  - `app/Exceptions/Cash/MovementDescriptionRequiredException.php`
+  - `app/Exceptions/Cash/MovementOnClosedShiftException.php`
+  - `app/Exceptions/Cash/ReversalReasonRequiredException.php`
+  - `app/Exceptions/Cash/CannotReverseReversalException.php`
+  - `app/Exceptions/Cash/MovementAlreadyReversedException.php`
+  - `app/Exceptions/Cash/ReversalOnClosedShiftException.php`
+  - `tests/Feature/ShiftAndCashExceptionsAndDatesTest.php` (17 tests, 268 assertions)
+- **Files Modified (12):**
+  - `app/Services/ShiftService.php` (throw statements + `use` imports only)
+  - `app/Services/CashMovementService.php` (throw statements + `use` imports only)
+  - `app/Livewire/Shifts/ShiftManager.php` (`catch` blocks + `mapShiftExceptionToMessage()`)
+  - `app/Http/Middleware/SetLocale.php` (`Carbon::setLocale($locale)`)
+  - `resources/views/livewire/shifts/shift-manager.blade.php` (`->translatedFormat('d M Y, H:i')`)
+  - `resources/views/livewire/orders/order-index.blade.php` (`->translatedFormat('d M Y, H:i:s')`)
+  - `resources/views/livewire/activity-logs/activity-log-index.blade.php` (`->translatedFormat('d M Y')`)
+  - `lang/id/messages.php`, `lang/en/messages.php`
+  - `docs/PROJECT_PLAN.md`, `docs/DEVELOPMENT_LOG.md`, `docs/ARCHITECTURE.md`
+
+### Automated Test Results
+- **Shift/Cash Exceptions & Locale-Aware Dates Tests (`ShiftAndCashExceptionsAndDatesTest`):** 17 tests, 268 assertions — 100% passing
+- **Existing Test Suites (Unmodified):** 429 tests, 1958 assertions — 100% passing
+- **Full Test Suite (`php artisan test --compact`):** 446 tests, 2226 assertions — 100% passing (0 failures, 0 errors)
+- **Laravel Pint (`php vendor/bin/pint --test`):** ✅ Clean (0 violations)
+- **Vite Build (`npm run build`):** ✅ Compiled successfully
+
 
 
 

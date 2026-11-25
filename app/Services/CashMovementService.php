@@ -2,6 +2,14 @@
 
 namespace App\Services;
 
+use App\Exceptions\Cash\CannotReverseReversalException;
+use App\Exceptions\Cash\InvalidCashMovementTypeException;
+use App\Exceptions\Cash\MovementAlreadyReversedException;
+use App\Exceptions\Cash\MovementDescriptionRequiredException;
+use App\Exceptions\Cash\MovementOnClosedShiftException;
+use App\Exceptions\Cash\NonPositiveMovementAmountException;
+use App\Exceptions\Cash\ReversalOnClosedShiftException;
+use App\Exceptions\Cash\ReversalReasonRequiredException;
 use App\Models\ActivityLog;
 use App\Models\CashMovement;
 use App\Models\Shift;
@@ -30,26 +38,26 @@ class CashMovementService
         $type = strtolower(trim($type));
 
         if (! in_array($type, ['in', 'out'], true)) {
-            throw new InvalidArgumentException("Tipe pergerakan kas tidak valid: '{$type}'. Gunakan 'in' atau 'out'.");
+            throw new InvalidCashMovementTypeException("Tipe pergerakan kas tidak valid: '{$type}'. Gunakan 'in' atau 'out'.");
         }
 
         if ($amount <= 0) {
-            throw new DomainException('Jumlah uang pergerakan kas harus lebih besar dari 0 Rupiah.');
+            throw new NonPositiveMovementAmountException('Jumlah uang pergerakan kas harus lebih besar dari 0 Rupiah.');
         }
 
         if (empty(trim($description))) {
-            throw new DomainException('Keterangan atau alasan pergerakan kas wajib diisi.');
+            throw new MovementDescriptionRequiredException('Keterangan atau alasan pergerakan kas wajib diisi.');
         }
 
         if ($shift->isClosed()) {
-            throw new DomainException('Tidak dapat mencatat pergerakan kas pada shift yang sudah ditutup.');
+            throw new MovementOnClosedShiftException('Tidak dapat mencatat pergerakan kas pada shift yang sudah ditutup.');
         }
 
         return DB::transaction(function () use ($shift, $user, $type, $amount, $category, $description, $approvedBy) {
             // Re-verify shift state under lock
             $freshShift = Shift::where('id', $shift->id)->lockForUpdate()->firstOrFail();
             if ($freshShift->isClosed()) {
-                throw new DomainException('Tidak dapat mencatat pergerakan kas pada shift yang sudah ditutup.');
+                throw new MovementOnClosedShiftException('Tidak dapat mencatat pergerakan kas pada shift yang sudah ditutup.');
             }
 
             $movement = CashMovement::create([
@@ -93,20 +101,20 @@ class CashMovementService
     public function reverseMovement(CashMovement $movement, User $user, string $reason): CashMovement
     {
         if (empty(trim($reason))) {
-            throw new DomainException('Alasan pembatalan/pembalikan pergerakan kas wajib diisi.');
+            throw new ReversalReasonRequiredException('Alasan pembatalan/pembalikan pergerakan kas wajib diisi.');
         }
 
         if ($movement->is_reversal) {
-            throw new DomainException('Transaksi pembalikan tidak dapat dibatalkan kembali.');
+            throw new CannotReverseReversalException('Transaksi pembalikan tidak dapat dibatalkan kembali.');
         }
 
         if ($movement->isReversed()) {
-            throw new DomainException('Pergerakan kas ini sudah pernah dibatalkan sebelumnya.');
+            throw new MovementAlreadyReversedException('Pergerakan kas ini sudah pernah dibatalkan sebelumnya.');
         }
 
         $shift = $movement->shift;
         if ($shift->isClosed()) {
-            throw new DomainException('Tidak dapat membatalkan pergerakan kas pada shift yang sudah ditutup.');
+            throw new ReversalOnClosedShiftException('Tidak dapat membatalkan pergerakan kas pada shift yang sudah ditutup.');
         }
 
         return DB::transaction(function () use ($movement, $user, $reason) {
@@ -117,11 +125,11 @@ class CashMovementService
                 ->firstOrFail();
 
             if ($lockedMovement->is_reversal) {
-                throw new DomainException('Transaksi pembalikan tidak dapat dibatalkan kembali.');
+                throw new CannotReverseReversalException('Transaksi pembalikan tidak dapat dibatalkan kembali.');
             }
 
             if ($lockedMovement->isReversed()) {
-                throw new DomainException('Pergerakan kas ini sudah pernah dibatalkan sebelumnya.');
+                throw new MovementAlreadyReversedException('Pergerakan kas ini sudah pernah dibatalkan sebelumnya.');
             }
 
             $shift = Shift::query()
@@ -130,7 +138,7 @@ class CashMovementService
                 ->firstOrFail();
 
             if ($shift->isClosed()) {
-                throw new DomainException('Tidak dapat membatalkan pergerakan kas pada shift yang sudah ditutup.');
+                throw new ReversalOnClosedShiftException('Tidak dapat membatalkan pergerakan kas pada shift yang sudah ditutup.');
             }
 
             // Opposite type for reversal
@@ -151,7 +159,7 @@ class CashMovementService
                 ]);
             } catch (QueryException $e) {
                 if ($e->getCode() === '23000' || str_contains($e->getMessage(), 'uq_reversed_movement_once')) {
-                    throw new DomainException('Pergerakan kas ini sudah pernah dibatalkan sebelumnya.');
+                    throw new MovementAlreadyReversedException('Pergerakan kas ini sudah pernah dibatalkan sebelumnya.');
                 }
                 throw $e;
             }

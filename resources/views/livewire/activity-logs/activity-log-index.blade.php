@@ -91,7 +91,7 @@
                         <tr class="hover:bg-cream-50/60 transition-colors">
                             <td class="py-3 px-4 text-coffee-600 whitespace-nowrap text-[11px]">
                                 <div class="font-bold text-coffee-900">
-                                    {{ $log->created_at->timezone('Asia/Jakarta')->format('d M Y') }}
+                                    {{ $log->created_at->timezone('Asia/Jakarta')->translatedFormat('d M Y') }}
                                 </div>
                                 <div class="text-coffee-400">
                                     {{ $log->created_at->timezone('Asia/Jakarta')->format('H:i:s') }} WIB

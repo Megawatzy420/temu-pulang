@@ -376,7 +376,7 @@ Allocations are sorted by `[payment_id, amount, refund_method]` before hashing t
 
 ### 12.4. Domain Exceptions & UI Error Mapping
 
-UI components (`CashierPos::mapPaymentExceptionToMessage()` and `OrderRefund::mapRefundExceptionToMessage()`) map service exceptions exclusively by exception class (`instanceof`), never by matching substrings (`str_contains`) in the exception message text. Each typed exception extends the exact base exception type (`InvalidArgumentException`, `DomainException`, or `Symfony\Component\HttpKernel\Exception\ConflictHttpException`) so existing catch blocks and HTTP 409 status behavior remain unchanged:
+UI components (`CashierPos::mapPaymentExceptionToMessage()`, `OrderRefund::mapRefundExceptionToMessage()`, and `ShiftManager::mapShiftExceptionToMessage()`) map service exceptions exclusively by exception class (`instanceof`), never by matching substrings (`str_contains`) in the exception message text or exposing raw `$e->getMessage()` strings. Each typed exception extends the exact base exception type (`InvalidArgumentException`, `DomainException`, or `Symfony\Component\HttpKernel\Exception\ConflictHttpException`) so existing catch blocks and HTTP 409 status behavior remain unchanged:
 
 | Domain | Exception Class | Extends | UI Mapper Translation Key |
 |---|---|---|---|
@@ -396,9 +396,25 @@ UI components (`CashierPos::mapPaymentExceptionToMessage()` and `OrderRefund::ma
 | Refund | `App\Exceptions\Refund\CashRefundRequiresOpenShiftException` | `InvalidArgumentException` | `messages.refund.no_open_shift_cash` |
 | Refund | `App\Exceptions\Refund\RefundExceedsRemainingBalanceException` | `InvalidArgumentException` | `messages.refund.error_over_refund` |
 | Refund | `App\Exceptions\Refund\RefundTotalExceedsPaidAmountException` | `DomainException` | `messages.refund.error_over_refund` |
+| Shift | `App\Exceptions\Shift\NegativeOpeningCashException` | `DomainException` | `messages.shifts.error_negative_opening_cash` |
+| Shift | `App\Exceptions\Shift\ShiftAlreadyActiveException` | `DomainException` | `messages.shifts.error_shift_already_active` |
+| Shift | `App\Exceptions\Shift\NegativeCountedCashException` | `DomainException` | `messages.shifts.error_negative_counted_cash` |
+| Shift | `App\Exceptions\Shift\ShiftAlreadyClosedException` | `DomainException` | `messages.shifts.error_shift_already_closed` |
+| Shift | `App\Exceptions\Shift\UnauthorizedShiftCloseException` | `DomainException` | `messages.shifts.error_unauthorized_shift_close` |
+| Shift | `App\Exceptions\Shift\ClosingNoteRequiredForDiscrepancyException` | `DomainException` | `messages.shifts.error_closing_note_required` |
+| Cash | `App\Exceptions\Cash\InvalidCashMovementTypeException` | `InvalidArgumentException` | `messages.shifts.error_invalid_movement_type` |
+| Cash | `App\Exceptions\Cash\NonPositiveMovementAmountException` | `DomainException` | `messages.shifts.error_movement_amount_positive` |
+| Cash | `App\Exceptions\Cash\MovementDescriptionRequiredException` | `DomainException` | `messages.shifts.error_movement_note_required` |
+| Cash | `App\Exceptions\Cash\MovementOnClosedShiftException` | `DomainException` | `messages.shifts.error_movement_on_closed_shift` |
+| Cash | `App\Exceptions\Cash\ReversalReasonRequiredException` | `DomainException` | `messages.shifts.error_reversal_reason_required` |
+| Cash | `App\Exceptions\Cash\CannotReverseReversalException` | `DomainException` | `messages.shifts.error_cannot_reverse_reversal` |
+| Cash | `App\Exceptions\Cash\MovementAlreadyReversedException` | `DomainException` | `messages.shifts.error_movement_already_reversed` |
+| Cash | `App\Exceptions\Cash\ReversalOnClosedShiftException` | `DomainException` | `messages.shifts.error_reversal_on_closed_shift` |
 | Inventory | `App\Exceptions\Inventory\InvalidStockQuantityException` | `InvalidArgumentException` | `messages.stock.error_invalid_quantity` |
 | Inventory | `App\Exceptions\Inventory\InsufficientStockException` | `DomainException` | `messages.stock.error_insufficient_stock` |
 | Inventory | `App\Exceptions\Inventory\StockReasonRequiredException` | `InvalidArgumentException` | `messages.stock.error_reason_required` |
+
+**Locale-Aware Date Formatting**: `App\Http\Middleware\SetLocale` synchronizes `Carbon::setLocale($locale)` alongside `app()->setLocale($locale)` on every request, and views that display month or weekday names (`shift-manager.blade.php`, `order-index.blade.php`, `activity-log-index.blade.php`) use `->translatedFormat(...)` so date labels respect the active `id`/`en` locale.
 
 ---
 

@@ -315,7 +315,7 @@
                             <h3 class="text-lg font-bold text-zinc-900 dark:text-zinc-100">{{ __('messages.orders.detail_modal_title', ['number' => $selectedOrder->call_number]) }}</h3>
                             <span class="text-xs font-mono text-zinc-400">#{{ $selectedOrder->order_number }}</span>
                         </div>
-                        <p class="text-xs text-zinc-500">{{ __('messages.orders.detail_created_meta', ['datetime' => $selectedOrder->created_at->format('d M Y, H:i:s'), 'user' => $selectedOrder->user->name ?? __('messages.orders.cashier_fallback')]) }}</p>
+                        <p class="text-xs text-zinc-500">{{ __('messages.orders.detail_created_meta', ['datetime' => $selectedOrder->created_at->translatedFormat('d M Y, H:i:s'), 'user' => $selectedOrder->user->name ?? __('messages.orders.cashier_fallback')]) }}</p>
                     </div>
                     <button type="button" wire:click="$set('showDetailModal', false)" class="text-zinc-400 hover:text-zinc-600">
                         <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

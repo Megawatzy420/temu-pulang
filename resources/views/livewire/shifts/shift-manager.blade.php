@@ -22,7 +22,7 @@
                             <x-badge variant="success" size="sm">{{ __('messages.shifts.active_badge') }}</x-badge>
                         </div>
                         <p class="text-xs text-coffee-600 mt-0.5">
-                            {!! __('messages.shifts.opened_by_meta', ['user' => e($activeShift->user->name), 'datetime' => $activeShift->opened_at->timezone('Asia/Jakarta')->format('d M Y, H:i')]) !!}
+                            {!! __('messages.shifts.opened_by_meta', ['user' => e($activeShift->user->name), 'datetime' => $activeShift->opened_at->timezone('Asia/Jakarta')->translatedFormat('d M Y, H:i')]) !!}
                             @if ($activeShift->opening_note)
                                 • <span class="italic text-coffee-500">"{{ $activeShift->opening_note }}"</span>
                             @endif

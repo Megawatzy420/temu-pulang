@@ -2,6 +2,12 @@
 
 namespace App\Services;
 
+use App\Exceptions\Shift\ClosingNoteRequiredForDiscrepancyException;
+use App\Exceptions\Shift\NegativeCountedCashException;
+use App\Exceptions\Shift\NegativeOpeningCashException;
+use App\Exceptions\Shift\ShiftAlreadyActiveException;
+use App\Exceptions\Shift\ShiftAlreadyClosedException;
+use App\Exceptions\Shift\UnauthorizedShiftCloseException;
 use App\Models\ActivityLog;
 use App\Models\Shift;
 use App\Models\ShopSetting;
@@ -32,7 +38,7 @@ class ShiftService
     public function openShift(User $user, int $openingCash, ?string $openingNote = null, ?int $branchId = null): Shift
     {
         if ($openingCash < 0) {
-            throw new DomainException('Jumlah kas awal tidak boleh bernilai negatif.');
+            throw new NegativeOpeningCashException('Jumlah kas awal tidak boleh bernilai negatif.');
         }
 
         return DB::transaction(function () use ($user, $openingCash, $openingNote, $branchId) {
@@ -50,7 +56,7 @@ class ShiftService
                 ->count();
 
             if ($activeCount > 0) {
-                throw new DomainException('Masih ada shift yang aktif. Tutup shift aktif terlebih dahulu sebelum membuka shift baru.');
+                throw new ShiftAlreadyActiveException('Masih ada shift yang aktif. Tutup shift aktif terlebih dahulu sebelum membuka shift baru.');
             }
 
             $datePrefix = now()->format('Ymd');
@@ -69,7 +75,7 @@ class ShiftService
                 ]);
             } catch (QueryException $e) {
                 if ($e->getCode() === '23000' || str_contains($e->getMessage(), 'uq_active_shift')) {
-                    throw new DomainException('Masih ada shift yang aktif. Tutup shift aktif terlebih dahulu sebelum membuka shift baru.');
+                    throw new ShiftAlreadyActiveException('Masih ada shift yang aktif. Tutup shift aktif terlebih dahulu sebelum membuka shift baru.');
                 }
                 throw $e;
             }
@@ -129,16 +135,16 @@ class ShiftService
     public function closeShift(Shift $shift, User $closingUser, int $actualCash, ?string $closingNote = null): Shift
     {
         if ($actualCash < 0) {
-            throw new DomainException('Jumlah kas fisik tidak boleh bernilai negatif.');
+            throw new NegativeCountedCashException('Jumlah kas fisik tidak boleh bernilai negatif.');
         }
 
         if ($shift->isClosed()) {
-            throw new DomainException('Shift ini sudah ditutup dan tidak dapat diubah kembali.');
+            throw new ShiftAlreadyClosedException('Shift ini sudah ditutup dan tidak dapat diubah kembali.');
         }
 
         // Cashier cannot close another cashier's shift unless closingUser is Owner
         if (! $closingUser->isOwner() && $closingUser->id !== $shift->user_id) {
-            throw new DomainException('Anda tidak berwenang menutup shift milik kasir lain.');
+            throw new UnauthorizedShiftCloseException('Anda tidak berwenang menutup shift milik kasir lain.');
         }
 
         return DB::transaction(function () use ($shift, $closingUser, $actualCash, $closingNote) {
@@ -149,7 +155,7 @@ class ShiftService
                 ->firstOrFail();
 
             if ($lockedShift->isClosed()) {
-                throw new DomainException('Shift ini sudah ditutup.');
+                throw new ShiftAlreadyClosedException('Shift ini sudah ditutup.');
             }
 
             $expectedCash = $this->calculateExpectedCash($lockedShift);
@@ -157,7 +163,7 @@ class ShiftService
 
             // Discrepancy requires a closing note explanation
             if ($discrepancy !== 0 && (empty($closingNote) || trim($closingNote) === '')) {
-                throw new DomainException('Catatan penutupan wajib diisi apabila terdapat selisih kas.');
+                throw new ClosingNoteRequiredForDiscrepancyException('Catatan penutupan wajib diisi apabila terdapat selisih kas.');
             }
 
             $lockedShift->update([
