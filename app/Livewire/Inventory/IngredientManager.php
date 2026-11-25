@@ -219,7 +219,7 @@ class IngredientManager extends Component
         });
 
         $this->showIngredientModal = false;
-        session()->flash('message', $isNew ? 'Bahan baku berhasil ditambahkan.' : 'Bahan baku berhasil diperbarui.');
+        session()->flash('message', $isNew ? __('messages.ingredients.flash_ingredient_created') : __('messages.ingredients.flash_ingredient_updated'));
     }
 
     public function toggleIngredientStatus(int $id): void
@@ -237,7 +237,7 @@ class IngredientManager extends Component
             module: 'inventory'
         );
 
-        session()->flash('message', "Status bahan baku berhasil {$statusText}.");
+        session()->flash('message', $ingredient->is_active ? __('messages.ingredients.flash_status_activated') : __('messages.ingredients.flash_status_deactivated'));
     }
 
     public function confirmDeleteIngredient(int $id): void
@@ -262,7 +262,7 @@ class IngredientManager extends Component
                 module: 'inventory'
             );
 
-            session()->flash('message', "Bahan baku '{$name}' berhasil dihapus.");
+            session()->flash('message', __('messages.ingredients.flash_ingredient_deleted', ['name' => $name]));
         }
 
         $this->showDeleteIngredientModal = false;
@@ -331,7 +331,7 @@ class IngredientManager extends Component
         );
 
         $this->showCategoryModal = false;
-        session()->flash('message', $isNew ? 'Kategori bahan berhasil ditambahkan.' : 'Kategori bahan berhasil diperbarui.');
+        session()->flash('message', $isNew ? __('messages.ingredients.flash_category_created') : __('messages.ingredients.flash_category_updated'));
     }
 
     public function confirmDeleteCategory(int $id): void
@@ -356,7 +356,7 @@ class IngredientManager extends Component
                 module: 'inventory'
             );
 
-            session()->flash('message', "Kategori bahan '{$name}' berhasil dihapus.");
+            session()->flash('message', __('messages.ingredients.flash_category_deleted', ['name' => $name]));
         }
 
         $this->showDeleteCategoryModal = false;
@@ -400,6 +400,6 @@ class IngredientManager extends Component
         return view('livewire.inventory.ingredient-manager', [
             'ingredients' => $ingredients,
             'categories' => $categories,
-        ])->layout('components.layouts.app', ['title' => 'Kelola Bahan Baku & Inventaris']);
+        ])->layout('components.layouts.app', ['title' => __('messages.ingredients.page_title')]);
     }
 }

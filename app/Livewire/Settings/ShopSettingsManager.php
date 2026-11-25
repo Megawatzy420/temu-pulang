@@ -128,7 +128,7 @@ class ShopSettingsManager extends Component
     {
         $user = Auth::user();
         if (! $user || ! $user->isOwner()) {
-            abort(403, 'Hanya Pemilik (Owner) yang berwenang mengubah pengaturan toko.');
+            abort(403, __('messages.settings.unauthorized_update'));
         }
 
         $this->validate([
@@ -198,7 +198,7 @@ class ShopSettingsManager extends Component
             module: 'settings'
         );
 
-        $this->dispatch('notify', message: 'Pengaturan toko berhasil disimpan.', type: 'success');
+        $this->dispatch('notify', message: __('messages.settings.saved_notification'), type: 'success');
     }
 
     /**
@@ -305,9 +305,9 @@ class ShopSettingsManager extends Component
     {
         return view('livewire.settings.shop-settings-manager')
             ->layout('components.layouts.app', [
-                'title' => 'Pengaturan Toko & Perangkat',
-                'headerTitle' => 'Pengaturan Toko & POS',
-                'headerSubtitle' => 'Konfigurasi profil usaha, jam operasional, pajak default, dan printer USB',
+                'title' => __('messages.settings.page_title'),
+                'headerTitle' => __('messages.settings.header_title'),
+                'headerSubtitle' => __('messages.settings.header_subtitle'),
             ]);
     }
 }

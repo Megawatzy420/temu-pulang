@@ -48,7 +48,7 @@ class OrderIndex extends Component
 
         try {
             $orderService->advanceStatus($order, $targetStatus, Auth::user());
-            $this->dispatch('notify', message: "Status pesanan {$order->call_number} berhasil diperbarui ke {$targetStatus}.", type: 'success');
+            $this->dispatch('notify', message: __('messages.orders.status_updated_notification', ['number' => $order->call_number, 'status' => $targetStatus]), type: 'success');
         } catch (\Exception $e) {
             $this->dispatch('notify', message: $e->getMessage(), type: 'error');
         }
@@ -57,7 +57,7 @@ class OrderIndex extends Component
     public function openCancelModal(int $orderId): void
     {
         if (! Auth::user()->isOwner()) {
-            $this->dispatch('notify', message: 'Hanya Pemilik (Owner) yang dapat membatalkan pesanan.', type: 'error');
+            $this->dispatch('notify', message: __('messages.orders.only_owner_can_cancel'), type: 'error');
 
             return;
         }
@@ -70,13 +70,13 @@ class OrderIndex extends Component
     public function confirmCancel(): void
     {
         if (! Auth::user()->isOwner()) {
-            $this->dispatch('notify', message: 'Hanya Pemilik (Owner) yang dapat membatalkan pesanan.', type: 'error');
+            $this->dispatch('notify', message: __('messages.orders.only_owner_can_cancel'), type: 'error');
 
             return;
         }
 
         if (trim($this->cancellationReason) === '') {
-            $this->dispatch('notify', message: 'Alasan pembatalan wajib diisi.', type: 'error');
+            $this->dispatch('notify', message: __('messages.orders.cancel_reason_required'), type: 'error');
 
             return;
         }
@@ -86,7 +86,7 @@ class OrderIndex extends Component
 
         try {
             $orderService->cancelOrder($order, Auth::user(), $this->cancellationReason);
-            $this->dispatch('notify', message: "Pesanan {$order->call_number} berhasil dibatalkan.", type: 'warning');
+            $this->dispatch('notify', message: __('messages.orders.order_cancelled_notification', ['number' => $order->call_number]), type: 'warning');
             $this->showCancelModal = false;
             $this->cancellingOrderId = null;
             $this->cancellationReason = '';
@@ -148,9 +148,9 @@ class OrderIndex extends Component
             'selectedOrder' => $selectedOrder,
             'stats' => $stats,
         ])->layout('components.layouts.app', [
-            'title' => 'Antrean & Pesanan',
-            'headerTitle' => 'Manajemen Pesanan & Antrean Dapur',
-            'headerSubtitle' => 'Pantau status pesanan, antrean kitchen, dan riwayat pesanan hari ini',
+            'title' => __('messages.orders.page_title'),
+            'headerTitle' => __('messages.orders.header_title'),
+            'headerSubtitle' => __('messages.orders.header_subtitle'),
         ]);
     }
 }

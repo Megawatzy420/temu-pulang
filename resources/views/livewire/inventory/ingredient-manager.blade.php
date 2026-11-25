@@ -3,12 +3,12 @@
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
             <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-coffee-500 mb-1">
-                <a href="{{ route('dashboard') }}" class="hover:text-coffee-800">Inventaris & Stok</a>
+                <a href="{{ route('dashboard') }}" class="hover:text-coffee-800">{{ __('messages.ingredients.breadcrumb_parent') }}</a>
                 <span>/</span>
-                <span class="text-coffee-800">Bahan Baku & Kategori</span>
+                <span class="text-coffee-800">{{ __('messages.ingredients.breadcrumb_current') }}</span>
             </div>
-            <h1 class="text-2xl font-bold text-coffee-950 tracking-tight">Kelola Bahan Baku (Raw Materials)</h1>
-            <p class="text-sm text-coffee-600 mt-0.5">Pantau stok bahan mentah, batas minimum persediaan, dan harga modal per satuan unit.</p>
+            <h1 class="text-2xl font-bold text-coffee-950 tracking-tight">{{ __('messages.ingredients.heading') }}</h1>
+            <p class="text-sm text-coffee-600 mt-0.5">{{ __('messages.ingredients.subheading') }}</p>
         </div>
 
         <div class="flex items-center gap-2.5">
@@ -16,19 +16,19 @@
                 <svg class="w-4 h-4 text-coffee-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
                 </svg>
-                Resep Menu (BOM)
+                {{ __('messages.ingredients.recipes_bom_btn') }}
             </a>
             <x-button wire:click="openCreateCategoryModal" variant="secondary" size="sm" class="flex items-center gap-1.5 shadow-2xs">
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                 </svg>
-                + Kategori
+                {{ __('messages.ingredients.add_category_btn') }}
             </x-button>
             <x-button wire:click="openCreateIngredientModal" variant="primary" size="sm" class="flex items-center gap-1.5 shadow-md">
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                 </svg>
-                + Tambah Bahan
+                {{ __('messages.ingredients.add_ingredient_btn') }}
             </x-button>
         </div>
     </div>
@@ -60,7 +60,7 @@
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
             </svg>
-            <span>Daftar Bahan Baku ({{ $ingredients->total() }})</span>
+            <span>{{ __('messages.ingredients.tab_ingredients', ['count' => $ingredients->total()]) }}</span>
         </button>
 
         <button
@@ -71,7 +71,7 @@
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
             </svg>
-            <span>Kategori Bahan ({{ $categories->count() }})</span>
+            <span>{{ __('messages.ingredients.tab_categories', ['count' => $categories->count()]) }}</span>
         </button>
     </div>
 
@@ -88,7 +88,7 @@
                     <input
                         type="text"
                         wire:model.live.debounce.300ms="search"
-                        placeholder="Cari bahan berdasarkan nama atau SKU..."
+                        placeholder="{{ __('messages.ingredients.search_placeholder') }}"
                         class="w-full pl-10 pr-4 py-2 rounded-xl border border-coffee-200 text-sm text-coffee-950 placeholder-coffee-400 focus:outline-none focus:ring-2 focus:ring-coffee-500/20 focus:border-coffee-700 bg-white"
                     />
                 </div>
@@ -98,7 +98,7 @@
                         wire:model.live="selectedCategoryId"
                         class="w-full px-3.5 py-2 rounded-xl border border-coffee-200 text-sm text-coffee-950 focus:outline-none focus:ring-2 focus:ring-coffee-500/20 focus:border-coffee-700 bg-white"
                     >
-                        <option value="">Semua Kategori</option>
+                        <option value="">{{ __('messages.ingredients.all_categories_option') }}</option>
                         @foreach ($categories as $cat)
                             <option value="{{ $cat->id }}">{{ $cat->name }}</option>
                         @endforeach
@@ -124,14 +124,14 @@
                 <table class="w-full text-left text-sm text-coffee-950">
                     <thead class="bg-cream-100/70 border-b border-coffee-200/80 text-[11px] font-bold uppercase tracking-wider text-coffee-700">
                         <tr>
-                            <th class="px-5 py-3">SKU</th>
-                            <th class="px-5 py-3">Nama Bahan Baku</th>
-                            <th class="px-5 py-3">Kategori</th>
-                            <th class="px-5 py-3 text-right">Biaya / Satuan</th>
-                            <th class="px-5 py-3 text-right">Stok Saat Ini</th>
-                            <th class="px-5 py-3 text-right">Batas Minimum</th>
-                            <th class="px-5 py-3 text-center">Status</th>
-                            <th class="px-5 py-3 text-right">Aksi</th>
+                            <th class="px-5 py-3">{{ __('messages.ingredients.col_sku') }}</th>
+                            <th class="px-5 py-3">{{ __('messages.ingredients.col_name') }}</th>
+                            <th class="px-5 py-3">{{ __('messages.ingredients.col_category') }}</th>
+                            <th class="px-5 py-3 text-right">{{ __('messages.ingredients.col_cost_per_unit') }}</th>
+                            <th class="px-5 py-3 text-right">{{ __('messages.ingredients.col_current_stock') }}</th>
+                            <th class="px-5 py-3 text-right">{{ __('messages.ingredients.col_min_threshold') }}</th>
+                            <th class="px-5 py-3 text-center">{{ __('messages.ingredients.col_status') }}</th>
+                            <th class="px-5 py-3 text-right">{{ __('messages.ingredients.col_actions') }}</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-coffee-100">
@@ -158,7 +158,7 @@
                                             {{ $ingredient->category->name }}
                                         </span>
                                     @else
-                                        <span class="text-xs text-coffee-400 italic">Tanpa Kategori</span>
+                                        <span class="text-xs text-coffee-400 italic">{{ __('messages.ingredients.no_category') }}</span>
                                     @endif
                                 </td>
                                 <td class="px-5 py-3.5 text-right font-medium text-coffee-800">
@@ -193,7 +193,7 @@
                                         wire:click="toggleIngredientStatus({{ $ingredient->id }})"
                                         class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold cursor-pointer transition {{ $ingredient->is_active ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200' : 'bg-coffee-100 text-coffee-500 hover:bg-coffee-200' }}"
                                     >
-                                        {{ $ingredient->is_active ? 'Aktif' : 'Nonaktif' }}
+                                        {{ $ingredient->is_active ? __('messages.ingredients.status_active') : __('messages.ingredients.status_inactive') }}
                                     </button>
                                 </td>
                                 <td class="px-5 py-3.5 text-right">
@@ -209,7 +209,7 @@
                                             type="button"
                                             wire:click="openEditIngredientModal({{ $ingredient->id }})"
                                             class="p-1.5 rounded-lg text-coffee-600 hover:text-coffee-950 hover:bg-coffee-100 transition"
-                                            title="Ubah Bahan"
+                                            title="{{ __('messages.ingredients.edit_ingredient_title') }}"
                                         >
                                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -219,7 +219,7 @@
                                             type="button"
                                             wire:click="confirmDeleteIngredient({{ $ingredient->id }})"
                                             class="p-1.5 rounded-lg text-red-500 hover:text-red-700 hover:bg-red-50 transition"
-                                            title="Hapus Bahan"
+                                            title="{{ __('messages.ingredients.delete_ingredient_title') }}"
                                         >
                                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -237,10 +237,10 @@
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                                             </svg>
                                         </div>
-                                        <h3 class="text-sm font-bold text-coffee-900 mb-1">Belum Ada Bahan Baku</h3>
-                                        <p class="text-xs text-coffee-500 mb-4">Tambahkan bahan baku mentah seperti biji kopi, susu, sirup, atau kemasan.</p>
+                                        <h3 class="text-sm font-bold text-coffee-900 mb-1">{{ __('messages.ingredients.empty_title') }}</h3>
+                                        <p class="text-xs text-coffee-500 mb-4">{{ __('messages.ingredients.empty_subtitle') }}</p>
                                         <x-button wire:click="openCreateIngredientModal" variant="primary" size="sm">
-                                            + Tambah Bahan Sekarang
+                                            {{ __('messages.ingredients.empty_add_btn') }}
                                         </x-button>
                                     </div>
                                 </td>
@@ -263,11 +263,11 @@
                 <table class="w-full text-left text-sm text-coffee-950">
                     <thead class="bg-cream-100/70 border-b border-coffee-200/80 text-[11px] font-bold uppercase tracking-wider text-coffee-700">
                         <tr>
-                            <th class="px-5 py-3 w-20">Urutan</th>
-                            <th class="px-5 py-3">Nama Kategori</th>
-                            <th class="px-5 py-3">Slug</th>
-                            <th class="px-5 py-3 text-center">Jumlah Bahan</th>
-                            <th class="px-5 py-3 text-right">Aksi</th>
+                            <th class="px-5 py-3 w-20">{{ __('messages.ingredients.col_sort_order') }}</th>
+                            <th class="px-5 py-3">{{ __('messages.ingredients.col_category_name') }}</th>
+                            <th class="px-5 py-3">{{ __('messages.ingredients.col_slug') }}</th>
+                            <th class="px-5 py-3 text-center">{{ __('messages.ingredients.col_ingredient_count') }}</th>
+                            <th class="px-5 py-3 text-right">{{ __('messages.ingredients.col_actions') }}</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-coffee-100">
@@ -291,7 +291,7 @@
                                             type="button"
                                             wire:click="openEditCategoryModal({{ $cat->id }})"
                                             class="p-1.5 rounded-lg text-coffee-600 hover:text-coffee-950 hover:bg-coffee-100 transition"
-                                            title="Ubah Kategori"
+                                            title="{{ __('messages.ingredients.edit_category_title') }}"
                                         >
                                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -301,7 +301,7 @@
                                             type="button"
                                             wire:click="confirmDeleteCategory({{ $cat->id }})"
                                             class="p-1.5 rounded-lg text-red-500 hover:text-red-700 hover:bg-red-50 transition"
-                                            title="Hapus Kategori"
+                                            title="{{ __('messages.ingredients.delete_category_title') }}"
                                         >
                                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -313,7 +313,7 @@
                         @empty
                             <tr>
                                 <td colspan="5" class="px-5 py-10 text-center text-sm text-coffee-500">
-                                    Belum ada kategori bahan. Klik <strong>+ Kategori</strong> untuk menambahkan.
+                                    {!! __('messages.ingredients.empty_categories_html') !!}
                                 </td>
                             </tr>
                         @endforelse
@@ -330,9 +330,9 @@
                 <div class="flex items-center justify-between pb-4 border-b border-coffee-100 mb-5">
                     <div>
                         <h2 class="text-lg font-bold text-coffee-950">
-                            {{ $editingIngredientId ? 'Ubah Bahan Baku' : 'Tambah Bahan Baku Baru' }}
+                            {{ $editingIngredientId ? __('messages.ingredients.modal_edit_ingredient_title') : __('messages.ingredients.modal_create_ingredient_title') }}
                         </h2>
-                        <p class="text-xs text-coffee-500">Isi data spesifikasi bahan dan batas peringatan stok.</p>
+                        <p class="text-xs text-coffee-500">{{ __('messages.ingredients.modal_ingredient_subtitle') }}</p>
                     </div>
                     <button type="button" wire:click="$set('showIngredientModal', false)" class="text-coffee-400 hover:text-coffee-700 p-1">
                         <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -346,7 +346,7 @@
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-xs font-bold uppercase tracking-wider text-coffee-800 mb-1">
-                                Kode / SKU Bahan <span class="text-red-500">*</span>
+                                {{ __('messages.ingredients.sku_label') }} <span class="text-red-500">*</span>
                             </label>
                             <input
                                 type="text"
@@ -359,13 +359,13 @@
 
                         <div>
                             <label class="block text-xs font-bold uppercase tracking-wider text-coffee-800 mb-1">
-                                Kategori
+                                {{ __('messages.ingredients.category_label') }}
                             </label>
                             <select
                                 wire:model="categoryId"
                                 class="w-full px-3.5 py-2 rounded-xl border border-coffee-200 text-sm focus:outline-none focus:ring-2 focus:ring-coffee-500/20"
                             >
-                                <option value="">-- Pilih Kategori --</option>
+                                <option value="">{{ __('messages.ingredients.select_category_placeholder') }}</option>
                                 @foreach ($categories as $cat)
                                     <option value="{{ $cat->id }}">{{ $cat->name }}</option>
                                 @endforeach
@@ -377,12 +377,12 @@
                     <!-- Name -->
                     <div>
                         <label class="block text-xs font-bold uppercase tracking-wider text-coffee-800 mb-1">
-                            Nama Bahan Baku <span class="text-red-500">*</span>
+                            {{ __('messages.ingredients.name_label') }} <span class="text-red-500">*</span>
                         </label>
                         <input
                             type="text"
                             wire:model="name"
-                            placeholder="Contoh: Biji Kopi Espresso House Blend"
+                            placeholder="{{ __('messages.ingredients.name_placeholder') }}"
                             class="w-full px-3.5 py-2 rounded-xl border {{ $errors->has('name') ? 'border-red-400' : 'border-coffee-200' }} text-sm focus:outline-none focus:ring-2 focus:ring-coffee-500/20"
                         />
                         @error('name') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
@@ -392,31 +392,31 @@
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-xs font-bold uppercase tracking-wider text-coffee-800 mb-1">
-                                Satuan Unit <span class="text-red-500">*</span>
+                                {{ __('messages.ingredients.unit_label') }} <span class="text-red-500">*</span>
                             </label>
                             <select
                                 wire:model="unit"
                                 class="w-full px-3.5 py-2 rounded-xl border border-coffee-200 text-sm focus:outline-none focus:ring-2 focus:ring-coffee-500/20"
                             >
-                                <option value="g">Gram (g)</option>
-                                <option value="ml">Mililiter (ml)</option>
-                                <option value="pcs">Pieces (pcs)</option>
-                                <option value="kg">Kilogram (kg)</option>
-                                <option value="L">Liter (L)</option>
-                                <option value="pack">Pack / Kantong</option>
+                                <option value="g">{{ __('messages.ingredients.unit_g') }}</option>
+                                <option value="ml">{{ __('messages.ingredients.unit_ml') }}</option>
+                                <option value="pcs">{{ __('messages.ingredients.unit_pcs') }}</option>
+                                <option value="kg">{{ __('messages.ingredients.unit_kg') }}</option>
+                                <option value="L">{{ __('messages.ingredients.unit_l') }}</option>
+                                <option value="pack">{{ __('messages.ingredients.unit_pack') }}</option>
                             </select>
                             @error('unit') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
                         </div>
 
                         <div>
                             <label class="block text-xs font-bold uppercase tracking-wider text-coffee-800 mb-1">
-                                Harga Modal / Satuan (Rp) <span class="text-red-500">*</span>
+                                {{ __('messages.ingredients.cost_per_unit_label') }} <span class="text-red-500">*</span>
                             </label>
                             <input
                                 type="number"
                                 wire:model="costPerUnit"
                                 min="0"
-                                placeholder="Contoh: 350"
+                                placeholder="{{ __('messages.ingredients.cost_per_unit_placeholder') }}"
                                 class="w-full px-3.5 py-2 rounded-xl border {{ $errors->has('costPerUnit') ? 'border-red-400' : 'border-coffee-200' }} text-sm focus:outline-none focus:ring-2 focus:ring-coffee-500/20"
                             />
                             @error('costPerUnit') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
@@ -427,7 +427,7 @@
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-xs font-bold uppercase tracking-wider text-coffee-800 mb-1">
-                                Batas Minimum Peringatan <span class="text-red-500">*</span>
+                                {{ __('messages.ingredients.min_stock_label') }} <span class="text-red-500">*</span>
                             </label>
                             <input
                                 type="text"
@@ -435,14 +435,14 @@
                                 placeholder="100.000"
                                 class="w-full px-3.5 py-2 rounded-xl border {{ $errors->has('minStockAlert') ? 'border-red-400' : 'border-coffee-200' }} text-sm font-mono focus:outline-none focus:ring-2 focus:ring-coffee-500/20"
                             />
-                            <p class="text-[11px] text-coffee-500 mt-0.5">Stok di bawah batas ini memicu alert menipis.</p>
+                            <p class="text-[11px] text-coffee-500 mt-0.5">{{ __('messages.ingredients.min_stock_hint') }}</p>
                             @error('minStockAlert') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
                         </div>
 
                         @if (! $editingIngredientId)
                             <div>
                                 <label class="block text-xs font-bold uppercase tracking-wider text-coffee-800 mb-1">
-                                    Stok Awal Fisik
+                                    {{ __('messages.ingredients.initial_stock_label') }}
                                 </label>
                                 <input
                                     type="text"
@@ -450,7 +450,7 @@
                                     placeholder="0.000"
                                     class="w-full px-3.5 py-2 rounded-xl border {{ $errors->has('initialStock') ? 'border-red-400' : 'border-coffee-200' }} text-sm font-mono focus:outline-none focus:ring-2 focus:ring-coffee-500/20"
                                 />
-                                <p class="text-[11px] text-coffee-500 mt-0.5">Saldo awal saat bahan pertama didaftarkan.</p>
+                                <p class="text-[11px] text-coffee-500 mt-0.5">{{ __('messages.ingredients.initial_stock_hint') }}</p>
                                 @error('initialStock') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
                             </div>
                         @endif
@@ -465,17 +465,17 @@
                             class="w-4 h-4 rounded border-coffee-300 text-coffee-800 focus:ring-coffee-500 accent-coffee-800 cursor-pointer"
                         />
                         <label for="isActiveIngredient" class="text-xs font-semibold text-coffee-800 cursor-pointer select-none">
-                            Bahan Baku Aktif & Tersedia untuk Resep Menu
+                            {{ __('messages.ingredients.active_checkbox_label') }}
                         </label>
                     </div>
 
                     <!-- Modal Actions -->
                     <div class="flex items-center justify-end gap-2.5 pt-4 border-t border-coffee-100">
                         <x-button type="button" wire:click="$set('showIngredientModal', false)" variant="secondary" size="md">
-                            Batal
+                            {{ __('messages.ingredients.cancel_btn') }}
                         </x-button>
                         <x-button type="submit" variant="primary" size="md">
-                            {{ $editingIngredientId ? 'Simpan Perubahan' : 'Tambahkan Bahan' }}
+                            {{ $editingIngredientId ? __('messages.ingredients.save_changes_btn') : __('messages.ingredients.create_ingredient_submit_btn') }}
                         </x-button>
                     </div>
                 </form>
@@ -492,16 +492,16 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                     </svg>
                 </div>
-                <h3 class="text-base font-bold text-coffee-950 mb-1">Hapus Bahan Baku?</h3>
+                <h3 class="text-base font-bold text-coffee-950 mb-1">{{ __('messages.ingredients.delete_ingredient_modal_title') }}</h3>
                 <p class="text-xs text-coffee-500 mb-6">
-                    Bahan baku <strong>"{{ $deletingIngredientName }}"</strong> akan dihapus (soft-delete). Resep yang menggunakannya tidak akan otomatis terhapus untuk menjaga riwayat transaksi.
+                    {!! __('messages.ingredients.delete_ingredient_modal_desc', ['name' => e($deletingIngredientName)]) !!}
                 </p>
                 <div class="flex items-center justify-center gap-2.5">
                     <x-button type="button" wire:click="$set('showDeleteIngredientModal', false)" variant="secondary" size="md" class="w-full">
-                        Batal
+                        {{ __('messages.ingredients.cancel_btn') }}
                     </x-button>
                     <x-button type="button" wire:click="deleteIngredient" variant="danger" size="md" class="w-full">
-                        Ya, Hapus
+                        {{ __('messages.ingredients.confirm_delete_btn') }}
                     </x-button>
                 </div>
             </div>
@@ -515,9 +515,9 @@
                 <div class="flex items-center justify-between pb-4 border-b border-coffee-100 mb-5">
                     <div>
                         <h2 class="text-lg font-bold text-coffee-950">
-                            {{ $editingCategoryId ? 'Ubah Kategori Bahan' : 'Tambah Kategori Bahan' }}
+                            {{ $editingCategoryId ? __('messages.ingredients.modal_edit_category_title') : __('messages.ingredients.modal_create_category_title') }}
                         </h2>
-                        <p class="text-xs text-coffee-500">Kelompokkan bahan (contoh: Coffee Beans, Dairy, Syrups, Packaging).</p>
+                        <p class="text-xs text-coffee-500">{{ __('messages.ingredients.modal_category_subtitle') }}</p>
                     </div>
                     <button type="button" wire:click="$set('showCategoryModal', false)" class="text-coffee-400 hover:text-coffee-700 p-1">
                         <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -529,12 +529,12 @@
                 <form wire:submit.prevent="saveCategory" class="space-y-4">
                     <div>
                         <label class="block text-xs font-bold uppercase tracking-wider text-coffee-800 mb-1">
-                            Nama Kategori <span class="text-red-500">*</span>
+                            {{ __('messages.ingredients.category_name_label') }} <span class="text-red-500">*</span>
                         </label>
                         <input
                             type="text"
                             wire:model.live.debounce.300ms="categoryName"
-                            placeholder="Contoh: Biji Kopi"
+                            placeholder="{{ __('messages.ingredients.category_name_placeholder') }}"
                             class="w-full px-3.5 py-2 rounded-xl border {{ $errors->has('categoryName') ? 'border-red-400' : 'border-coffee-200' }} text-sm focus:outline-none focus:ring-2 focus:ring-coffee-500/20"
                         />
                         @error('categoryName') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
@@ -542,12 +542,12 @@
 
                     <div>
                         <label class="block text-xs font-bold uppercase tracking-wider text-coffee-800 mb-1">
-                            Slug Kategori <span class="text-red-500">*</span>
+                            {{ __('messages.ingredients.category_slug_label') }} <span class="text-red-500">*</span>
                         </label>
                         <input
                             type="text"
                             wire:model="categorySlug"
-                            placeholder="biji-kopi"
+                            placeholder="{{ __('messages.ingredients.category_slug_placeholder') }}"
                             class="w-full px-3.5 py-2 rounded-xl border {{ $errors->has('categorySlug') ? 'border-red-400' : 'border-coffee-200' }} text-sm font-mono focus:outline-none focus:ring-2 focus:ring-coffee-500/20"
                         />
                         @error('categorySlug') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
@@ -555,7 +555,7 @@
 
                     <div>
                         <label class="block text-xs font-bold uppercase tracking-wider text-coffee-800 mb-1">
-                            Urutan Tampil <span class="text-red-500">*</span>
+                            {{ __('messages.ingredients.category_sort_label') }} <span class="text-red-500">*</span>
                         </label>
                         <input
                             type="number"
@@ -568,10 +568,10 @@
 
                     <div class="flex items-center justify-end gap-2.5 pt-4 border-t border-coffee-100">
                         <x-button type="button" wire:click="$set('showCategoryModal', false)" variant="secondary" size="md">
-                            Batal
+                            {{ __('messages.ingredients.cancel_btn') }}
                         </x-button>
                         <x-button type="submit" variant="primary" size="md">
-                            {{ $editingCategoryId ? 'Simpan Perubahan' : 'Tambahkan Kategori' }}
+                            {{ $editingCategoryId ? __('messages.ingredients.save_changes_btn') : __('messages.ingredients.create_category_submit_btn') }}
                         </x-button>
                     </div>
                 </form>
@@ -588,16 +588,16 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                     </svg>
                 </div>
-                <h3 class="text-base font-bold text-coffee-950 mb-1">Hapus Kategori Bahan?</h3>
+                <h3 class="text-base font-bold text-coffee-950 mb-1">{{ __('messages.ingredients.delete_category_modal_title') }}</h3>
                 <p class="text-xs text-coffee-500 mb-6">
-                    Kategori <strong>"{{ $deletingCategoryName }}"</strong> akan dihapus. Bahan-bahan di dalamnya akan tetap tersimpan tanpa kategori.
+                    {!! __('messages.ingredients.delete_category_modal_desc', ['name' => e($deletingCategoryName)]) !!}
                 </p>
                 <div class="flex items-center justify-center gap-2.5">
                     <x-button type="button" wire:click="$set('showDeleteCategoryModal', false)" variant="secondary" size="md" class="w-full">
-                        Batal
+                        {{ __('messages.ingredients.cancel_btn') }}
                     </x-button>
                     <x-button type="button" wire:click="deleteCategory" variant="danger" size="md" class="w-full">
-                        Ya, Hapus
+                        {{ __('messages.ingredients.confirm_delete_btn') }}
                     </x-button>
                 </div>
             </div>

@@ -5,8 +5,8 @@
     <!-- Top Settings Header & Save Button -->
     <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-coffee-200/80">
         <div>
-            <h2 class="text-xl font-bold text-coffee-950 tracking-tight">Pengaturan Toko & POS</h2>
-            <p class="text-xs text-coffee-600">Kelola identitas kedai, jam operasional, tarif pajak default, dan perangkat keras</p>
+            <h2 class="text-xl font-bold text-coffee-950 tracking-tight">{{ __('messages.settings.header_title') }}</h2>
+            <p class="text-xs text-coffee-600">{{ __('messages.settings.page_subtitle') }}</p>
         </div>
 
         <x-button
@@ -19,7 +19,7 @@
             <svg class="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
             </svg>
-            Simpan Perubahan
+            {{ __('messages.settings.save_changes') }}
         </x-button>
     </div>
 
@@ -30,35 +30,35 @@
             wire:click="$set('activeTab', 'profile')"
             class="px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap {{ $activeTab === 'profile' ? 'bg-coffee-900 text-cream-50 shadow-xs' : 'text-coffee-700 hover:bg-cream-100 hover:text-coffee-950' }}"
         >
-            Profil Usaha
+            {{ __('messages.settings.tab_profile') }}
         </button>
         <button
             type="button"
             wire:click="$set('activeTab', 'hours')"
             class="px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap {{ $activeTab === 'hours' ? 'bg-coffee-900 text-cream-50 shadow-xs' : 'text-coffee-700 hover:bg-cream-100 hover:text-coffee-950' }}"
         >
-            Jam Operasional & Hari Bisnis
+            {{ __('messages.settings.tab_hours') }}
         </button>
         <button
             type="button"
             wire:click="$set('activeTab', 'finance')"
             class="px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap {{ $activeTab === 'finance' ? 'bg-coffee-900 text-cream-50 shadow-xs' : 'text-coffee-700 hover:bg-cream-100 hover:text-coffee-950' }}"
         >
-            Pajak & Finansial (Default 0%)
+            {{ __('messages.settings.tab_finance') }}
         </button>
         <button
             type="button"
             wire:click="$set('activeTab', 'printer')"
             class="px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap {{ $activeTab === 'printer' ? 'bg-coffee-900 text-cream-50 shadow-xs' : 'text-coffee-700 hover:bg-cream-100 hover:text-coffee-950' }}"
         >
-            Printer Thermal USB
+            {{ __('messages.settings.tab_printer') }}
         </button>
         <button
             type="button"
             wire:click="$set('activeTab', 'receipt')"
             class="px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap {{ $activeTab === 'receipt' ? 'bg-coffee-900 text-cream-50 shadow-xs' : 'text-coffee-700 hover:bg-cream-100 hover:text-coffee-950' }}"
         >
-            Format Struk
+            {{ __('messages.settings.tab_receipt') }}
         </button>
         <button
             type="button"
@@ -72,11 +72,11 @@
     <!-- TAB 1: PROFIL USAHA -->
     @if ($activeTab === 'profile')
         <div class="bg-white rounded-3xl border border-coffee-200/80 p-6 shadow-sm space-y-5">
-            <h3 class="text-base font-bold text-coffee-950 border-b border-coffee-100 pb-3">Identitas & Kontak Usaha</h3>
+            <h3 class="text-base font-bold text-coffee-950 border-b border-coffee-100 pb-3">{{ __('messages.settings.profile_heading') }}</h3>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-xs font-bold text-coffee-800 mb-1">Nama Usaha / Kedai <span class="text-rose-500">*</span></label>
+                    <label class="block text-xs font-bold text-coffee-800 mb-1">{{ __('messages.settings.shop_name_label') }} <span class="text-rose-500">*</span></label>
                     <input
                         type="text"
                         wire:model="name"
@@ -86,7 +86,7 @@
                 </div>
 
                 <div>
-                    <label class="block text-xs font-bold text-coffee-800 mb-1">Nomor Telepon</label>
+                    <label class="block text-xs font-bold text-coffee-800 mb-1">{{ __('messages.settings.phone_label') }}</label>
                     <input
                         type="text"
                         wire:model="phone"
@@ -96,7 +96,7 @@
                 </div>
 
                 <div>
-                    <label class="block text-xs font-bold text-coffee-800 mb-1">Alamat Email Toko</label>
+                    <label class="block text-xs font-bold text-coffee-800 mb-1">{{ __('messages.settings.email_label') }}</label>
                     <input
                         type="email"
                         wire:model="email"
@@ -106,7 +106,7 @@
                 </div>
 
                 <div>
-                    <label class="block text-xs font-bold text-coffee-800 mb-1">Mata Uang & Timezone</label>
+                    <label class="block text-xs font-bold text-coffee-800 mb-1">{{ __('messages.settings.currency_timezone_label') }}</label>
                     <div class="grid grid-cols-2 gap-2">
                         <input
                             type="text"
@@ -124,7 +124,7 @@
                 </div>
 
                 <div class="md:col-span-2">
-                    <label class="block text-xs font-bold text-coffee-800 mb-1">Alamat Lengkap Outlet</label>
+                    <label class="block text-xs font-bold text-coffee-800 mb-1">{{ __('messages.settings.address_label') }}</label>
                     <textarea
                         wire:model="address"
                         rows="2"
@@ -141,16 +141,16 @@
         <div class="bg-white rounded-3xl border border-coffee-200/80 p-6 shadow-sm space-y-6">
             <div class="pb-3 border-b border-coffee-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
-                    <h3 class="text-base font-bold text-coffee-950">Jam Operasional Mingguan</h3>
-                    <p class="text-xs text-coffee-500">Mendukung jam operasional yang melintasi tengah malam (misal buka 18:00 tutup 02:00)</p>
+                    <h3 class="text-base font-bold text-coffee-950">{{ __('messages.settings.hours_heading') }}</h3>
+                    <p class="text-xs text-coffee-500">{{ __('messages.settings.hours_subtitle') }}</p>
                 </div>
             </div>
 
             <!-- Business Day Start Time Setting -->
             <div class="p-4 rounded-2xl bg-cream-50/80 border border-coffee-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <div>
-                    <h4 class="text-xs font-bold text-coffee-950 uppercase tracking-wider">Waktu Mulai Hari Bisnis (Business Day Cutoff)</h4>
-                    <p class="text-xs text-coffee-600 mt-0.5">Transaksi sebelum jam ini dihitung masuk ke hari operasional sebelumnya (Contoh: 04:00 WIB)</p>
+                    <h4 class="text-xs font-bold text-coffee-950 uppercase tracking-wider">{{ __('messages.settings.business_day_cutoff_title') }}</h4>
+                    <p class="text-xs text-coffee-600 mt-0.5">{{ __('messages.settings.business_day_cutoff_desc') }}</p>
                 </div>
                 <div class="w-32">
                     <input
@@ -166,13 +166,13 @@
             <div class="space-y-2.5">
                 @php
                     $daysLabel = [
-                        'monday' => 'Senin',
-                        'tuesday' => 'Selasa',
-                        'wednesday' => 'Rabu',
-                        'thursday' => 'Kamis',
-                        'friday' => 'Jumat',
-                        'saturday' => 'Sabtu',
-                        'sunday' => 'Minggu',
+                        'monday' => __('messages.settings.day_monday'),
+                        'tuesday' => __('messages.settings.day_tuesday'),
+                        'wednesday' => __('messages.settings.day_wednesday'),
+                        'thursday' => __('messages.settings.day_thursday'),
+                        'friday' => __('messages.settings.day_friday'),
+                        'saturday' => __('messages.settings.day_saturday'),
+                        'sunday' => __('messages.settings.day_sunday'),
                     ];
                 @endphp
 
@@ -187,7 +187,7 @@
                                     wire:model="operatingHours.{{ $key }}.is_closed"
                                     class="rounded text-coffee-900 focus:ring-coffee-400"
                                 />
-                                <span>Tutup</span>
+                                <span>{{ __('messages.settings.closed_checkbox') }}</span>
                             </label>
 
                             @if (empty($operatingHours[$key]['is_closed']))
@@ -196,14 +196,14 @@
                                     wire:model="operatingHours.{{ $key }}.open"
                                     class="px-2.5 py-1.5 rounded-lg border border-coffee-200 text-xs font-medium text-coffee-950 bg-white"
                                 />
-                                <span class="text-xs text-coffee-400">s/d</span>
+                                <span class="text-xs text-coffee-400">{{ __('messages.settings.hours_to') }}</span>
                                 <input
                                     type="time"
                                     wire:model="operatingHours.{{ $key }}.close"
                                     class="px-2.5 py-1.5 rounded-lg border border-coffee-200 text-xs font-medium text-coffee-950 bg-white"
                                 />
                             @else
-                                <span class="text-xs font-bold text-rose-600 italic">Kedai Tutup</span>
+                                <span class="text-xs font-bold text-rose-600 italic">{{ __('messages.settings.shop_closed_label') }}</span>
                             @endif
                         </div>
                     </div>
@@ -216,8 +216,8 @@
     @if ($activeTab === 'finance')
         <div class="bg-white rounded-3xl border border-coffee-200/80 p-6 shadow-sm space-y-6">
             <div class="pb-3 border-b border-coffee-100">
-                <h3 class="text-base font-bold text-coffee-950">Default Finansial & Tarif Pajak</h3>
-                <p class="text-xs text-coffee-500">Nilai default resmi adalah 0%. Perubahan tarif hanya berlaku untuk pesanan baru.</p>
+                <h3 class="text-base font-bold text-coffee-950">{{ __('messages.settings.finance_heading') }}</h3>
+                <p class="text-xs text-coffee-500">{{ __('messages.settings.finance_subtitle') }}</p>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -225,9 +225,9 @@
                 <div class="p-4 rounded-2xl bg-cream-50/70 border border-coffee-200/70 space-y-3">
                     <div class="flex items-center justify-between">
                         <label class="text-xs font-bold text-coffee-900 uppercase tracking-wider block">
-                            Tarif Pajak Restoran (PB1) %
+                            {{ __('messages.settings.tax_rate_label') }}
                         </label>
-                        <x-badge variant="neutral" size="xs">Default: 0%</x-badge>
+                        <x-badge variant="neutral" size="xs">{{ __('messages.settings.default_zero_badge') }}</x-badge>
                     </div>
                     <div class="relative">
                         <input
@@ -245,7 +245,7 @@
                     </div>
                     @error('taxPercentage') <p class="text-xs text-rose-600">{{ $message }}</p> @enderror
                     <p class="text-[11px] text-coffee-500">
-                        Disimpan presisi menggunakan basis point integer (misal: 10% = 1000 bp).
+                        {{ __('messages.settings.tax_rate_hint') }}
                     </p>
 
                     <label class="flex items-center gap-2 pt-2 text-xs text-coffee-800 font-medium cursor-pointer">
@@ -254,7 +254,7 @@
                             wire:model="isTaxInclusive"
                             class="rounded text-coffee-900 focus:ring-coffee-400"
                         />
-                        <span>Harga menu sudah termasuk pajak (Tax Inclusive)</span>
+                        <span>{{ __('messages.settings.tax_inclusive_label') }}</span>
                     </label>
                 </div>
 
@@ -262,9 +262,9 @@
                 <div class="p-4 rounded-2xl bg-cream-50/70 border border-coffee-200/70 space-y-3">
                     <div class="flex items-center justify-between">
                         <label class="text-xs font-bold text-coffee-900 uppercase tracking-wider block">
-                            Biaya Layanan (Service Charge) %
+                            {{ __('messages.settings.service_charge_label') }}
                         </label>
-                        <x-badge variant="neutral" size="xs">Default: 0%</x-badge>
+                        <x-badge variant="neutral" size="xs">{{ __('messages.settings.default_zero_badge') }}</x-badge>
                     </div>
                     <div class="relative">
                         <input
@@ -282,7 +282,7 @@
                     </div>
                     @error('serviceChargePercentage') <p class="text-xs text-rose-600">{{ $message }}</p> @enderror
                     <p class="text-[11px] text-coffee-500">
-                        Tambahan biaya layanan restoran/kedai jika diterapkan.
+                        {{ __('messages.settings.service_charge_hint') }}
                     </p>
                 </div>
             </div>
@@ -294,63 +294,63 @@
         <div class="bg-white rounded-3xl border border-coffee-200/80 p-6 shadow-sm space-y-6">
             <div class="pb-3 border-b border-coffee-100 flex items-center justify-between">
                 <div>
-                    <h3 class="text-base font-bold text-coffee-950">Konfigurasi Printer Kasir (Koneksi USB)</h3>
-                    <p class="text-xs text-coffee-500">Printer thermal terhubung langsung ke PC Windows server kasir melalui kabel USB</p>
+                    <h3 class="text-base font-bold text-coffee-950">{{ __('messages.settings.printer_heading') }}</h3>
+                    <p class="text-xs text-coffee-500">{{ __('messages.settings.printer_subtitle') }}</p>
                 </div>
-                <x-badge variant="success" size="sm">USB Terpilih</x-badge>
+                <x-badge variant="success" size="sm">{{ __('messages.settings.usb_selected_badge') }}</x-badge>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
-                    <label class="block text-xs font-bold text-coffee-800 mb-1">Tipe Koneksi Printer</label>
+                    <label class="block text-xs font-bold text-coffee-800 mb-1">{{ __('messages.settings.printer_conn_type_label') }}</label>
                     <input
                         type="text"
-                        value="USB (Direct Windows Printer)"
+                        value="{{ __('messages.settings.printer_conn_type_value') }}"
                         disabled
                         class="w-full px-3.5 py-2.5 rounded-xl border border-coffee-200 bg-cream-50 text-xs font-bold text-coffee-700 cursor-not-allowed"
                     />
-                    <p class="text-[11px] text-coffee-400 mt-1">Tidak memerlukan alamat IP atau port jaringan TCP.</p>
+                    <p class="text-[11px] text-coffee-400 mt-1">{{ __('messages.settings.printer_conn_hint') }}</p>
                 </div>
 
                 <div>
-                    <label class="block text-xs font-bold text-coffee-800 mb-1">Lebar Kertas Struk <span class="text-rose-500">*</span></label>
+                    <label class="block text-xs font-bold text-coffee-800 mb-1">{{ __('messages.settings.paper_width_label') }} <span class="text-rose-500">*</span></label>
                     <select
                         wire:model="printerPaperWidth"
                         class="w-full px-3.5 py-2.5 rounded-xl border border-coffee-200 text-xs font-bold text-coffee-900 bg-white focus:outline-none focus:ring-2 focus:ring-coffee-400"
                     >
-                        <option value="80mm">80mm (Standar thermal receipt)</option>
-                        <option value="58mm">58mm (Kertas thermal mini)</option>
+                        <option value="80mm">{{ __('messages.settings.paper_80mm_option') }}</option>
+                        <option value="58mm">{{ __('messages.settings.paper_58mm_option') }}</option>
                     </select>
                     @error('printerPaperWidth') <p class="text-xs text-rose-600 mt-1">{{ $message }}</p> @enderror
                 </div>
 
                 <div>
-                    <label class="block text-xs font-bold text-coffee-800 mb-1">Nama Perangkat Printer Windows</label>
+                    <label class="block text-xs font-bold text-coffee-800 mb-1">{{ __('messages.settings.windows_printer_name_label') }}</label>
                     <input
                         type="text"
                         wire:model="printerName"
                         class="w-full px-3.5 py-2.5 rounded-xl border border-coffee-200 text-sm font-semibold text-coffee-950 focus:outline-none focus:ring-2 focus:ring-coffee-400"
-                        placeholder="Contoh: POS-80, Thermal Printer USB"
+                        placeholder="{{ __('messages.settings.windows_printer_name_placeholder') }}"
                     />
-                    <p class="text-[11px] text-coffee-400 mt-1">Nama printer persis seperti yang terdaftar di Windows Devices and Printers.</p>
+                    <p class="text-[11px] text-coffee-400 mt-1">{{ __('messages.settings.windows_printer_name_hint') }}</p>
                     @error('printerName') <p class="text-xs text-rose-600 mt-1">{{ $message }}</p> @enderror
                 </div>
 
                 <div>
-                    <label class="block text-xs font-bold text-coffee-800 mb-1">Status Printer Kasir</label>
+                    <label class="block text-xs font-bold text-coffee-800 mb-1">{{ __('messages.settings.printer_status_label') }}</label>
                     <label class="flex items-center gap-2 mt-2 text-xs font-semibold text-coffee-900 cursor-pointer">
                         <input
                             type="checkbox"
                             wire:model="printerEnabled"
                             class="rounded text-coffee-900 focus:ring-coffee-400"
                         />
-                        <span>Aktifkan pencetakan otomatis ke printer kasir</span>
+                        <span>{{ __('messages.settings.printer_auto_enable_label') }}</span>
                     </label>
                 </div>
 
                 <!-- Kitchen Printer Profile (Optional / Future use) -->
                 <div class="md:col-span-2 pt-4 border-t border-coffee-100">
-                    <h4 class="text-xs font-bold text-coffee-900 uppercase tracking-wider mb-2">Profil Printer Dapur (Kitchen Printer - Persiapan Mendatang)</h4>
+                    <h4 class="text-xs font-bold text-coffee-900 uppercase tracking-wider mb-2">{{ __('messages.settings.kitchen_printer_heading') }}</h4>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <label class="flex items-center gap-2 text-xs text-coffee-800 font-medium cursor-pointer">
                             <input
@@ -358,7 +358,7 @@
                                 wire:model="kitchenPrinterEnabled"
                                 class="rounded text-coffee-900 focus:ring-coffee-400"
                             />
-                            <span>Aktifkan printer terpisah untuk tiket dapur</span>
+                            <span>{{ __('messages.settings.kitchen_printer_enable_label') }}</span>
                         </label>
 
                         @if ($kitchenPrinterEnabled)
@@ -366,7 +366,7 @@
                                 type="text"
                                 wire:model="kitchenPrinterName"
                                 class="w-full px-3 py-2 rounded-xl border border-coffee-200 text-xs font-semibold text-coffee-950"
-                                placeholder="Nama printer dapur di Windows (misal: Kitchen-58)"
+                                placeholder="{{ __('messages.settings.kitchen_printer_name_placeholder') }}"
                             />
                         @endif
                     </div>
@@ -378,43 +378,43 @@
     <!-- TAB 5: FORMAT STRUK -->
     @if ($activeTab === 'receipt')
         <div class="bg-white rounded-3xl border border-coffee-200/80 p-6 shadow-sm space-y-5">
-            <h3 class="text-base font-bold text-coffee-950 border-b border-coffee-100 pb-3">Kustomisasi Header & Footer Struk</h3>
+            <h3 class="text-base font-bold text-coffee-950 border-b border-coffee-100 pb-3">{{ __('messages.settings.receipt_heading') }}</h3>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
-                    <label class="block text-xs font-bold text-coffee-800 mb-1">Header Struk (Atas)</label>
+                    <label class="block text-xs font-bold text-coffee-800 mb-1">{{ __('messages.settings.receipt_header_label') }}</label>
                     <textarea
                         wire:model="receiptHeader"
                         rows="4"
                         class="w-full p-3 rounded-xl border border-coffee-200 text-xs font-mono text-coffee-900 focus:outline-none focus:ring-2 focus:ring-coffee-400"
-                        placeholder="TEMU PULANG&#10;Coffee & Eatery&#10;Jl. Boulevard Raya Blok A No. 12"
+                        placeholder="{{ __('messages.settings.receipt_header_placeholder') }}"
                     ></textarea>
                 </div>
 
                 <div>
-                    <label class="block text-xs font-bold text-coffee-800 mb-1">Footer Struk (Bawah)</label>
+                    <label class="block text-xs font-bold text-coffee-800 mb-1">{{ __('messages.settings.receipt_footer_label') }}</label>
                     <textarea
                         wire:model="receiptFooter"
                         rows="4"
                         class="w-full p-3 rounded-xl border border-coffee-200 text-xs font-mono text-coffee-900 focus:outline-none focus:ring-2 focus:ring-coffee-400"
-                        placeholder="Terima kasih atas kunjungan Anda!&#10;WiFi: TemuPulang | Pass: kopienak"
+                        placeholder="{{ __('messages.settings.receipt_footer_placeholder') }}"
                     ></textarea>
                 </div>
 
                 <div class="md:col-span-2 flex items-center gap-6 pt-2 flex-wrap text-xs text-coffee-800 font-semibold">
                     <label class="flex items-center gap-2 cursor-pointer">
                         <input type="checkbox" wire:model="receiptShowLogo" class="rounded text-coffee-900" />
-                        <span>Tampilkan Logo di Struk</span>
+                        <span>{{ __('messages.settings.receipt_show_logo_label') }}</span>
                     </label>
 
                     <label class="flex items-center gap-2 cursor-pointer">
                         <input type="checkbox" wire:model="receiptShowTax" class="rounded text-coffee-900" />
-                        <span>Tampilkan Rincian Pajak di Struk</span>
+                        <span>{{ __('messages.settings.receipt_show_tax_label') }}</span>
                     </label>
 
                     <label class="flex items-center gap-2 cursor-pointer">
                         <input type="checkbox" wire:model="receiptShowCustomerInfo" class="rounded text-coffee-900" />
-                        <span>Tampilkan Info Pelanggan di Struk</span>
+                        <span>{{ __('messages.settings.receipt_show_customer_label') }}</span>
                     </label>
                 </div>
             </div>
@@ -481,4 +481,3 @@
     @endif
 
 </div>
-

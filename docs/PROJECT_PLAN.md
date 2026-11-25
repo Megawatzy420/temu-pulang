@@ -259,7 +259,6 @@ flowchart TD
     - Owner-only refund screen (`App\Livewire\Orders\OrderRefund` at `/orders/{order}/refund`, `OrderRefundScreenTest.php`: 9 tests, 30 assertions).
   - *Deliberate Deferrals & Known Cleanup (Not Done)*:
     - (a) Split-payment UI and credit/transfer tender buttons are out of v1 scope.
-    - (b) `ShopSettingsManager` (`shop-settings-manager.blade.php`) and `order-index.blade.php` still contain hardcoded Indonesian text and need localization.
 - [x] **Task 5.7 — Full Phase 5 Verification & Hardening (COMPLETED ✅)**
   - Continuous end-to-end lifecycle test (`tests/Feature/Phase5EndToEndTest.php`: 1 test, 37 assertions) covering open shift -> manual cash movements -> order creation -> split payment settlement -> fake spooler print job completion -> partial cash refund -> full refund -> shift close.
   - Full Phase 5 verification: **367 tests, 1361 assertions — 100% passing**, Pint clean, Vite build passing.
@@ -321,7 +320,7 @@ flowchart TD
   - *Deliberate Deferrals & Known Cleanup (Not Done)*:
     - (a) Supplier records and purchase orders are not implemented (the supplier name goes in the `stock_in` note).
     - (b) Restock exists only through the Owner refund screen and only for full refunds; partial refunds need a manual stock-in or adjustment.
-    - (c) Hardcoded Indonesian text remains in `ShopSettingsManager`, `order-index`, `IngredientManager`, the owner dashboard, and the sidebar.
+    - (c) Hardcoded Indonesian text remains in the remaining unlocalized screens identified in the Localization Part A audit: `ShiftManager` (`shift-manager.blade.php`), `ProductForm` (`product-form.blade.php`), `ModifierManager` (`modifier-manager.blade.php`), `CategoryManager` (`category-manager.blade.php`), `ProductIndex` (`product-index.blade.php`), `RecipeManager` (`recipe-manager.blade.php`), `ActivityLogIndex` (`activity-log-index.blade.php`), plus minor residual literals in `cashier-pos.blade.php` and `print-job-index.blade.php`.
 
 ---
 

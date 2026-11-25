@@ -44,7 +44,7 @@
                 <span class="text-emerald-600 font-semibold flex items-center gap-0.5">
                     ↑ 14.2%
                 </span>
-                <span class="text-coffee-400">vs kemarin (Rp 2.990.000)</span>
+                <span class="text-coffee-400">{{ __('messages.owner_dashboard.vs_yesterday', ['amount' => 'Rp 2.990.000']) }}</span>
             </div>
         </x-card>
 
@@ -61,10 +61,10 @@
                 </span>
             </div>
             <p class="text-2xl font-bold text-coffee-950 mt-2">
-                {{ $metrics['today_orders'] }} <span class="text-sm font-normal text-coffee-500">pesanan</span>
+                {{ $metrics['today_orders'] }} <span class="text-sm font-normal text-coffee-500">{{ __('messages.owner_dashboard.orders_unit') }}</span>
             </p>
             <div class="flex items-center gap-2 mt-3 pt-3 border-t border-coffee-100 text-xs">
-                <span class="text-coffee-600 font-medium">Rata-rata:</span>
+                <span class="text-coffee-600 font-medium">{{ __('messages.owner_dashboard.average_prefix') }}</span>
                 <span class="text-coffee-800 font-bold">Rp {{ number_format($metrics['avg_ticket'], 0, ',', '.') }}</span>
             </div>
         </x-card>
@@ -82,15 +82,15 @@
                 </span>
             </div>
             <p class="text-lg font-bold text-coffee-950 mt-2 truncate">
-                {{ $activeShift?->user?->name ?? 'Belum Ada Shift Aktif' }}
+                {{ $activeShift?->user?->name ?? __('messages.owner_dashboard.no_active_shift') }}
             </p>
             <div class="flex items-center gap-2 mt-3 pt-3 border-t border-coffee-100 text-xs text-coffee-500">
                 @if ($activeShift)
                     <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <span>{{ $activeShift->shift_number }} • Buka {{ $activeShift->opened_at->format('H:i') }} WIB</span>
+                    <span>{{ __('messages.owner_dashboard.shift_opened_at', ['number' => $activeShift->shift_number, 'time' => $activeShift->opened_at->format('H:i')]) }}</span>
                 @else
                     <span class="w-2 h-2 rounded-full bg-amber-500"></span>
-                    <span>Kasir belum membuka shift</span>
+                    <span>{{ __('messages.owner_dashboard.cashier_not_opened_shift') }}</span>
                 @endif
             </div>
         </x-card>
@@ -99,7 +99,7 @@
         <x-card padding="p-5">
             <div class="flex items-center justify-between">
                 <p class="text-xs font-semibold uppercase tracking-wider text-coffee-500">
-                    Menu & Katalog
+                    {{ __('messages.owner_dashboard.menu_catalog_title') }}
                 </p>
                 <span class="w-8 h-8 rounded-xl bg-stone-100 text-stone-700 flex items-center justify-center">
                     <svg class="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -108,11 +108,11 @@
                 </span>
             </div>
             <p class="text-2xl font-bold text-coffee-950 mt-2">
-                {{ $productCount }} <span class="text-sm font-normal text-coffee-500">Produk</span>
+                {{ $productCount }} <span class="text-sm font-normal text-coffee-500">{{ __('messages.owner_dashboard.products_unit') }}</span>
             </p>
             <div class="flex items-center gap-2 mt-3 pt-3 border-t border-coffee-100 text-xs text-coffee-500">
-                <span class="text-coffee-700 font-semibold">{{ $categoryCount }} Kategori Aktif</span>
-                <span>• Multi-bahasa (ID/EN)</span>
+                <span class="text-coffee-700 font-semibold">{{ __('messages.owner_dashboard.active_categories_count', ['count' => $categoryCount]) }}</span>
+                <span>{{ __('messages.owner_dashboard.multilang_badge') }}</span>
             </div>
         </x-card>
     </div>
@@ -124,7 +124,7 @@
         <div class="lg:col-span-2 space-y-6">
             <x-card
                 :title="__('messages.dashboard.recent_orders')"
-                subtitle="Daftar pesanan shift saat ini di kasir"
+                :subtitle="__('messages.owner_dashboard.recent_orders_subtitle')"
                 padding="p-0"
             >
                 <x-table :headers="[
@@ -166,7 +166,7 @@
 
                 <x-slot:footer>
                     <div class="flex items-center justify-between text-xs text-coffee-500">
-                        <span>Menampilkan 5 pesanan terbaru</span>
+                        <span>{{ __('messages.owner_dashboard.showing_recent_orders') }}</span>
                         <a href="{{ route('pos') }}" class="font-semibold text-coffee-800 hover:text-coffee-950 underline">
                             {{ __('messages.dashboard.open_pos') }} →
                         </a>
@@ -219,14 +219,14 @@
             <!-- Top Products Card -->
             <x-card
                 :title="__('messages.dashboard.best_sellers')"
-                subtitle="Berdasarkan jumlah porsi terjual hari ini"
+                :subtitle="__('messages.owner_dashboard.best_sellers_subtitle')"
             >
                 <div class="space-y-4">
                     @foreach ($topProducts as $item)
                         <div class="space-y-1.5">
                             <div class="flex items-center justify-between text-xs font-semibold text-coffee-900">
                                 <span class="truncate">{{ $item['name'] }}</span>
-                                <span class="text-coffee-500 font-normal shrink-0 ml-2">{{ $item['sold_count'] }} terjual</span>
+                                <span class="text-coffee-500 font-normal shrink-0 ml-2">{{ __('messages.owner_dashboard.sold_count', ['count' => $item['sold_count']]) }}</span>
                             </div>
                             <div class="w-full bg-cream-100 rounded-full h-2 overflow-hidden border border-coffee-200/50">
                                 <div class="bg-gradient-to-r from-coffee-700 to-caramel-500 h-2 rounded-full" style="width: {{ $item['percentage'] }}%"></div>
@@ -242,20 +242,20 @@
 
             <!-- Store & Hardware Configuration Card -->
             <x-card
-                title="Status Perangkat Kasir"
-                subtitle="Konfigurasi jaringan & printer POS lokal"
+                :title="__('messages.owner_dashboard.hardware_status_title')"
+                :subtitle="__('messages.owner_dashboard.hardware_status_subtitle')"
             >
                 <div class="space-y-3 text-xs">
                     <div class="flex items-center justify-between p-2.5 rounded-xl bg-cream-50 border border-coffee-200/60">
                         <div class="flex items-center gap-2.5">
                             <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0"></span>
                             <div>
-                                <p class="font-bold text-coffee-900">Printer Thermal ESC/POS (USB)</p>
-                                <p class="text-[11px] text-coffee-500">Koneksi: USB • {{ $shopSetting->printer_paper_width ?? '80mm' }} • {{ $shopSetting->printer_name ?? 'POS-80' }}</p>
+                                <p class="font-bold text-coffee-900">{{ __('messages.owner_dashboard.printer_title') }}</p>
+                                <p class="text-[11px] text-coffee-500">{{ __('messages.owner_dashboard.printer_meta', ['width' => $shopSetting->printer_paper_width ?? '80mm', 'name' => $shopSetting->printer_name ?? 'POS-80']) }}</p>
                             </div>
                         </div>
                         <x-badge variant="{{ ($shopSetting->printer_enabled ?? true) ? 'success' : 'neutral' }}" size="xs">
-                            {{ ($shopSetting->printer_enabled ?? true) ? 'Aktif' : 'Nonaktif' }}
+                            {{ ($shopSetting->printer_enabled ?? true) ? __('messages.owner_dashboard.status_active') : __('messages.owner_dashboard.status_inactive') }}
                         </x-badge>
                     </div>
 
@@ -263,26 +263,25 @@
                         <div class="flex items-center gap-2.5">
                             <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0"></span>
                             <div>
-                                <p class="font-bold text-coffee-900">Pajak Restoran & Layanan</p>
-                                <p class="text-[11px] text-coffee-500">Pajak: {{ $shopSetting->tax_percentage ?? 0.0 }}% • Layanan: {{ $shopSetting->service_charge_percentage ?? 0.0 }}%</p>
+                                <p class="font-bold text-coffee-900">{{ __('messages.owner_dashboard.tax_service_title') }}</p>
+                                <p class="text-[11px] text-coffee-500">{{ __('messages.owner_dashboard.tax_service_meta', ['tax' => $shopSetting->tax_percentage ?? 0.0, 'service' => $shopSetting->service_charge_percentage ?? 0.0]) }}</p>
                             </div>
                         </div>
-                        <x-badge variant="neutral" size="xs">Default 0%</x-badge>
+                        <x-badge variant="neutral" size="xs">{{ __('messages.owner_dashboard.default_zero_badge') }}</x-badge>
                     </div>
 
                     <div class="flex items-center justify-between p-2.5 rounded-xl bg-cream-50 border border-coffee-200/60">
                         <div class="flex items-center gap-2.5">
                             <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0"></span>
                             <div>
-                                <p class="font-bold text-coffee-900">Mata Uang & Timezone</p>
-                                <p class="text-[11px] text-coffee-500">IDR (Rp) • Asia/Jakarta (WIB)</p>
+                                <p class="font-bold text-coffee-900">{{ __('messages.owner_dashboard.currency_timezone_title') }}</p>
+                                <p class="text-[11px] text-coffee-500">{{ __('messages.owner_dashboard.currency_timezone_meta') }}</p>
                             </div>
                         </div>
-                        <x-badge variant="neutral" size="xs">Sesuai</x-badge>
+                        <x-badge variant="neutral" size="xs">{{ __('messages.owner_dashboard.status_compliant') }}</x-badge>
                     </div>
                 </div>
             </x-card>
         </div>
     </div>
 </div>
-

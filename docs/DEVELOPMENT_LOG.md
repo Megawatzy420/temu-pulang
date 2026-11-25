@@ -1185,6 +1185,54 @@ Replaced all string-matching (`str_contains`) on exception messages in `CashierP
 - **Laravel Pint (`php vendor/bin/pint --test`):** ✅ Clean (0 violations)
 - **Vite Build (`npm run build`):** ✅ Compiled successfully in 566ms
 
+---
+
+## Hardening & Cleanup — Localization Cleanup (Part A)
+
+**Date:** 2026-11-25  
+**Status:** ✅ COMPLETED
+
+### Summary
+Audited all 43 files in `app/Livewire` and `resources/views` for hardcoded user-facing Indonesian text outside `__()`, and fully localized the five Part A target areas (`ShopSettingsManager`, `OrderIndex`, `IngredientManager`, `OwnerDashboard`, and the sidebar/header in `resources/views/components/layouts/app.blade.php`) using additive translation keys under `messages.settings.*`, `messages.orders.*`, `messages.ingredients.*`, `messages.owner_dashboard.*`, and `messages.nav.*` in both `lang/id/messages.php` and `lang/en/messages.php` with identical key sets. All Indonesian values match the original screen strings verbatim so the Indonesian UI and all existing tests remain unchanged.
+
+### Before / After Hardcoded Indonesian Literal Counts (Five Part A Target Areas)
+| Area | File | Before | After |
+|---|---|---|---|
+| 1. Shop Settings (Livewire) | `app/Livewire/Settings/ShopSettingsManager.php` | 5 | 0 |
+| 1. Shop Settings (Blade) | `resources/views/livewire/settings/shop-settings-manager.blade.php` | 64 | 0 |
+| 2. Orders & Kitchen Queue (Livewire) | `app/Livewire/Orders/OrderIndex.php` | 8 | 0 |
+| 2. Orders & Kitchen Queue (Blade) | `resources/views/livewire/orders/order-index.blade.php` | 55 | 0 |
+| 3. Ingredient Manager (Livewire) | `app/Livewire/Inventory/IngredientManager.php` | 8 | 0 |
+| 3. Ingredient Manager (Blade) | `resources/views/livewire/inventory/ingredient-manager.blade.php` | 66 | 0 |
+| 4. Owner Dashboard (Livewire) | `app/Livewire/Dashboard/OwnerDashboard.php` | 2 | 0 |
+| 4. Owner Dashboard (Blade) | `resources/views/livewire/dashboard/owner-dashboard.blade.php` | 27 | 0 |
+| 5. App Layout Sidebar & Header | `resources/views/components/layouts/app.blade.php` | 14 | 0 |
+| **Total (Five Part A Areas)** | **9 files** | **249** | **0** |
+
+### Deliverables
+- **Files Created:**
+  - `tests/Feature/Localization/RemainingScreensTest.php` (5 tests, 85 assertions)
+- **Files Modified:**
+  - `app/Livewire/Settings/ShopSettingsManager.php`
+  - `resources/views/livewire/settings/shop-settings-manager.blade.php`
+  - `app/Livewire/Orders/OrderIndex.php`
+  - `resources/views/livewire/orders/order-index.blade.php`
+  - `app/Livewire/Inventory/IngredientManager.php`
+  - `resources/views/livewire/inventory/ingredient-manager.blade.php`
+  - `app/Livewire/Dashboard/OwnerDashboard.php`
+  - `resources/views/livewire/dashboard/owner-dashboard.blade.php`
+  - `resources/views/components/layouts/app.blade.php`
+  - `lang/id/messages.php`, `lang/en/messages.php`
+  - `docs/PROJECT_PLAN.md`, `docs/DEVELOPMENT_LOG.md`
+
+### Automated Test Results
+- **Localization Render Tests (`RemainingScreensTest`):** 5 tests, 85 assertions — 100% passing
+- **Language Key Parity Test (Reused in `DomainExceptionsMappingTest` & `LowStockAlertTest`):** 100% passing
+- **Existing Test Suites (Unmodified):** 421 tests, 1782 assertions — 100% passing
+- **Full Test Suite (`php artisan test --compact`):** 426 tests, 1867 assertions — 100% passing (0 failures, 0 errors)
+- **Laravel Pint (`php vendor/bin/pint --test`):** ✅ Clean (0 violations)
+- **Vite Build (`npm run build`):** ✅ Compiled successfully in 756ms
+
 
 
 
