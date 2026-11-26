@@ -267,7 +267,7 @@ class ModifierManager extends Component
         $this->showModal = false;
         $this->dispatch('notify', [
             'type' => 'success',
-            'message' => $isNew ? 'Grup modifier berhasil ditambahkan.' : 'Grup modifier berhasil diperbarui.',
+            'message' => $isNew ? __('messages.modifiers.group_created_notification') : __('messages.modifiers.group_updated_notification'),
         ]);
     }
 
@@ -287,7 +287,9 @@ class ModifierManager extends Component
 
         $this->dispatch('notify', [
             'type' => 'success',
-            'message' => "Opsi modifier berhasil {$statusText}.",
+            'message' => $mod->is_sold_out
+                ? __('messages.modifiers.option_marked_sold_out_notification')
+                : __('messages.modifiers.option_marked_available_notification'),
         ]);
     }
 
@@ -320,7 +322,7 @@ class ModifierManager extends Component
 
         $this->dispatch('notify', [
             'type' => 'success',
-            'message' => 'Grup modifier berhasil dihapus.',
+            'message' => __('messages.modifiers.group_deleted_notification'),
         ]);
     }
 
@@ -343,7 +345,7 @@ class ModifierManager extends Component
             'groups' => $groups,
             'availableIngredients' => Ingredient::where('is_active', true)->orderBy('name')->get(),
         ])->layout('components.layouts.app', [
-            'title' => 'Kelola Opsi & Kustomisasi Menu',
+            'title' => __('messages.modifiers.page_title'),
         ]);
     }
 }

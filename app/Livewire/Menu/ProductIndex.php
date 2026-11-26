@@ -39,7 +39,11 @@ class ProductIndex extends Component
 
         $this->dispatch('notify', [
             'type' => 'success',
-            'message' => "Status produk berhasil diubah menjadi {$statusText}.",
+            'message' => __('messages.products.availability_toggled_notification', [
+                'status' => $product->is_sold_out
+                    ? __('messages.products.status_sold_out_caps')
+                    : __('messages.products.status_available_caps'),
+            ]),
         ]);
     }
 
@@ -59,7 +63,9 @@ class ProductIndex extends Component
 
         $this->dispatch('notify', [
             'type' => 'success',
-            'message' => "Produk berhasil {$statusText}.",
+            'message' => $product->is_active
+                ? __('messages.products.product_activated_notification')
+                : __('messages.products.product_deactivated_notification'),
         ]);
     }
 
@@ -92,7 +98,7 @@ class ProductIndex extends Component
 
         $this->dispatch('notify', [
             'type' => 'success',
-            'message' => 'Produk berhasil dihapus.',
+            'message' => __('messages.products.product_deleted_notification'),
         ]);
     }
 
@@ -119,7 +125,7 @@ class ProductIndex extends Component
             'products' => $products,
             'categories' => $categories,
         ])->layout('components.layouts.app', [
-            'title' => 'Daftar Menu & Produk',
+            'title' => __('messages.products.page_title_index'),
         ]);
     }
 }

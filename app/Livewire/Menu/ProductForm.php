@@ -388,7 +388,7 @@ class ProductForm extends Component
                 ->delete();
         });
 
-        session()->flash('message', $this->productId ? 'Produk berhasil diperbarui.' : 'Produk baru berhasil ditambahkan.');
+        session()->flash('message', $this->productId ? __('messages.products.product_updated_flash') : __('messages.products.product_created_flash'));
 
         return redirect()->route('menu.products');
     }
@@ -399,6 +399,6 @@ class ProductForm extends Component
             'categories' => Category::where('is_active', true)->orderBy('sort_order')->get(),
             'availableModifierGroups' => ModifierGroup::with('translations')->where('is_active', true)->orderBy('sort_order')->get(),
             'availableIngredients' => Ingredient::where('is_active', true)->orderBy('name')->get(),
-        ])->layout('components.layouts.app', ['title' => $this->productId ? 'Edit Produk' : 'Tambah Produk']);
+        ])->layout('components.layouts.app', ['title' => $this->productId ? __('messages.products.page_title_edit') : __('messages.products.page_title_create')]);
     }
 }

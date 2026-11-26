@@ -74,7 +74,7 @@ class ActivityLogIndex extends Component
     {
         $user = Auth::user();
         if (! $user || ! $user->isOwner()) {
-            abort(403, 'Hanya Pemilik (Owner) yang berwenang melihat log aktivitas sistem.');
+            abort(403, __('messages.activity_log.unauthorized_abort'));
         }
 
         $logs = ActivityLog::query()
@@ -107,11 +107,11 @@ class ActivityLogIndex extends Component
 
         $users = User::orderBy('name')->get();
         $modules = [
-            'auth' => 'Otentikasi & Akses',
-            'shift' => 'Shift Kasir',
-            'cash_movement' => 'Pergerakan Kas Drawer',
-            'settings' => 'Pengaturan Toko',
-            'system' => 'Sistem & Inisialisasi',
+            'auth' => __('messages.activity_log.module_auth'),
+            'shift' => __('messages.activity_log.module_shift'),
+            'cash_movement' => __('messages.activity_log.module_cash_movement'),
+            'settings' => __('messages.activity_log.module_settings'),
+            'system' => __('messages.activity_log.module_system'),
         ];
 
         $viewingLog = $this->viewingLogId ? ActivityLog::with('user')->find($this->viewingLogId) : null;
@@ -122,9 +122,9 @@ class ActivityLogIndex extends Component
             'modules' => $modules,
             'viewingLog' => $viewingLog,
         ])->layout('components.layouts.app', [
-            'title' => 'Log Aktivitas & Audit Trail',
-            'headerTitle' => 'Audit Trail & Log Aktivitas',
-            'headerSubtitle' => 'Rekam jejak seluruh aktivitas penting dan keamanan kasir (Hanya Pemilik)',
+            'title' => __('messages.activity_log.page_title'),
+            'headerTitle' => __('messages.activity_log.header_title'),
+            'headerSubtitle' => __('messages.activity_log.header_subtitle'),
         ]);
     }
 }

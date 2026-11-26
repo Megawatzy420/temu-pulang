@@ -76,6 +76,6 @@ class RecipeManager extends Component
             'totalProducts' => $totalProducts,
             'configuredCount' => $configuredCount,
             'missingCount' => $missingCount,
-        ])->layout('components.layouts.app', ['title' => 'Resep Menu & HPP (BOM)']);
+        ])->layout('components.layouts.app', ['title' => __('messages.recipes.page_title')]);
     }
 }

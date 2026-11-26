@@ -127,7 +127,7 @@ class CategoryManager extends Component
         $this->showModal = false;
         $this->dispatch('notify', [
             'type' => 'success',
-            'message' => $isNew ? 'Kategori berhasil ditambahkan.' : 'Kategori berhasil diperbarui.',
+            'message' => $isNew ? __('messages.categories.created_notification') : __('messages.categories.updated_notification'),
         ]);
     }
 
@@ -160,7 +160,7 @@ class CategoryManager extends Component
 
         $this->dispatch('notify', [
             'type' => 'success',
-            'message' => 'Kategori berhasil dihapus.',
+            'message' => __('messages.categories.deleted_notification'),
         ]);
     }
 
@@ -180,7 +180,9 @@ class CategoryManager extends Component
 
         $this->dispatch('notify', [
             'type' => 'success',
-            'message' => "Kategori berhasil {$statusText}.",
+            'message' => $category->is_active
+                ? __('messages.categories.activated_notification')
+                : __('messages.categories.deactivated_notification'),
         ]);
     }
 
@@ -202,7 +204,7 @@ class CategoryManager extends Component
         return view('livewire.menu.category-manager', [
             'categories' => $categories,
         ])->layout('components.layouts.app', [
-            'title' => 'Kelola Kategori Menu',
+            'title' => __('messages.categories.page_title'),
         ]);
     }
 }

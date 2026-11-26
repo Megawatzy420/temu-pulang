@@ -1376,6 +1376,88 @@ Replaced all `DomainException` and `InvalidArgumentException` throw statements i
 - **Laravel Pint (`php vendor/bin/pint --test`):** ✅ Clean (0 violations)
 - **Vite Build (`npm run build`):** ✅ Compiled successfully
 
+---
+
+## Hardening & Cleanup — Localization Cleanup (Part C2: Owner Menu, Recipe & Activity-Log Screens)
+
+**Date:** 2026-11-26  
+**Status:** ✅ COMPLETED
+
+### Summary
+Audited and localized all remaining hardcoded user-facing literals across the six Part C2 Owner menu, recipe, and activity-log screens (`ProductForm` + `product-form.blade.php`, `ProductIndex` + `product-index.blade.php`, `CategoryManager` + `category-manager.blade.php`, `ModifierManager` + `modifier-manager.blade.php`, `RecipeManager` + `recipe-manager.blade.php`, and `ActivityLogIndex` + `activity-log-index.blade.php`) using additive translation keys under `messages.products.*`, `messages.categories.*`, `messages.modifiers.*`, `messages.recipes.*`, and `messages.activity_log.*` in `lang/id/messages.php` and `lang/en/messages.php` with identical key sets. All Indonesian values match the original screen strings verbatim so the Indonesian UI and all existing tests remain visually and behaviorally unchanged.
+
+### Before / After Hardcoded User-Facing Literal Counts (Six Part C2 Scope Areas)
+| Area | File | Before | After |
+|---|---|---:|---:|
+| 1. Product Form (Livewire) | `app/Livewire/Menu/ProductForm.php` | 4 | 0 |
+| 1. Product Form (Blade) | `resources/views/livewire/menu/product-form.blade.php` | 84 (77 ID + 7 EN) | 0 |
+| 2. Product Index (Livewire) | `app/Livewire/Menu/ProductIndex.php` | 6 | 0 |
+| 2. Product Index (Blade) | `resources/views/livewire/menu/product-index.blade.php` | 33 | 0 |
+| 3. Category Manager (Livewire) | `app/Livewire/Menu/CategoryManager.php` | 6 | 0 |
+| 3. Category Manager (Blade) | `resources/views/livewire/menu/category-manager.blade.php` | 39 | 0 |
+| 4. Modifier Manager (Livewire) | `app/Livewire/Menu/ModifierManager.php` | 6 | 0 |
+| 4. Modifier Manager (Blade) | `resources/views/livewire/menu/modifier-manager.blade.php` | 53 | 0 |
+| 5. Recipe Manager (Livewire) | `app/Livewire/Inventory/RecipeManager.php` | 1 | 0 |
+| 5. Recipe Manager (Blade) | `resources/views/livewire/inventory/recipe-manager.blade.php` | 29 | 0 |
+| 6. Activity Log Viewer (Livewire) | `app/Livewire/ActivityLogs/ActivityLogIndex.php` | 9 | 0 |
+| 6. Activity Log Viewer (Blade) | `resources/views/livewire/activity-logs/activity-log-index.blade.php` | 22 | 0 |
+| **Total (Six Part C2 Areas)** | **12 files** | **292** | **0** |
+
+### Deliverables
+- **Files Created:**
+  - `tests/Feature/Localization/OwnerCatalogScreensTest.php` (6 tests, 153 assertions)
+- **Files Modified:**
+  - `app/Livewire/Menu/ProductForm.php`
+  - `resources/views/livewire/menu/product-form.blade.php`
+  - `app/Livewire/Menu/ProductIndex.php`
+  - `resources/views/livewire/menu/product-index.blade.php`
+  - `app/Livewire/Menu/CategoryManager.php`
+  - `resources/views/livewire/menu/category-manager.blade.php`
+  - `app/Livewire/Menu/ModifierManager.php`
+  - `resources/views/livewire/menu/modifier-manager.blade.php`
+  - `app/Livewire/Inventory/RecipeManager.php`
+  - `resources/views/livewire/inventory/recipe-manager.blade.php`
+  - `app/Livewire/ActivityLogs/ActivityLogIndex.php`
+  - `resources/views/livewire/activity-logs/activity-log-index.blade.php`
+  - `lang/id/messages.php`, `lang/en/messages.php`
+  - `docs/PROJECT_PLAN.md`, `docs/DEVELOPMENT_LOG.md`
+
+### Step 3 Report — Known Follow-Ups (Reported Only, Not Changed)
+1. **Step 3(a) — Raw Exception Messages Shown to the User in the Six Scope Screens:**
+   - **None (0 sites)** across `ProductForm`, `ProductIndex`, `CategoryManager`, `ModifierManager`, `RecipeManager`, and `ActivityLogIndex`. None of these six components catch exceptions and forward `$e->getMessage()` to `$this->addError(...)`, `$this->dispatch('notify', ...)`, or session flash messages.
+2. **Step 3(b) — `activity_logs.description` Strings Stored in Indonesian at Write Time and Rendered Verbatim by `ActivityLogIndex`:**
+   - Because `activity_logs` is an immutable audit ledger, `ActivityLogIndex` (`resources/views/livewire/activity-logs/activity-log-index.blade.php:119`) displays the stored `$log->description` string verbatim in the language it was written in at record time:
+     - **Within the Part C2 Scope Files (7 write sites):**
+       1. `app/Livewire/Menu/ProductIndex.php:35` (`product.availability_toggled`): `"Status produk '{$product->name}' diubah menjadi {$statusText}."` (`'HABIS (Sold Out)'` / `'TERSEDIA'`)
+       2. `app/Livewire/Menu/ProductIndex.php:59` (`product.status_toggled`): `"Produk '{$product->name}' {$statusText}."` (`'diaktifkan'` / `'dinonaktifkan'`)
+       3. `app/Livewire/Menu/ProductIndex.php:91` (`product.deleted`): `"Produk '{$name}' dihapus (soft-delete)."`
+       4. `app/Livewire/Menu/CategoryManager.php:121` (`category.created` / `category.updated`): `($isNew ? 'Kategori baru ditambahkan: ' : 'Kategori diperbarui: ').$this->nameId`
+       5. `app/Livewire/Menu/CategoryManager.php:153` (`category.deleted`): `"Kategori '{$name}' dihapus (soft-delete)."`
+       6. `app/Livewire/Menu/CategoryManager.php:176` (`category.status_toggled`): `"Kategori '{$category->name}' {$statusText}."` (`'diaktifkan'` / `'dinonaktifkan'`)
+       7. `app/Livewire/Menu/ModifierManager.php:261` (`modifier_group.created` / `modifier_group.updated`): `($isNew ? 'Grup modifier baru ditambahkan: ' : 'Grup modifier diperbarui: ').$this->nameId`
+       8. `app/Livewire/Menu/ModifierManager.php:283` (`modifier.availability_toggled`): `"Opsi modifier '{$mod->name}' {$statusText}."` (`'ditandai HABIS'` / `'ditandai TERSEDIA'`)
+       9. `app/Livewire/Menu/ModifierManager.php:315` (`modifier_group.deleted`): `"Grup modifier '{$name}' dihapus (soft-delete)."`
+     - **Elsewhere in the Codebase (18 Indonesian write sites + 6 English write sites):**
+       - `app/Http/Middleware/EnsureUserHasRole.php:47` (`auth.unauthorized_access`): `"Upaya akses tidak berwenang ke [{$request->path()}] oleh {$user->name}."`
+       - `app/Livewire/Inventory/IngredientManager.php:215,235,260,328,354` (`ingredient.*`, `ingredient_category.*`): Indonesian descriptions for ingredient and ingredient-category create/update/toggle/delete.
+       - `app/Livewire/Printing/PrintJobIndex.php:83` (`print.uncertain_note`): `"Catatan resolusi pemilik untuk pekerjaan cetak #{$job->id}: {$this->resolutionNote}"`
+       - `app/Livewire/Settings/ShopSettingsManager.php:187` (`settings.updated`): `"Pengaturan toko dan konfigurasi perangkat diperbarui oleh {$user->name}."`
+       - `app/Services/ShiftService.php:86,187` (`shift.opened`, `shift.closed`): Indonesian shift open/close summaries.
+       - `app/Services/CashMovementService.php:78,170` (`cash_movement.created`, `cash_movement.reversed`): Indonesian cash movement and reversal summaries.
+       - `app/Services/OrderService.php:277,437,510` (`order.created`, `order.status_changed`, `order.cancelled`): Indonesian order lifecycle descriptions.
+       - `app/Services/PaymentService.php:456` (`payment.settled`): Indonesian payment settlement description.
+       - `app/Services/PrintService.php:102,176` (`print.reprint_queued`, `print.uncertain_resolved`): Indonesian reprint and uncertain-job resolution descriptions.
+       - `app/Services/RefundService.php:275` (`refund.processed`): Indonesian refund processed description.
+       - *(Note: `AuthController.php:66,87`, `ShopSettingsManager.php:256,293`, `StockAdjustmentManager.php:217`, `PaymentService.php:507`, and `OrderRefund.php:166` write English descriptions at record time).*
+
+### Automated Test Results
+- **Owner Catalog, Recipe & Audit Screens Localization Tests (`OwnerCatalogScreensTest`):** 6 tests, 153 assertions — 100% passing
+- **Language Key Parity Test (Reused in `DomainExceptionsMappingTest` & `LowStockAlertTest`):** 100% passing
+- **Existing Test Suites (Unmodified):** 446 tests, 2226 assertions — 100% passing
+- **Full Test Suite (`php artisan test --compact`):** 452 tests, 2379 assertions — 100% passing (0 failures, 0 errors)
+- **Laravel Pint (`php vendor/bin/pint --dirty --test`):** ✅ Clean (0 violations on all modified/created files)
+- **Vite Build (`npm run build`):** ✅ Compiled successfully in 757ms
+
 
 
 

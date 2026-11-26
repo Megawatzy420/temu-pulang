@@ -3,26 +3,26 @@
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
             <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-coffee-500 mb-1">
-                <a href="{{ route('dashboard') }}" class="hover:text-coffee-800">Menu & Katalog</a>
+                <a href="{{ route('dashboard') }}" class="hover:text-coffee-800">{{ __('messages.products.breadcrumb_parent') }}</a>
                 <span>/</span>
-                <span class="text-coffee-800">Daftar Produk</span>
+                <span class="text-coffee-800">{{ __('messages.products.breadcrumb_current') }}</span>
             </div>
-            <h1 class="text-2xl font-bold text-coffee-950 tracking-tight">Daftar Menu & Produk</h1>
-            <p class="text-sm text-coffee-600 mt-0.5">Kelola katalog produk, harga, varian, dan ketersediaan stok menu.</p>
+            <h1 class="text-2xl font-bold text-coffee-950 tracking-tight">{{ __('messages.products.heading') }}</h1>
+            <p class="text-sm text-coffee-600 mt-0.5">{{ __('messages.products.subheading') }}</p>
         </div>
 
         <div class="flex items-center gap-2.5">
             <a href="{{ route('menu.categories') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-coffee-200 bg-white text-coffee-800 text-xs font-semibold hover:bg-coffee-50 transition shadow-2xs">
-                Kategori Menu
+                {{ __('messages.products.categories_btn') }}
             </a>
             <a href="{{ route('menu.modifiers') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-coffee-200 bg-white text-coffee-800 text-xs font-semibold hover:bg-coffee-50 transition shadow-2xs">
-                Grup Modifier
+                {{ __('messages.products.modifiers_btn') }}
             </a>
             <a href="{{ route('menu.products.create') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-coffee-800 text-cream-50 text-xs font-semibold hover:bg-coffee-900 transition shadow-md">
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                 </svg>
-                + Tambah Produk Baru
+                {{ __('messages.products.add_product_btn') }}
             </a>
         </div>
     </div>
@@ -39,7 +39,7 @@
                 <input
                     type="text"
                     wire:model.live.debounce.300ms="search"
-                    placeholder="Cari berdasarkan nama menu atau SKU..."
+                    placeholder="{{ __('messages.products.search_placeholder') }}"
                     class="w-full pl-10 pr-4 py-2 rounded-xl border border-coffee-200 text-sm text-coffee-950 placeholder-coffee-400 focus:outline-none focus:ring-2 focus:ring-coffee-500/20 focus:border-coffee-700 bg-white"
                 />
             </div>
@@ -49,9 +49,9 @@
                 wire:model.live="filterAvailability"
                 class="px-3.5 py-2 rounded-xl border border-coffee-200 text-xs font-semibold text-coffee-800 bg-white focus:outline-none focus:ring-2 focus:ring-coffee-500/20"
             >
-                <option value="all">Semua Ketersediaan</option>
-                <option value="available">Tersedia Saja</option>
-                <option value="sold_out">Habis (Sold Out) Saja</option>
+                <option value="all">{{ __('messages.products.filter_availability_all') }}</option>
+                <option value="available">{{ __('messages.products.filter_availability_available') }}</option>
+                <option value="sold_out">{{ __('messages.products.filter_availability_sold_out') }}</option>
             </select>
         </div>
 
@@ -62,7 +62,7 @@
                 wire:click="$set('selectedCategory', 'all')"
                 class="px-3 py-1.5 rounded-full font-semibold whitespace-nowrap transition {{ $selectedCategory === 'all' ? 'bg-coffee-800 text-cream-50 shadow-2xs' : 'bg-cream-100 text-coffee-700 hover:bg-coffee-100' }}"
             >
-                Semua Kategori
+                {{ __('messages.products.filter_all_categories') }}
             </button>
             @foreach ($categories as $cat)
                 <button
@@ -82,12 +82,12 @@
             <table class="w-full text-left text-sm text-coffee-950">
                 <thead class="bg-cream-100/70 border-b border-coffee-200/80 text-[11px] font-bold uppercase tracking-wider text-coffee-700">
                     <tr>
-                        <th class="px-5 py-3">Produk</th>
-                        <th class="px-5 py-3">Kategori</th>
-                        <th class="px-5 py-3">Harga</th>
-                        <th class="px-5 py-3 text-center">Varian & Opsi</th>
-                        <th class="px-5 py-3 text-center">Status Stok</th>
-                        <th class="px-5 py-3 text-right">Aksi</th>
+                        <th class="px-5 py-3">{{ __('messages.products.col_product') }}</th>
+                        <th class="px-5 py-3">{{ __('messages.products.col_category') }}</th>
+                        <th class="px-5 py-3">{{ __('messages.products.col_price') }}</th>
+                        <th class="px-5 py-3 text-center">{{ __('messages.products.col_variants_options') }}</th>
+                        <th class="px-5 py-3 text-center">{{ __('messages.products.col_stock_status') }}</th>
+                        <th class="px-5 py-3 text-right">{{ __('messages.products.col_actions') }}</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-coffee-100">
@@ -117,12 +117,12 @@
                             </td>
                             <td class="px-5 py-3.5">
                                 <span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-coffee-100/70 text-coffee-800">
-                                    {{ $product->category?->name ?? 'Tanpa Kategori' }}
+                                    {{ $product->category?->name ?? __('messages.products.uncategorized') }}
                                 </span>
                             </td>
                             <td class="px-5 py-3.5 font-bold text-coffee-950">
                                 @if ($product->has_variants)
-                                    <span class="text-xs font-normal text-coffee-500 block">Mulai dari</span>
+                                    <span class="text-xs font-normal text-coffee-500 block">{{ __('messages.products.starting_from') }}</span>
                                     Rp {{ number_format($product->effective_price, 0, ',', '.') }}
                                 @else
                                     Rp {{ number_format($product->base_price, 0, ',', '.') }}
@@ -131,14 +131,14 @@
                             <td class="px-5 py-3.5 text-center">
                                 @if ($product->has_variants)
                                     <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-caramel-100 text-caramel-800">
-                                        {{ $product->variants->count() }} Varian
+                                        {{ __('messages.products.variant_count_badge', ['count' => $product->variants->count()]) }}
                                     </span>
                                 @else
-                                    <span class="text-xs text-coffee-400">Standar</span>
+                                    <span class="text-xs text-coffee-400">{{ __('messages.products.standard_variant') }}</span>
                                 @endif
                                 @if ($product->modifierGroups->isNotEmpty())
                                     <span class="block text-[10px] text-coffee-500 mt-0.5">
-                                        +{{ $product->modifierGroups->count() }} Modifier
+                                        {{ __('messages.products.modifier_count_tag', ['count' => $product->modifierGroups->count()]) }}
                                     </span>
                                 @endif
                             </td>
@@ -149,7 +149,7 @@
                                     class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold cursor-pointer transition {{ $product->is_sold_out ? 'bg-red-100 text-red-800 border border-red-300 hover:bg-red-200' : 'bg-emerald-50 text-emerald-800 border border-emerald-200/80 hover:bg-emerald-100' }}"
                                 >
                                     <span class="w-1.5 h-1.5 rounded-full {{ $product->is_sold_out ? 'bg-red-600' : 'bg-emerald-600' }}"></span>
-                                    {{ $product->is_sold_out ? 'Habis (Sold Out)' : 'Tersedia' }}
+                                    {{ $product->is_sold_out ? __('messages.products.status_sold_out') : __('messages.products.status_available') }}
                                 </button>
                             </td>
                             <td class="px-5 py-3.5 text-right space-x-1.5">
@@ -157,22 +157,22 @@
                                     href="{{ route('menu.products.edit', $product->id) }}"
                                     class="inline-flex items-center px-2.5 py-1.5 rounded-lg border border-coffee-200 text-xs font-medium text-coffee-800 hover:bg-coffee-100/60 transition"
                                 >
-                                    Edit
+                                    {{ __('messages.products.edit_btn') }}
                                 </a>
                                 <button
                                     type="button"
                                     wire:click="confirmDelete({{ $product->id }})"
                                     class="inline-flex items-center px-2.5 py-1.5 rounded-lg border border-red-200 text-xs font-medium text-red-700 hover:bg-red-50 transition"
                                 >
-                                    Hapus
+                                    {{ __('messages.products.delete_btn') }}
                                 </button>
                             </td>
                         </tr>
                     @empty
                         <tr>
                             <td colspan="6" class="px-5 py-12 text-center text-coffee-500">
-                                <p class="text-sm font-semibold">Tidak ada produk ditemukan.</p>
-                                <p class="text-xs text-coffee-400 mt-1">Coba ubah kata kunci pencarian atau filter kategori.</p>
+                                <p class="text-sm font-semibold">{{ __('messages.products.empty_title') }}</p>
+                                <p class="text-xs text-coffee-400 mt-1">{{ __('messages.products.empty_subtitle') }}</p>
                             </td>
                         </tr>
                     @endforelse
@@ -196,16 +196,16 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                     </svg>
                 </div>
-                <h3 class="text-base font-bold text-coffee-950 mb-1">Hapus Produk Ini?</h3>
+                <h3 class="text-base font-bold text-coffee-950 mb-1">{{ __('messages.products.delete_modal_title') }}</h3>
                 <p class="text-xs text-coffee-500 mb-6">
-                    Produk akan disembunyikan dari POS (soft-delete). Data riwayat transaksi sebelumnya akan tetap tersimpan aman.
+                    {{ __('messages.products.delete_modal_desc') }}
                 </p>
                 <div class="flex items-center justify-center gap-2.5">
                     <x-button type="button" wire:click="$set('showDeleteModal', false)" variant="secondary" size="md" class="w-full">
-                        Batal
+                        {{ __('messages.products.cancel_btn') }}
                     </x-button>
                     <x-button type="button" wire:click="deleteProduct" variant="danger" size="md" class="w-full">
-                        Ya, Hapus
+                        {{ __('messages.products.confirm_delete_btn') }}
                     </x-button>
                 </div>
             </div>

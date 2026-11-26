@@ -320,7 +320,7 @@ flowchart TD
   - *Deliberate Deferrals & Known Cleanup (Not Done)*:
     - (a) Supplier records and purchase orders are not implemented (the supplier name goes in the `stock_in` note).
     - (b) Restock exists only through the Owner refund screen and only for full refunds; partial refunds need a manual stock-in or adjustment.
-    - (c) Hardcoded Indonesian text remains in the remaining unlocalized Owner catalog/recipe/audit screens identified in the Localization Part A audit: `ProductForm` (`product-form.blade.php`), `ModifierManager` (`modifier-manager.blade.php`), `CategoryManager` (`category-manager.blade.php`), `ProductIndex` (`product-index.blade.php`), `RecipeManager` (`recipe-manager.blade.php`), and `ActivityLogIndex` (`activity-log-index.blade.php`). (Raw shift/cash service messages in `ShiftManager` and non-locale-aware date formats in views are resolved in Part D).
+    - (c) UI localization cleanup across all 43 files in `app/Livewire` and `resources/views` is complete (Parts A, C1, C2, and D — **452 tests, 2379 assertions — 100% passing**). Genuine deliberate leftovers: historical `activity_logs.description` rows remain in the language written at record time (Indonesian for catalog/shift/cash/order/refund/print events; English for auth login/logout, QRIS image updates, stock movements, and deduction/restock failure logs), and default `CashierPos` internal cart fallback `'Standar'` for non-variant product rows.
 
 ---
 
