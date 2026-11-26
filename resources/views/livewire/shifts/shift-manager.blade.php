@@ -32,6 +32,16 @@
 
                 <!-- Shift Quick Action Buttons -->
                 <div class="flex items-center gap-2 self-stretch sm:self-auto flex-wrap">
+                    <a
+                        href="{{ route('reports.shift', $activeShift) }}"
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-coffee-200 bg-cream-50 hover:bg-cream-100 text-xs font-bold text-coffee-900 transition-colors"
+                    >
+                        <svg class="w-4 h-4 text-caramel-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <span>{{ __('messages.reports.x_report_btn') }}</span>
+                    </a>
+
                     <x-button
                         type="button"
                         variant="outline"
@@ -233,7 +243,7 @@
             <p class="text-xs sm:text-sm text-coffee-600 mt-2 max-w-md mx-auto">
                 {{ __('messages.shifts.no_active_shift_desc') }}
             </p>
-            <div class="mt-6">
+            <div class="mt-6 flex flex-col items-center gap-3">
                 <x-button
                     type="button"
                     variant="primary"
@@ -246,6 +256,15 @@
                     </svg>
                     {{ __('messages.shifts.open_new_shift_btn') }}
                 </x-button>
+
+                @if ($pastShifts->isNotEmpty() && (auth()->user()?->isOwner() || (int) $pastShifts->first()->user_id === (int) auth()->id()))
+                    <a
+                        href="{{ route('reports.shift', $pastShifts->first()) }}"
+                        class="inline-flex items-center gap-1.5 text-xs font-bold text-caramel-700 hover:text-caramel-900 underline underline-offset-2"
+                    >
+                        {{ __('messages.reports.view_latest_z_report', ['number' => $pastShifts->first()->shift_number]) }}
+                    </a>
+                @endif
             </div>
         </div>
     @endif
@@ -270,6 +289,7 @@
                             <th class="py-3 px-3.5 text-right">{{ __('messages.shifts.col_counted_cash') }}</th>
                             <th class="py-3 px-3.5 text-right">{{ __('messages.shifts.col_discrepancy') }}</th>
                             <th class="py-3 px-3.5">{{ __('messages.shifts.col_closing_note') }}</th>
+                            <th class="py-3 px-3.5 text-right">{{ __('messages.reports.z_report_btn') }}</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-coffee-100">
@@ -313,10 +333,18 @@
                                 <td class="py-3 px-3.5 text-coffee-600 text-[11px] max-w-xs truncate" title="{{ $ps->closing_note }}">
                                     {{ $ps->closing_note ?: '-' }}
                                 </td>
+                                <td class="py-3 px-3.5 text-right whitespace-nowrap">
+                                    <a
+                                        href="{{ route('reports.shift', $ps) }}"
+                                        class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-cream-100 hover:bg-cream-200 text-coffee-900 font-bold text-[11px] border border-coffee-200 transition-colors"
+                                    >
+                                        {{ __('messages.reports.z_report_btn') }}
+                                    </a>
+                                </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="8" class="py-8 text-center text-coffee-400">
+                                <td colspan="9" class="py-8 text-center text-coffee-400">
                                     {{ __('messages.shifts.empty_past_shifts') }}
                                 </td>
                             </tr>

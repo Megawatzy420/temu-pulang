@@ -15,6 +15,7 @@ use App\Livewire\Orders\OrderIndex;
 use App\Livewire\Orders\OrderRefund;
 use App\Livewire\Pos\CashierPos;
 use App\Livewire\Printing\PrintJobIndex;
+use App\Livewire\Reports\ShiftReport;
 use App\Livewire\Settings\ShopSettingsManager;
 use App\Livewire\Shifts\ShiftManager;
 use App\Models\User;
@@ -95,4 +96,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/shifts', ShiftManager::class)
         ->middleware('role:owner,cashier')
         ->name('shifts');
+
+    Route::get('/reports/shift/{shift}', ShiftReport::class)
+        ->middleware('role:owner,cashier')
+        ->name('reports.shift');
 });

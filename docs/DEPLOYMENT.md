@@ -4,9 +4,9 @@ This runbook documents the production go-live procedure, account management comm
 
 ---
 
-## 1. Production `.env` Configuration
+## 1. Production `.env` Configuration (From `.env.production.example`)
 
-Edit `C:\xampp\htdocs\temu-pulang\.env` on the Windows 11 shop host PC and verify every value below:
+Copy `.env.production.example` to `C:\xampp\htdocs\temu-pulang\.env` on the Windows 11 shop host PC (`Copy-Item .env.production.example .env`) and verify every value below:
 
 ```dotenv
 APP_NAME="Temu Pulang"
@@ -22,17 +22,17 @@ APP_FAKER_LOCALE=id_ID
 
 LOG_CHANNEL=stack
 LOG_STACK=single
-LOG_LEVEL=info
+LOG_LEVEL=warning
 
 DB_CONNECTION=mysql
 DB_HOST=127.0.0.1
 DB_PORT=3306
 DB_DATABASE=temu_pulang
-DB_USERNAME=temupulang_app
+DB_USERNAME=temupulang_user
 DB_PASSWORD=REPLACE_WITH_STRONG_LOCAL_DB_PASSWORD
 
 SESSION_DRIVER=database
-SESSION_LIFETIME=600
+SESSION_LIFETIME=720
 SESSION_ENCRYPT=false
 SESSION_PATH=/
 SESSION_DOMAIN=null
@@ -45,11 +45,12 @@ CACHE_STORE=database
 ```
 
 > **Key Notes:**
-> - `APP_ENV=production` disables quick demo login (`POST /login/demo/{role?}` returns `404`), hides demo credentials on `/login`, and prevents `DatabaseSeeder` from seeding demo users or demo catalog products.
-> - `APP_DEBUG=false` prevents stack traces and environment variables from being exposed on the LAN.
+> - `APP_ENV=production` disables quick demo login (`POST /login/demo/{role?}` returns `404`), hides demo credentials on `/login`, prevents `DatabaseSeeder` from seeding demo users or demo catalog products, and causes `ShopSettingSeeder` to seed neutral empty store contact details and a generic receipt footer (`Terima kasih atas kunjungan Anda`) instead of sample placeholders.
+> - `APP_DEBUG=false` and `LOG_LEVEL=warning` prevent stack traces, environment variables, and verbose debug logs in production.
 > - `DB_HOST=127.0.0.1` keeps MySQL/MariaDB strictly local to the Windows host.
-> - `SESSION_LIFETIME=600` (10 hours) is recommended for full-shift cashier terminals (default in `config/session.php` is `120` minutes).
+> - `SESSION_LIFETIME=720` (12 hours) covers a full F&B cashier shift (`temupulang:preflight` warns if `SESSION_LIFETIME` is below `480` minutes).
 > - `SESSION_SECURE_COOKIE=false` is required when serving over HTTP (`http://192.168.1.100`) on a local Wi-Fi/LAN without TLS.
+> - **Login Throttling**: `POST /login` enforces a per-(lowercased email + IP) rate limit of 5 failed attempts per minute via `RateLimiter` and records an `ActivityLog` entry (`module: 'auth'`, `action: 'auth.login_throttled'`) without secrets when blocked.
 
 ---
 
@@ -164,9 +165,11 @@ php artisan temupulang:preflight
 7. Demo login is disabled (`[FAIL]` if enabled while `APP_ENV=production`).
 8. At least one active `owner` user exists (`[FAIL]`).
 9. No active user has a demo email (`owner@temupulang.local`, `cashier@temupulang.local`) or a demo password (`[FAIL]`).
-10. `shop_settings` row exists (`[WARN]`).
+10. `shop_settings` row exists (`[WARN]`), does **not** contain the seeder's sample placeholder `address`, `phone`, `email`, or WiFi `receipt_footer` (`[FAIL]`), and has non-empty store `address` and `phone` (`[WARN]`).
 11. Receipt printer destination (`shop_settings.printer_name`) is configured (`[WARN]`).
 12. Cache, queue, and session drivers are not set to `array` (`[WARN]`).
+13. `SESSION_LIFETIME` is at least `480` minutes (`[WARN]` if below `480`).
+14. `LOG_LEVEL` is not `debug` while `APP_ENV=production` (`[WARN]`).
 
 All `[FAIL]` items must be resolved until `php artisan temupulang:preflight` exits with code `0`.
 

@@ -1702,6 +1702,119 @@ Audited all language files (`lang/id/messages.php`, `lang/en/messages.php`), Bla
 - **Laravel Pint (`php vendor/bin/pint --dirty --test`):** ✅ Clean (`passed`)
 - **Vite Build (`npm run build`):** ✅ Compiled successfully in 666ms
 
+---
+
+## Go-Live Hardening — Part 2A (Login Throttle, Session Lifetime, Production Env Template, Seeder Placeholders, Preflight Additions, Shift Modal Empty Defaults)
+
+**Date:** 2026-11-26  
+**Status:** ✅ COMPLETED
+
+### Summary
+Implemented Go-Live Hardening Part 2A across authentication, session configuration, environment templates, seeder placeholder gating, preflight readiness checks, and shift modal defaults without modifying any domain services, models, migrations, or existing tests:
+1. **Login Throttling (`AuthController::login`, `lang/id/messages.php`, `lang/en/messages.php`):** Added per-(lowercased email + IP) login throttling (`5` failed attempts per `60` seconds) via `Illuminate\Support\Facades\RateLimiter`. Evaluates `RateLimiter::tooManyAttempts($throttleKey, 5)` before `Auth::attempt()`, calls `RateLimiter::hit($throttleKey, 60)` only on failed credential checks, and calls `RateLimiter::clear($throttleKey)` upon successful authentication. Blocked attempts return the standard validation error bag with `__('messages.auth.too_many_attempts', ['seconds' => $seconds])` and write an `ActivityLog` entry (`module: 'auth'`, `action: 'auth.login_throttled'`) without logging passwords or secrets.
+2. **Session Lifetime & `.env.production.example`:** Updated `SESSION_LIFETIME=720` in `.env.example` (keeping `config/session.php` defaults unchanged) and created `.env.production.example` with commented value groups (`APP_NAME="Temu Pulang"`, `APP_ENV=production`, empty `APP_KEY`, `APP_DEBUG=false`, `LOG_LEVEL=warning`, `APP_URL=http://192.168.1.100`, `DB_CONNECTION=mysql` with empty `DB_PASSWORD`, `SESSION_DRIVER=database`, `SESSION_LIFETIME=720`, `QUEUE_CONNECTION=database`, `CACHE_STORE=database`).
+3. **Environment-Aware `ShopSettingSeeder` Placeholders (`database/seeders/ShopSettingSeeder.php`):** Added class constants `SAMPLE_ADDRESS`, `SAMPLE_PHONE`, `SAMPLE_EMAIL`, `SAMPLE_RECEIPT_HEADER`, `SAMPLE_RECEIPT_FOOTER`, and `GENERIC_RECEIPT_FOOTER`. In `local` and `testing`, the seeder preserves its sample values; in any other environment (including `production`), it seeds empty `address`, `phone`, and `email` strings and the generic receipt footer `'Terima kasih atas kunjungan Anda'` while still creating the singleton `shop_settings` row and all `application_settings` rows.
+4. **Preflight Additions (`app/Console/Commands/PreflightCommand.php`):**
+   - `[FAIL]` if the active `shop_settings` row still contains any of `ShopSettingSeeder`'s sample placeholder values (`SAMPLE_ADDRESS`, `SAMPLE_PHONE`, `SAMPLE_EMAIL`, `SAMPLE_RECEIPT_FOOTER`, or `'Pass: kopienak'`), with remediation hint `"Open Pengaturan Toko (/settings) and replace the sample address, phone, email, and receipt footer."`
+   - `[WARN]` if `shop_settings.address` or `shop_settings.phone` is empty, with remediation hint `"Open Pengaturan Toko (/settings) and fill in the store address and phone number."`
+   - `[WARN]` if `SESSION_LIFETIME` (`config('session.lifetime')`) is below `480` minutes, with remediation hint `"Set SESSION_LIFETIME=720 in .env and run: php artisan config:clear"`
+   - `[WARN]` if `LOG_LEVEL` is `debug` while `APP_ENV` is `production`, with remediation hint `"Set LOG_LEVEL=warning in .env and run: php artisan config:clear"`
+5. **Shift Modal Empty Defaults (Step 8, `app/Livewire/Shifts/ShiftManager.php`):** Changed `$openingCash` (previously `200000`) and `$movementAmount` (previously `50000`) to `null` by default and inside `openNewShiftModal()` / `openNewMovementModal()`, requiring cashiers to type the counted amount while keeping existing validation (`['required', 'integer', 'min:0']` and `['required', 'integer', 'min:1']`) and error messages intact. All existing tests passed unmodified.
+
+### Step 6 Report — Audit of Other Login-Related Routes Without Throttling (Reported Only, Not Changed)
+1. **Routes Present in `routes/web.php`:**
+   - `routes/web.php:38`: `Route::get('/login', [AuthController::class, 'showLogin'])->name('login')` — GET route rendering the login view; no `throttle` middleware attached.
+   - `routes/web.php:40`: `Route::post('/login/demo/{role?}', [AuthController::class, 'demoLogin'])->name('login.demo')` — POST quick-demo-login route (gated to `local` and `testing` via `AuthController::isDemoLoginEnabled()` at `app/Http/Controllers/AuthController.php:51-53`, aborting with `404` in `production`, and delegating to `$this->login($request)` at `app/Http/Controllers/AuthController.php:75`); has no route-level `throttle` middleware on `routes/web.php:40`.
+   - `routes/web.php:41`: `Route::post('/logout', [AuthController::class, 'logout'])->name('logout')` — POST logout route; no `throttle` middleware attached.
+2. **Password Reset, Registration & API Token Routes:**
+   - **None exist** in the repository (`routes/web.php` defines no password reset, forgot-password, user registration, or API token endpoints, and there are no `routes/api.php` or `routes/auth.php` route files).
+
+### Deliverables
+- **Files Created:**
+  - `.env.production.example`
+  - `tests/Feature/GoLiveHardeningPart2ATest.php` (4 tests, 85 assertions)
+- **Files Modified:**
+  - `app/Http/Controllers/AuthController.php`
+  - `app/Console/Commands/PreflightCommand.php`
+  - `app/Livewire/Shifts/ShiftManager.php`
+  - `database/seeders/ShopSettingSeeder.php`
+  - `.env.example`
+  - `lang/id/messages.php`, `lang/en/messages.php`
+  - `docs/DEPLOYMENT.md`, `docs/ARCHITECTURE.md`, `docs/PROJECT_PLAN.md`, `docs/DEVELOPMENT_LOG.md`
+
+### Automated Test Results
+- **Go-Live Hardening Part 2A Feature Tests (`GoLiveHardeningPart2ATest`):** 4 tests, 85 assertions — 100% passing
+- **Existing Test Suites (Unmodified):** 471 tests, 6710 assertions — 100% passing
+- **Full Test Suite (`php artisan test --compact`):** 475 tests, 6795 assertions — 100% passing (0 failures, 0 errors)
+- **Laravel Pint (`php vendor/bin/pint --dirty --test`):** ✅ Clean (`passed`)
+- **Vite Build (`npm run build`):** ✅ Compiled successfully in 646ms
+
+---
+
+## Phase 7 Task 7.1 — Shift X-Report (Live) & Z-Report (Final)
+
+**Date:** 2026-11-26  
+**Status:** ✅ COMPLETED
+
+### Summary
+Implemented Phase 7 Task 7.1 (read-only Shift X-Report and Z-Report) with `App\Services\ShiftReportService`, `App\Livewire\Reports\ShiftReport` (`/reports/shift/{shift}`, route `reports.shift`), print-ready A4/narrow-paper `@media print` styling, and navigation links on `ShiftManager` (`/shifts`) without modifying any existing services, models, migrations, or tests.
+
+### Report Definitions Used & Existing Code Comparison
+1. **Sales (`sales`):**
+   - Queries non-soft-deleted `orders` joined to `payment_transactions` on `payment_transactions.order_id = orders.id` where `payment_transactions.shift_id = $shift->id` and `orders.payment_status IN ('paid', 'partially_refunded', 'refunded')`.
+   - Computes `gross_sales` (`SUM(orders.total_amount)`), `subtotal_sales` (`SUM(orders.subtotal)`), `tax_total` (`SUM(orders.tax_amount)`), `service_charge_total` (`SUM(orders.service_charge_amount)`), `discount_total` (`SUM(orders.discount_amount)`), `paid_orders_count` (`COUNT(orders.id)`), `avg_ticket` (`$paidOrdersCount > 0 ? intdiv($grossSales, $paidOrdersCount) : 0`), `refunds_total`, and `net_sales` (`gross_sales - refunds_total`).
+2. **Excluded Orders (`excluded_orders`):**
+   - Single aggregate query on `orders` where `orders.shift_id = $shift->id` and `orders.payment_status = 'unpaid'`, counting `unpaid_count` (`status != 'cancelled'`), `cancelled_count` (`status = 'cancelled'`), and `total_count` separately from sales.
+3. **Payments by Method (`payments_by_method`):**
+   - Queries `payments` where `payments.shift_id = $shift->id` grouped by `payment_method`, summing `payments.amount` (bill amount applied, net of change) into `cash`, `qris`, `debit`, and `other` (`credit` and `transfer`, displayed in the UI only when `> 0`), plus `total`.
+4. **Refunds Recorded in Shift (`refunds`):**
+   - Queries `payment_refunds` where `payment_refunds.shift_id = $shift->id` grouped by `refund_method` (`cash`, `qris_reversal`, `manual_transfer`), returning `count`, `total`, and `by_method`.
+5. **Cash Drawer Reconciliation & Tie-Out (`cash_drawer`):**
+   - Reuses the exact `Shift::currentExpectedCash()` / `ShiftService::calculateExpectedCash()` formula:
+     `expected_cash = opening_cash + manual_cash_in - manual_cash_out + cash_sales - cash_refunds`
+   - **Code Comparison Note on Reversals**: `CashMovementService::reverseMovement()` (`app/Services/CashMovementService.php:145-159`) records an opposite-type `CashMovement` row (`type = 'out'` to reverse `'in'`, `type = 'in'` to reverse `'out'`) with `category = 'reversal'` and `is_reversal = true`. `Shift::totalCashIn()` and `Shift::totalCashOut()` (`app/Models/Shift.php:162-173`) include these opposite-type reversal rows in `manual_cash_in` and `manual_cash_out` so `manual_cash_in - manual_cash_out` automatically nets reversed movements to zero. `ShiftReportService` uses this identical computation so `expected_cash` and all displayed drawer components tie out 100% with `Shift::currentExpectedCash()`.
+   - For closed shifts (`is_open === false`), includes `counted_cash` (`shifts.actual_cash`), `variance` (`shifts.discrepancy = actual_cash - expected_cash`), and `closing_note`.
+
+### Step 4 Design Proposal — Thermal ESC/POS Z-Report Printing (Proposed Only, Not Implemented)
+To support printing X-Reports and Z-Reports directly to the 80mm/58mm USB thermal printer via the background spooler worker (`php artisan print:work`):
+1. **Additive Migration on `print_jobs`**: Make `print_jobs.order_id` nullable, add a nullable `shift_id` foreign key (`constrained('shifts')->nullOnDelete()`), and expand `job_type` values to support `'shift_x_report'` and `'shift_z_report'`.
+2. **Renderer Service (`App\Services\Printing\ShiftReportRendererService`)**: Consume the plain array from `ShiftReportService::buildReport(Shift $shift)` and format an 80mm/58mm ESC/POS byte stream via `EscPosBuilder` (header with store name and shift metadata, two-column justified lines for sales/tax/net, payments by method, refunds, cash drawer tie-out, counted cash/variance, and signature lines).
+3. **Service & Worker Integration (`PrintService::queueShiftReport(Shift $shift, User $actor)` & `PrintWorkerCommand`)**: Enqueue a `PrintJob` referencing `shift_id`, record an `ActivityLog` entry (`action: 'print.shift_report_queued'`), and dispatch `ShiftReportRendererService` inside `PrintWorkerCommand` when `job_type` is `'shift_x_report'` or `'shift_z_report'`.
+
+### Step 5 Report — Refunds Without a Shift, Post-Close Refunds & Expected Cash Alignment (Reported Only, Not Fixed)
+1. **Refunds Without a Shift (`payment_refunds.shift_id IS NULL`)**:
+   - `RefundTransaction` (`app/Models/RefundTransaction.php:15-26`) has no `shift_id` column.
+   - `PaymentRefund` (`app/Models/PaymentRefund.php:14-22`) has a nullable `shift_id` column, and `RefundService::processRefund()` (`app/Services/RefundService.php:214`) sets:
+     `'shift_id' => ($alloc['refund_method'] === 'cash' && $lockedShift) ? $lockedShift->id : null`
+   - As a result, non-cash refund allocations (`qris_reversal` and `manual_transfer`) are always stored with `shift_id = null` (both when processed while a shift is open and when processed with no open shift after register closure). They are excluded from shift-level X/Z reports (which scope strictly to `payment_refunds.shift_id = $shift->id` to preserve closed-shift Z-Report immutability) and are accounted for at the business-day level (`DashboardMetricsService::refundsTotal()`) by `refund_transactions.created_at`.
+2. **Orders Paid in a Shift Today, Refunded After That Shift Closed**:
+   - **Cash refund in a later Shift B for an order paid in closed Shift A**: `RefundService::processRefund()` requires open Shift B and writes `payment_refunds.shift_id = $shiftB->id`. Closed Shift A's Z-Report remains completely unchanged (`gross_sales`, `refunds`, `net_sales`, and `expected_cash` for Shift A are immutable), while Shift B's X/Z-Report records the cash refund outflow (`cash_refunds` and `refunds.total`) because physical cash left the drawer during Shift B.
+   - **Non-cash refund (`qris_reversal` / `manual_transfer`) after Shift A closed**: `RefundService::processRefund()` writes `payment_refunds.shift_id = null`. Closed Shift A's Z-Report remains unchanged, and no physical drawer cash is affected in any shift.
+3. **Places Where Expected Cash Could Differ From the Sum of Displayed Components**:
+   - **None (0 discrepancies).** `Shift::currentExpectedCash()` (`app/Models/Shift.php:222-231`), `ShiftService::calculateExpectedCash()` (`app/Services/ShiftService.php:105-108`), `ShiftManager` (`resources/views/livewire/shifts/shift-manager.blade.php:77-117,650-677`), and `ShiftReportService::buildReport()` all compute `expected_cash` using the exact same five integer terms:
+     `opening_cash + manual_cash_in - manual_cash_out + cash_sales - cash_refunds`
+     where `cash_sales` is `SUM(payments.amount WHERE payment_method = 'cash')` (already net of change given), `cash_refunds` is `SUM(payment_refunds.amount WHERE shift_id = $shift->id AND refund_method = 'cash')`, and `manual_cash_in` / `manual_cash_out` sum `cash_movements.amount` for `type = 'in'` and `type = 'out'` respectively (including opposite-type reversal rows). At shift close, `ShiftService::closeShift()` persists this exact integer to `shifts.expected_cash` and `shifts::booted()` prevents any modification to a closed shift.
+
+### Deliverables
+- **Files Created:**
+  - `app/Services/ShiftReportService.php`
+  - `app/Livewire/Reports/ShiftReport.php`
+  - `resources/views/livewire/reports/shift-report.blade.php`
+  - `tests/Unit/Services/ShiftReportServiceTest.php` (1 test, 8 assertions)
+  - `tests/Feature/Reports/ShiftReportTest.php` (5 tests, 74 assertions)
+- **Files Modified:**
+  - `routes/web.php`
+  - `resources/views/livewire/shifts/shift-manager.blade.php`
+  - `lang/id/messages.php`, `lang/en/messages.php`
+  - `docs/ARCHITECTURE.md`, `docs/PROJECT_PLAN.md`, `docs/DEVELOPMENT_LOG.md`
+
+### Automated Test Results
+- **Shift Report Unit & Feature Tests (`ShiftReportServiceTest` & `ShiftReportTest`):** 6 tests, 82 assertions — 100% passing
+- **Existing Test Suites (Unmodified):** 475 tests, 7055 assertions — 100% passing
+- **Full Test Suite (`php artisan test --compact`):** 481 tests, 7137 assertions — 100% passing (0 failures, 0 errors)
+- **Laravel Pint (`php vendor/bin/pint --dirty --test`):** ✅ Clean (`passed`)
+- **Vite Build (`npm run build`):** ✅ Compiled successfully in 966ms
+
 
 
 
