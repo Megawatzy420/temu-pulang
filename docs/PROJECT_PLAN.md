@@ -340,4 +340,39 @@ flowchart TD
 3. Multi-device LAN cashier terminal discovery and configuration.
 4. Network failure handling and robust printer reconnection logic.
 
+**Tasks:**
+- [x] **Go-Live Hardening, Part 1 — Demo Access Gating, Account Tools, Preflight Check & Deployment Runbook (COMPLETED ✅)**
+  - **Environment-Gated Demo Login (`AuthController`, `routes/web.php`, `resources/views/auth/login.blade.php`)**: Quick-demo-login switcher (`POST /login/demo/{role?}`) and pre-filled demo credentials on `/login` are restricted to `app()->environment(['local', 'testing'])`. In `production` (or any other environment), `AuthController::demoLogin()` aborts with `404` on the server and the login view hides the demo block and default credentials.
+  - **Environment-Gated Seeders (`DatabaseSeeder`, `UserSeeder`, `ProductCategorySeeder`, `ProductSeeder`, `ModifierSeeder`)**: Demo accounts and demo catalog data seed only in `local` and `testing`. In any other environment, `DatabaseSeeder` runs only `RoleAndPermissionSeeder` and `ShopSettingSeeder` and creates zero user records.
+  - **Account Management Commands (`app/Console/Commands`)**:
+    - `temupulang:create-user {--role=} {--name=} {--email=}`: interactive `owner`/`cashier` account creation reading password exclusively via hidden prompt (`$this->secret()`, min 10 chars, with confirmation; never accepted via argument/option, never printed/logged).
+    - `temupulang:set-password {email}`: interactive hidden password rotation (min 10 chars) with confirmation.
+    - `temupulang:deactivate-user {email} {--reactivate}`: deactivates/reactivates user accounts, blocks deactivated login, refuses to deactivate the last active `owner`, and logs `user.deactivated` / `user.reactivated` in `ActivityLog` (`module: 'auth'`).
+  - **Go-Live Preflight Command (`temupulang:preflight`)**: read-only 12-check production readiness audit (`[PASS]`, `[WARN]`, `[FAIL]`) covering `APP_ENV`, `APP_DEBUG`, `APP_KEY`, DB connection, writable `storage` & `bootstrap/cache`, `public/storage` link, demo login disabled, active `owner` presence, no active user with demo email or demo password hash, `shop_settings` row, `printer_name`, and cache/queue/session drivers; exits with `1` on any `FAIL` (`0` otherwise).
+  - **Single-Shop Production Runbook (`docs/DEPLOYMENT.md`)**: complete Windows 11 / XAMPP / LAN deployment and operations guide.
+  - **Automated Tests**: `GoLiveHardeningPart1Test.php` (6 tests, 85 assertions — 100% passing).
+  - **Full Suite**: **458 tests, 2464 assertions — 100% passing**; Pint clean; Vite build passing.
+  - *Known Follow-Ups (Step 5 Audit Findings — Reported Only, Not Changed in Part 1)*:
+    - (a) **Login `POST` Throttle / Rate Limit**: `POST /login` (`routes/web.php:39`, `AuthController::login()` at `app/Http/Controllers/AuthController.php:34-75`) has no `throttle` middleware or `RateLimiter` protection applied.
+    - (b) **Session Lifetime & Cookie Settings**: `config/session.php:35` and `.env.example:31` default `SESSION_LIFETIME` to `120` minutes (2 hours, shorter than an 8–10 hour cashier shift); `config/session.php:50` defaults `SESSION_ENCRYPT` to `false`; `config/session.php:172` leaves `SESSION_SECURE_COOKIE` as `null` (not explicitly pinned to `false` in `.env.example` for HTTP-only LAN operation).
+    - (c) **Remaining Demo / Development Artifacts Exposed in Production**:
+      - `app/Livewire/Dashboard/OwnerDashboard.php:35-104` and `resources/views/livewire/dashboard/owner-dashboard.blade.php:4-24,45-47`: Owner dashboard displays hardcoded simulated KPIs (`Rp 3.420.000`, `86` orders), fake recent order numbers (`TP-0104`..`TP-0100`), fake product sales quantities/revenues, and an unconditional `"SIMULASI DEMO"` banner until Phase 7 real analytics replace them.
+      - `database/seeders/ShopSettingSeeder.php:21-25,41-42`: seeds placeholder shop address (`Jl. Boulevard Raya Blok A No. 12, Jakarta`), phone (`0812-3456-7890`), email (`halo@temupulang.local`), and receipt footer (`WiFi: TemuPulang | Pass: kopienak`) until edited by the Owner in `/settings`.
+      - `routes/console.php:6-8`: default Laravel `inspire` artisan command.
+      - `resources/views/welcome.blade.php:1-383`: default Laravel welcome view file (unrouted).
+      - `.env.example:1-5,21,23`: development defaults (`APP_NAME=Laravel`, `APP_ENV=local`, `APP_DEBUG=true`, `DB_CONNECTION=sqlite`).
+      - `README.md:1-58`: generic Laravel skeleton README.
+- [x] **Go-Live Hardening, Part 2B — Real Owner Dashboard & `DashboardMetricsService` (COMPLETED ✅)**
+  - **Read-Only Metrics Engine (`App\Services\DashboardMetricsService`)**: SQL-aggregate service using `shop_settings.business_day_start_time` (`'06:00:00'` fallback) and `shop_settings.timezone` (`'Asia/Jakarta'` fallback) with optional `$now` parameter and zero float math:
+    - `grossSales`: `SUM(orders.total_amount)` for orders paid within `[start, end)` (`paid_at`) with `payment_status IN ('paid', 'partially_refunded', 'refunded')`.
+    - `refundsTotal`: `SUM(refund_transactions.total_refunded_amount)` for refunds created within `[start, end)` (`created_at`).
+    - `netSales`: `gross_sales - refunds`; `paidOrdersCount`: count of paid orders; `averageTicket`: `intdiv(gross_sales, paid_orders)` (`0` when `0`).
+    - `paymentMix`: `SUM(payments.amount)` (bill amount applied, never cash tendered) grouped by `payment_method` (`cash`, `qris`, `debit`, plus `other` for `credit`/`transfer` shown when `> 0`, labelled as money received without subtracting refunds).
+    - `percentChangeInTenths`: integer-only half-up change of today's net sales vs previous business day's net sales in tenths of a percent (`—` when previous day net sales `<= 0`).
+    - `recentOrders`: last 5 orders created in the business day (any status, newest first).
+    - `bestSellers`: top 4 products by `SUM(order_items.quantity)` from orders paid in the business day with `payment_status IN ('paid', 'partially_refunded')` (excluding `refunded`), using `order_items` snapshot names and line subtotals.
+  - **Rebuilt Owner Dashboard (`App\Livewire\Dashboard\OwnerDashboard`, `resources/views/livewire/dashboard/owner-dashboard.blade.php`)**: removed the demo simulation banner, all hardcoded KPIs (`Rp 3.420.000`, `86` orders, `↑ 14.2%`, `Rp 2.990.000`), fake orders (`TP-0100`..`TP-0104`), and fake best sellers; added localized empty states and integer basis-point tax/service formatting while keeping the active shift card and Low Stock card intact.
+  - **Automated Tests**: `OwnerDashboardMetricsTest.php` (8 tests, 70 assertions — 100% passing).
+  - **Full Suite**: **466 tests, 2534 assertions — 100% passing**; Pint clean; Vite build passing.
+
 

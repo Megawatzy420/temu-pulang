@@ -137,7 +137,7 @@ class AuthenticationAndFrontendTest extends TestCase
             ->test(OwnerDashboard::class)
             ->assertStatus(200)
             ->assertSee('Total Penjualan Hari Ini')
-            ->assertSee('Simulasi Demo');
+            ->assertDontSee('Simulasi Demo');
     }
 
     public function test_cashier_pos_livewire_component_renders_and_handles_cart(): void

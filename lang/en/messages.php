@@ -496,6 +496,17 @@ return [
         'currency_timezone_title' => 'Currency & Timezone',
         'currency_timezone_meta' => 'IDR (Rp) • Asia/Jakarta (WIB)',
         'status_compliant' => 'Compliant',
+        'gross_sales_label' => 'Gross',
+        'refunds_label' => 'Refunds',
+        'net_sales_label' => 'Net Sales',
+        'payment_mix_title' => 'Payment Mix (Money Received)',
+        'payment_mix_subtitle' => 'Payments applied today by method (refunds not subtracted)',
+        'payment_other' => 'Other (Credit/Transfer)',
+        'order_type_col' => 'Type',
+        'no_sales_today' => 'No sales yet today',
+        'no_orders_today_desc' => 'Orders created during this business day will appear here.',
+        'no_best_sellers_today' => 'No sales yet today.',
+        'badge_draft' => 'Draft',
     ],
 
     // Refund Management (Owner only)

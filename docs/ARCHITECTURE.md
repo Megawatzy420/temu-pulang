@@ -528,3 +528,33 @@ The Owner backoffice interfaces for inventory and recipe management are implemen
 All core Phase 6 inventory deduction services (`StockAdjustmentService`, `RecipeResolutionService`, `InventoryService`) are now delivered. Future tasks cover low-stock alerts, movement history viewer UI, and refund/cancellation restocking rules (Tasks 6.5–6.7).
 
 **Planned locking strategy**: Sort ingredient IDs in ascending order before acquiring `lockForUpdate()` on `ingredient_balances` rows — prevents deadlocks when multiple concurrent deductions share ingredients.
+
+### 14.8. Operations Commands & Demo-Login Gating (Go-Live Hardening, Part 1)
+
+- **Environment-Gated Demo Access & Seeding**:
+  - `AuthController::isDemoLoginEnabled()` restricts the quick-demo-login switcher (`POST /login/demo/{role?}`) and login view pre-filled demo credentials to `app()->environment(['local', 'testing'])` (with optional `config('app.demo_login_enabled')` test override). In `production` or any other environment, `AuthController::demoLogin()` immediately triggers `abort(404)` on the server and `resources/views/auth/login.blade.php` omits the demo credentials and buttons.
+  - `DatabaseSeeder` and the four demo seeders (`UserSeeder`, `ProductCategorySeeder`, `ProductSeeder`, `ModifierSeeder`) only seed demo users and catalog items in `local` and `testing`. In any other environment, `DatabaseSeeder` runs only `RoleAndPermissionSeeder` and `ShopSettingSeeder` and creates zero user records.
+- **Operations Artisan Commands (`app/Console/Commands`)**:
+  - `php artisan temupulang:create-user {--role=} {--name=} {--email=}`: Interactive account provisioning command for `owner` and `cashier` roles. Validates email format/uniqueness and reads the password exclusively via hidden prompt (`$this->secret()`, minimum 10 characters, with confirmation; never accepted as a CLI argument/option and never printed or logged). Creates an active user (`is_active = true`) and assigns the role via `User::assignRole()`.
+  - `php artisan temupulang:set-password {email}`: Reads a new password via hidden prompt with confirmation (minimum 10 characters) and updates the user's password hash; rejects unknown emails.
+  - `php artisan temupulang:deactivate-user {email} {--reactivate}`: Sets `is_active = false` (or `true` when `--reactivate` is passed) so deactivated accounts cannot log in (`AuthController::login()` checks `is_active`). Refuses to deactivate the last active `owner` account, and writes an `ActivityLog` entry (`module: 'auth'`, `action: 'user.deactivated'` or `'user.reactivated'`) without secrets.
+  - `php artisan temupulang:preflight`: Read-only go-live verification command that prints `[PASS]`, `[WARN]`, or `[FAIL]` across 12 production readiness checks (`APP_ENV`, `APP_DEBUG`, `APP_KEY`, database connectivity, writable `storage` and `bootstrap/cache`, `public/storage` symlink, demo login disabled, at least one active `owner`, no active user with demo email or demo password hash, `shop_settings` row, configured `printer_name`, and non-`array` cache/queue/session drivers), prints recommended remediation commands, and exits with code `1` if any check fails (`0` otherwise).
+
+### 14.9. Owner Dashboard Real-Time Metrics (`App\Services\DashboardMetricsService`, Go-Live Hardening, Part 2B)
+
+`App\Services\DashboardMetricsService` powers `App\Livewire\Dashboard\OwnerDashboard` using a small, constant number of read-only SQL aggregate queries and pure integer arithmetic (zero float math):
+
+- **Business Day Window (`resolveBusinessDayWindow(?CarbonInterface $now = null, ?ShopSetting $setting = null)`)**:
+  - Uses `shop_settings.business_day_start_time` (fallback `'06:00:00'`) and `shop_settings.timezone` (fallback `'Asia/Jakarta'`), matching `OrderService` and `RefundService`.
+  - If the reference timestamp in the shop timezone is earlier than today's `business_day_start_time`, the current business day window is `[yesterday at business_day_start_time, today at business_day_start_time)`; otherwise `[today at business_day_start_time, tomorrow at business_day_start_time)`.
+  - The previous business day window is `[start - 1 day, start)`.
+- **Metric Definitions**:
+  - **Gross Sales (`grossSales`)**: `SUM(orders.total_amount)` for non-soft-deleted orders paid within `[start, end)` (by `orders.paid_at`) whose `payment_status` is `paid`, `partially_refunded`, or `refunded` (unpaid and unpaid-cancelled orders are excluded).
+  - **Refunds (`refundsTotal`)**: `SUM(refund_transactions.total_refunded_amount)` for refunds created within `[start, end)` (by `refund_transactions.created_at`, independent of when the original order was paid).
+  - **Net Sales (`netSales`)**: `gross_sales - refunds`.
+  - **Paid Orders Count (`paidOrdersCount`)**: `COUNT(*)` of the paid-orders set above.
+  - **Average Ticket (`averageTicket`)**: `intdiv($grossSales, $paidOrders)` (`0` when `$paidOrders === 0`).
+  - **Payment Mix (`paymentMix`)**: `SUM(payments.amount)` (the bill amount applied, never `tendered_amount`) grouped by `payments.payment_method` for orders in the business day's paid-orders set, bucketed into `cash`, `qris`, `debit`, and `other` (`credit`/`transfer`, displayed in the UI only when `> 0`), plus `total`. Labelled as money received (refunds are not subtracted).
+  - **Change vs. Previous Business Day (`percentChangeInTenths`)**: Compares today's net sales against the previous business day's net sales in tenths of a percent using half-up integer arithmetic (`intdiv((2 * abs(diff) * 1000) + prevNet, 2 * prevNet)`). Displays `'—'` (dash) when the previous business day's net sales is `<= 0`.
+  - **Recent Orders (`recentOrders`)**: Last 5 non-soft-deleted orders created within `[start, end)` (`created_at DESC, id DESC`, any status), returning `order_number`, `call_number`, `customer_name`, `order_type`, `total_amount`, `status`, `payment_status`, and shop-timezone `H:i` time.
+  - **Best Sellers (`bestSellers`)**: Top 4 products by `SUM(order_items.quantity)` for orders paid within `[start, end)` whose `payment_status` is `paid` or `partially_refunded` (**excluding** fully `refunded` orders), grouped by `order_items.product_name_id`, `order_items.product_name_en`, and `order_items.sku`, with quantity sold, revenue (`SUM(order_items.subtotal)`), and integer progress bar percentage.

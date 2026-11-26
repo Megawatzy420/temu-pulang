@@ -1458,6 +1458,158 @@ Audited and localized all remaining hardcoded user-facing literals across the si
 - **Laravel Pint (`php vendor/bin/pint --dirty --test`):** ✅ Clean (0 violations on all modified/created files)
 - **Vite Build (`npm run build`):** ✅ Compiled successfully in 757ms
 
+---
+
+## Go-Live Hardening — Part 1 (Demo Access, Account Tools, Preflight Check, Deployment Doc)
+
+**Date:** 2026-11-26  
+**Status:** ✅ COMPLETED
+
+### Summary
+Implemented Go-Live Hardening Part 1 to prepare Temu Pulang for single-shop production deployment without altering any domain service, model, migration, or existing test:
+1. **Demo Login Gating (`AuthController`, `routes/web.php`, `resources/views/auth/login.blade.php`):** Added `POST /login/demo/{role?}` (`AuthController::demoLogin`) and `AuthController::isDemoLoginEnabled()`. In `local` and `testing`, the login page renders the quick-demo switcher and pre-filled demo credentials and allows instant demo sign-in. In `production` (or any other environment), `AuthController::demoLogin()` immediately triggers `abort(404)` on the server and `login.blade.php` omits all demo credentials and demo buttons.
+2. **Seeder Gating (`DatabaseSeeder`, `UserSeeder`, `ProductCategorySeeder`, `ProductSeeder`, `ModifierSeeder`):** Gated demo users and demo catalog data behind `app()->environment(['local', 'testing'])`. In any other environment, `DatabaseSeeder` invokes only `RoleAndPermissionSeeder` and `ShopSettingSeeder` and creates zero users.
+3. **Account Management Console Commands (`app/Console/Commands`):**
+   - `temupulang:create-user {--role=} {--name=} {--email=}` (`CreateUserCommand`): prompts for any missing name, email, or role (`owner` or `cashier`), validates email format and uniqueness, reads the password exclusively via hidden prompt (`$this->secret()`, minimum 10 characters, with confirmation; never accepted as an argument/option and never printed/logged), creates an active user (`is_active = true`), and assigns the role via `User::assignRole()`.
+   - `temupulang:set-password {email}` (`SetPasswordCommand`): reads a new password via hidden prompt with confirmation (minimum 10 characters) and updates the user's password hash; refuses unknown emails.
+   - `temupulang:deactivate-user {email} {--reactivate}` (`DeactivateUserCommand`): sets `is_active = false` (or `true` with `--reactivate`), refuses to deactivate the last active `owner`, and records an `ActivityLog` entry (`module: 'auth'`, `action: 'user.deactivated'` or `'user.reactivated'`) without secrets.
+4. **Go-Live Preflight Command (`temupulang:preflight`, `PreflightCommand`):** Read-only check command printing `[PASS]`, `[WARN]`, or `[FAIL]` across 12 production readiness checks (`APP_ENV`, `APP_DEBUG`, `APP_KEY`, database connection, writable `storage` and `bootstrap/cache`, `public/storage` link, demo login disabled, at least one active `owner`, no active user with demo email or demo password hash checked via `Hash::check`, `shop_settings` row, configured `printer_name`, and non-`array` cache/queue/session drivers), prints remediation commands, and exits with code `1` if any `FAIL` (`0` otherwise).
+5. **Production Deployment Runbook (`docs/DEPLOYMENT.md`):** Created comprehensive English runbook covering production `.env`, composer/migration/essential seeding, `storage:link`, Vite build and Laravel caches, account commands, deactivating demo accounts, `temupulang:preflight`, Windows Task Scheduler startup for `php artisan print:work`, nightly `mysqldump` backup and restore verification, fixed LAN IP and Apache `VirtualHost` serving `public/`, rehearsal-day checklist, downtime plan, first-week routine, and staff operational notes.
+
+### Deliverables
+- **Files Created:**
+  - `app/Console/Commands/CreateUserCommand.php`
+  - `app/Console/Commands/SetPasswordCommand.php`
+  - `app/Console/Commands/DeactivateUserCommand.php`
+  - `app/Console/Commands/PreflightCommand.php`
+  - `tests/Feature/GoLiveHardeningPart1Test.php` (6 tests, 85 assertions)
+  - `docs/DEPLOYMENT.md`
+- **Files Modified:**
+  - `app/Http/Controllers/AuthController.php`
+  - `routes/web.php`
+  - `resources/views/auth/login.blade.php`
+  - `database/seeders/DatabaseSeeder.php`
+  - `database/seeders/UserSeeder.php`
+  - `database/seeders/ProductCategorySeeder.php`
+  - `database/seeders/ProductSeeder.php`
+  - `database/seeders/ModifierSeeder.php`
+  - `docs/ARCHITECTURE.md`
+  - `docs/PROJECT_PLAN.md`
+  - `docs/DEVELOPMENT_LOG.md`
+
+### Step 5 Report — Security, Session & Production Exposure Audit (Reported Only, Not Changed)
+1. **Step 5(a) — Login `POST` Route Throttle / Rate Limit:**
+   - **No throttle or rate limit is applied.**
+   - `routes/web.php:39`: `Route::post('/login', [AuthController::class, 'login'])->name('login.post')` is inside the `Route::middleware('guest')` group (`routes/web.php:37-41`) with no `throttle` middleware attached.
+   - `app/Http/Controllers/AuthController.php:34-75`: `AuthController::login()` validates credentials and calls `Auth::attempt(...)` directly without calling `Illuminate\Support\Facades\RateLimiter`.
+   - `bootstrap/app.php:16-24`: registers only the `role` middleware alias (`EnsureUserHasRole::class`); no login rate limiter is configured.
+2. **Step 5(b) — Session Lifetime & Cookie Settings in Use:**
+   - `config/session.php:21` & `.env.example:30`: `'driver' => env('SESSION_DRIVER', 'database')`
+   - `config/session.php:35` & `.env.example:31`: `'lifetime' => (int) env('SESSION_LIFETIME', 120)` (120 minutes / 2 hours; shorter than a typical 8–10 hour F&B cashier shift unless overridden in `.env`)
+   - `config/session.php:37`: `'expire_on_close' => env('SESSION_EXPIRE_ON_CLOSE', false)`
+   - `config/session.php:50` & `.env.example:32`: `'encrypt' => env('SESSION_ENCRYPT', false)`
+   - `config/session.php:130-133`: `'cookie' => env('SESSION_COOKIE', Str::slug((string) env('APP_NAME', 'laravel')).'-session')`
+   - `config/session.php:146` & `.env.example:33`: `'path' => env('SESSION_PATH', '/')`
+   - `config/session.php:159` & `.env.example:34`: `'domain' => env('SESSION_DOMAIN')` (`null`)
+   - `config/session.php:172`: `'secure' => env('SESSION_SECURE_COOKIE')` (`null` by default; not explicitly pinned to `false` in `.env.example` for HTTP-only local LAN usage)
+   - `config/session.php:185`: `'http_only' => env('SESSION_HTTP_ONLY', true)`
+   - `config/session.php:202`: `'same_site' => env('SESSION_SAME_SITE', 'lax')`
+   - `config/session.php:215`: `'partitioned' => env('SESSION_PARTITIONED_COOKIE', false)`
+3. **Step 5(c) — Other Routes, Seeders, Commands, Config Values, or Views for Demos/Development Exposed in Production:**
+   - **Owner Dashboard Simulated KPIs, Fake Orders & `"SIMULASI DEMO"` Banner:**
+     - `app/Livewire/Dashboard/OwnerDashboard.php:35-41`: Hardcoded demo `$metrics` (`'today_sales' => 3420000`, `'today_orders' => 86`, `'avg_ticket' => 39767`, `'cash_total' => 1480000`, `'qris_total' => 1940000`).
+     - `app/Livewire/Dashboard/OwnerDashboard.php:44-90`: Hardcoded fake `$recentOrders` array (`TP-0104` through `TP-0100`, customers `'Pelanggan 04 (Dine In)'`, `'Dimas (Takeaway)'`, etc.).
+     - `app/Livewire/Dashboard/OwnerDashboard.php:93-104`: Hardcoded fake product sales quantities `[42, 35, 29, 21]` and revenues `[840000, 980000, 420000, 420000]`.
+     - `resources/views/livewire/dashboard/owner-dashboard.blade.php:4-24,45-47`: Unconditional `"SIMULASI DEMO"` / `"Demo Simulation"` banner and hardcoded `↑ 14.2%` vs `'Rp 2.990.000'` comparison text rendered in production on `/dashboard`.
+   - **Placeholder Store Profile & WiFi Password in `ShopSettingSeeder`:**
+     - `database/seeders/ShopSettingSeeder.php:21-25,41-42`: Seeds sample store address `'Jl. Boulevard Raya Blok A No. 12, Jakarta'`, phone `'0812-3456-7890'`, email `'halo@temupulang.local'`, and receipt footer `'WiFi: TemuPulang | Pass: kopienak'`.
+   - **Default Laravel Console Command & Welcome View:**
+     - `routes/console.php:6-8`: Default `php artisan inspire` command.
+     - `resources/views/welcome.blade.php:1-383`: Default Laravel welcome template (unrouted because `/` redirects in `routes/web.php:25-36`).
+   - **Development Defaults in `.env.example` & `README.md`:**
+     - `.env.example:1-5,21,23`: `APP_NAME=Laravel`, `APP_ENV=local`, `APP_DEBUG=true`, `LOG_LEVEL=debug`, `DB_CONNECTION=sqlite`.
+     - `README.md:1-58`: Generic Laravel skeleton README.
+
+### Automated Test Results
+- **Go-Live Hardening Part 1 Feature Tests (`GoLiveHardeningPart1Test`):** 6 tests, 85 assertions — 100% passing
+- **Existing Test Suites (Unmodified):** 452 tests, 2379 assertions — 100% passing
+- **Full Test Suite (`php artisan test --compact`):** 458 tests, 2464 assertions — 100% passing (0 failures, 0 errors)
+- **Laravel Pint (`php vendor/bin/pint --dirty --test`):** ✅ Clean (0 violations on all modified/created files)
+- **Vite Build (`npm run build`):** ✅ Compiled successfully in 742ms
+
+---
+
+## Go-Live Hardening — Part 2B (Real Owner Dashboard & `DashboardMetricsService`)
+
+**Date:** 2026-11-26  
+**Status:** ✅ COMPLETED
+
+### Summary
+Replaced all hardcoded demo data, fake orders (`TP-0100`..`TP-0104`), fake best sellers, fake percent change (`↑ 14.2%` vs `Rp 2.990.000`), and the `"Simulasi Demo"` / `"Demo Simulation"` banner on `App\Livewire\Dashboard\OwnerDashboard` (`resources/views/livewire/dashboard/owner-dashboard.blade.php`) with real-time operational metrics computed by a new read-only `App\Services\DashboardMetricsService` using SQL aggregates and pure integer Rupiah / integer basis-point arithmetic (zero float math). Preserved the active shift card and the Task 6.5 Low Stock card unchanged.
+
+### Metric Definitions Used
+1. **Business Day Window (`resolveBusinessDayWindow(?CarbonInterface $now = null, ?ShopSetting $setting = null)`):**
+   - Reads `shop_settings.business_day_start_time` (fallback `'06:00:00'`) and `shop_settings.timezone` (fallback `'Asia/Jakarta'`), matching `OrderService` and `RefundService`. Does not read the `pos.business_day_start` application setting.
+   - If the reference timestamp in the shop timezone is before today's `business_day_start_time`, the current business day window is `[yesterday at business_day_start_time, today at business_day_start_time)`; otherwise `[today at business_day_start_time, tomorrow at business_day_start_time)`.
+   - The previous business day window is `[start - 1 day, start)`.
+2. **Gross Sales (`grossSales`):**
+   - `SUM(orders.total_amount)` for non-soft-deleted orders with `orders.paid_at >= $start` and `orders.paid_at < $end` and `orders.payment_status IN ('paid', 'partially_refunded', 'refunded')`. Unpaid and unpaid-cancelled orders are excluded.
+3. **Refunds (`refundsTotal`):**
+   - `SUM(refund_transactions.total_refunded_amount)` for refunds created within `[start, end)` (`refund_transactions.created_at >= $start` and `refund_transactions.created_at < $end`), attributed to the business day of the refund rather than the original order's paid date.
+4. **Net Sales, Paid Orders Count & Average Ticket (`netSales`, `paidOrdersCount`, `averageTicket`):**
+   - `net_sales = gross_sales - refunds`.
+   - `paid_orders = COUNT(*)` of orders in the paid-orders set above.
+   - `avg_ticket = $paidOrders > 0 ? intdiv($grossSales, $paidOrders) : 0`.
+5. **Payment Mix (`paymentMix`):**
+   - `SUM(payments.amount)` (the bill amount applied, never `payments.tendered_amount`) grouped by `payments.payment_method` for orders in the business day's paid-orders set.
+   - Bucketed into `cash`, `qris`, `debit`, and `other` (`credit` and `transfer`, rendered in the UI only when `> 0`), plus `total`. Labelled as money received (refunds are not subtracted).
+6. **Change vs. Previous Business Day (`percentChangeInTenths`):**
+   - Compares today's net sales against the previous business day's net sales in tenths of a percent using half-up integer rounding (`intdiv((2 * abs(diff) * 1000) + prevNet, 2 * prevNet)`).
+   - Returns `'—'` (dash) when previous business day net sales is `<= 0`.
+7. **Recent Orders (`recentOrders`):**
+   - Last 5 non-soft-deleted orders created within `[start, end)` (`created_at DESC, id DESC`, any status), returning `order_number`, `call_number`, `customer_name`, `order_type`, `total_amount`, `status`, `payment_status`, and shop-timezone `H:i` timestamp.
+8. **Best Sellers (`bestSellers`):**
+   - Top 4 products by `SUM(order_items.quantity)` for orders paid within `[start, end)` whose `payment_status` is `paid` or `partially_refunded` (**excluding** fully `refunded` orders), grouped by `order_items.product_name_id`, `order_items.product_name_en`, and `order_items.sku`, with quantity sold and revenue (`SUM(order_items.subtotal)`).
+9. **Tax & Service Rate Formatting (`formatBasisPoints`):**
+   - Formats integer basis points with `intdiv` (`0` -> `'0'`, `1000` -> `'10'`, `1050` -> `'10.5'`) so whole percentages render identically to before and non-whole percentages show one decimal without float math.
+
+### Approved Existing-Test Edit & Known Follow-Ups
+- **Approved 1-Line Edit to `tests/Feature/AuthenticationAndFrontendTest.php:140`:**
+  - Changed `->assertSee('Simulasi Demo')` to `->assertDontSee('Simulasi Demo')` in `test_owner_dashboard_livewire_component_renders()` because that assertion previously checked for the demo simulation banner on `OwnerDashboard` that was removed in this task. No other existing test was modified.
+- **Known Business-Day Cutoff Default Inconsistency (`04:00` vs `06:00` — Reported Only, Not Changed):**
+  - `shop_settings.business_day_start_time` defaults to `'06:00:00'` in the migration (`database/migrations/2026_11_13_000004_create_shop_and_application_settings_tables.php:24`), factory (`database/factories/ShopSettingFactory.php:29`), seeder (`database/seeders/ShopSettingSeeder.php:28`), `OrderService::calculateBusinessDate()` (`app/Services/OrderService.php:35`), `RefundService::calculateBusinessDate()` (`app/Services/RefundService.php:465`), and `DashboardMetricsService::resolveBusinessDayWindow()`.
+  - However, `ShopSettingsManager` initializes `$businessDayStartTime = '04:00'` (`app/Livewire/Settings/ShopSettingsManager.php:32,90`) and `ShopSettingSeeder` also seeds an unused `ApplicationSetting` row `'pos.business_day_start' => '04:00'` (`database/seeders/ShopSettingSeeder.php:132-135`).
+
+### Step 4 Report — Remaining Pages with Hardcoded Demo Numbers or Text (Reported Only, Not Fixed)
+1. **Shop Settings Component & Blade Placeholders (`app/Livewire/Settings/ShopSettingsManager.php` & `database/seeders/ShopSettingSeeder.php`):**
+   - `app/Livewire/Settings/ShopSettingsManager.php:19-25`: Property default values before DB hydration contain demo store profile values (`$name = 'Temu Pulang Coffee & Eatery'`, `$address = 'Jl. Boulevard Raya Blok A No. 12, Jakarta'`, `$phone = '0812-3456-7890'`, `$email = 'halo@temupulang.local'`).
+   - `database/seeders/ShopSettingSeeder.php:21-25,41-42`: Seeds the same sample address, phone, email, receipt header, and receipt footer (`WiFi: TemuPulang | Pass: kopienak`) into `shop_settings`.
+2. **Shift Manager Default Form Inputs (`app/Livewire/Shifts/ShiftManager.php`):**
+   - `app/Livewire/Shifts/ShiftManager.php:45,73`: Pre-fills the Open Shift modal input `$openingCash = 200000` (Rp 200.000).
+   - `app/Livewire/Shifts/ShiftManager.php:52,108`: Pre-fills the Cash Movement modal input `$movementAmount = 50000` (Rp 50.000).
+3. **Login Page Demo Switcher (Local/Testing Only — Gated in Part 1):**
+   - `resources/views/auth/login.blade.php:32,46,83-118` & `app/Http/Controllers/AuthController.php:57-66`: Pre-fills `owner@temupulang.local` / `TemuPulang@2026!` and renders the quick demo login switcher **only** when `app()->environment(['local', 'testing'])` (hidden and returns `404` in `production`).
+4. **Unrouted Default Laravel Welcome View:**
+   - `resources/views/welcome.blade.php:1-383`: Default Laravel skeleton welcome view containing sample links (`Laracasts`, `Laravel News`, etc.), unrouted because `/` redirects in `routes/web.php:25-36`.
+
+### Deliverables
+- **Files Created:**
+  - `app/Services/DashboardMetricsService.php`
+  - `tests/Feature/OwnerDashboardMetricsTest.php` (8 tests, 70 assertions)
+- **Files Modified:**
+  - `app/Livewire/Dashboard/OwnerDashboard.php`
+  - `resources/views/livewire/dashboard/owner-dashboard.blade.php`
+  - `lang/id/messages.php`, `lang/en/messages.php`
+  - `tests/Feature/AuthenticationAndFrontendTest.php` (line 140 only, per explicit approval)
+  - `docs/ARCHITECTURE.md`, `docs/PROJECT_PLAN.md`, `docs/DEVELOPMENT_LOG.md`
+
+### Automated Test Results
+- **Owner Dashboard Metrics Tests (`OwnerDashboardMetricsTest`):** 8 tests, 70 assertions — 100% passing
+- **Existing Test Suites (`RemainingScreensTest`, `LowStockAlertTest`, and all other suites):** 458 tests, 2464 assertions — 100% passing
+- **Full Test Suite (`php artisan test --compact`):** 466 tests, 2534 assertions — 100% passing (0 failures, 0 errors)
+- **Laravel Pint (`php vendor/bin/pint --dirty --test`):** ✅ Clean (`passed`)
+- **Vite Build (`npm run build`):** ✅ Compiled successfully in 812ms
+
 
 
 

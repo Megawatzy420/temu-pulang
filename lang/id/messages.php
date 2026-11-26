@@ -496,6 +496,17 @@ return [
         'currency_timezone_title' => 'Mata Uang & Timezone',
         'currency_timezone_meta' => 'IDR (Rp) • Asia/Jakarta (WIB)',
         'status_compliant' => 'Sesuai',
+        'gross_sales_label' => 'Kotor',
+        'refunds_label' => 'Refund',
+        'net_sales_label' => 'Penjualan Bersih',
+        'payment_mix_title' => 'Komposisi Pembayaran (Uang Diterima)',
+        'payment_mix_subtitle' => 'Total pembayaran masuk hari ini per metode (sebelum dikurangi refund)',
+        'payment_other' => 'Lainnya (Kredit/Transfer)',
+        'order_type_col' => 'Tipe',
+        'no_sales_today' => 'Belum ada penjualan hari ini',
+        'no_orders_today_desc' => 'Pesanan yang dibuat pada hari bisnis ini akan muncul di sini.',
+        'no_best_sellers_today' => 'Belum ada penjualan hari ini.',
+        'badge_draft' => 'Draf',
     ],
 
     // Refund Management (Owner only)

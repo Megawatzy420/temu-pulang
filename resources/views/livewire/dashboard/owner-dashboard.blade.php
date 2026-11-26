@@ -1,31 +1,8 @@
 <div class="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
 
-    <!-- Demo Simulation Notice Banner -->
-    <div class="rounded-2xl bg-amber-50/90 border border-amber-200/80 p-4 flex items-center justify-between gap-4 text-xs text-amber-900 shadow-2xs">
-        <div class="flex items-center gap-3">
-            <span class="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0"></span>
-            <div>
-                <span class="font-bold uppercase tracking-wider text-[11px] text-amber-800 mr-2 bg-amber-200/60 px-2 py-0.5 rounded-md">
-                    {{ __('messages.pos.placeholder_badge') }}
-                </span>
-                <span>{{ __('messages.pos.demo_mode_banner') }}</span>
-            </div>
-        </div>
-
-        <a
-            href="{{ route('pos') }}"
-            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-coffee-900 text-cream-50 font-semibold text-xs hover:bg-coffee-800 transition-colors shrink-0 shadow-xs"
-        >
-            <span>{{ __('messages.dashboard.open_pos') }}</span>
-            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-            </svg>
-        </a>
-    </div>
-
     <!-- Top KPI Metrics Grid -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <!-- 1. Total Penjualan Hari Ini -->
+        <!-- 1. Total Penjualan Hari Ini (Net, Gross & Refunds) -->
         <x-card padding="p-5" class="relative">
             <div class="flex items-center justify-between">
                 <p class="text-xs font-semibold uppercase tracking-wider text-coffee-500">
@@ -38,17 +15,29 @@
                 </span>
             </div>
             <p class="text-2xl font-bold text-coffee-950 mt-2">
-                Rp {{ number_format($metrics['today_sales'], 0, ',', '.') }}
+                Rp {{ number_format($metrics['net_sales'], 0, ',', '.') }}
             </p>
+            <div class="flex flex-wrap items-center justify-between gap-2 mt-2 text-[11px] text-coffee-500">
+                <span>{{ __('messages.owner_dashboard.gross_sales_label') }}: <strong class="text-coffee-800">Rp {{ number_format($metrics['gross_sales'], 0, ',', '.') }}</strong></span>
+                <span>{{ __('messages.owner_dashboard.refunds_label') }}: <strong class="text-rose-700">Rp {{ number_format($metrics['refunds'], 0, ',', '.') }}</strong></span>
+            </div>
             <div class="flex items-center gap-2 mt-3 pt-3 border-t border-coffee-100 text-xs">
-                <span class="text-emerald-600 font-semibold flex items-center gap-0.5">
-                    ↑ 14.2%
+                @php
+                    $change = $metrics['change_vs_previous'];
+                    $changeColor = match ($change['direction']) {
+                        'up' => 'text-emerald-600',
+                        'down' => 'text-rose-600',
+                        default => 'text-coffee-500',
+                    };
+                @endphp
+                <span class="{{ $changeColor }} font-semibold flex items-center gap-0.5">
+                    {{ $change['formatted'] }}
                 </span>
-                <span class="text-coffee-400">{{ __('messages.owner_dashboard.vs_yesterday', ['amount' => 'Rp 2.990.000']) }}</span>
+                <span class="text-coffee-400">{{ __('messages.owner_dashboard.vs_yesterday', ['amount' => 'Rp '.number_format($metrics['previous_net_sales'], 0, ',', '.')]) }}</span>
             </div>
         </x-card>
 
-        <!-- 2. Total Transaksi -->
+        <!-- 2. Total Transaksi & Rata-rata -->
         <x-card padding="p-5">
             <div class="flex items-center justify-between">
                 <p class="text-xs font-semibold uppercase tracking-wider text-coffee-500">
@@ -61,7 +50,7 @@
                 </span>
             </div>
             <p class="text-2xl font-bold text-coffee-950 mt-2">
-                {{ $metrics['today_orders'] }} <span class="text-sm font-normal text-coffee-500">{{ __('messages.owner_dashboard.orders_unit') }}</span>
+                {{ $metrics['paid_orders'] }} <span class="text-sm font-normal text-coffee-500">{{ __('messages.owner_dashboard.orders_unit') }}</span>
             </p>
             <div class="flex items-center gap-2 mt-3 pt-3 border-t border-coffee-100 text-xs">
                 <span class="text-coffee-600 font-medium">{{ __('messages.owner_dashboard.average_prefix') }}</span>
@@ -120,49 +109,94 @@
     <!-- Main Content Grid -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        <!-- Left Column: Recent Orders Table (2/3 width) -->
+        <!-- Left Column: Payment Mix & Recent Orders Table (2/3 width) -->
         <div class="lg:col-span-2 space-y-6">
+
+            <!-- Payment Mix (Money Received) Card -->
+            <x-card
+                :title="__('messages.owner_dashboard.payment_mix_title')"
+                :subtitle="__('messages.owner_dashboard.payment_mix_subtitle')"
+            >
+                <div class="grid grid-cols-1 sm:grid-cols-{{ $paymentMix['other'] > 0 ? '4' : '3' }} gap-3">
+                    <div class="p-3.5 rounded-xl bg-cream-50 border border-coffee-200/60">
+                        <p class="text-xs font-semibold text-coffee-500">{{ __('messages.pos.payment_cash') }}</p>
+                        <p class="text-lg font-bold text-coffee-950 mt-1">Rp {{ number_format($paymentMix['cash'], 0, ',', '.') }}</p>
+                    </div>
+                    <div class="p-3.5 rounded-xl bg-cream-50 border border-coffee-200/60">
+                        <p class="text-xs font-semibold text-coffee-500">{{ __('messages.pos.payment_qris') }}</p>
+                        <p class="text-lg font-bold text-coffee-950 mt-1">Rp {{ number_format($paymentMix['qris'], 0, ',', '.') }}</p>
+                    </div>
+                    <div class="p-3.5 rounded-xl bg-cream-50 border border-coffee-200/60">
+                        <p class="text-xs font-semibold text-coffee-500">{{ __('messages.pos.payment_debit') }}</p>
+                        <p class="text-lg font-bold text-coffee-950 mt-1">Rp {{ number_format($paymentMix['debit'], 0, ',', '.') }}</p>
+                    </div>
+                    @if ($paymentMix['other'] > 0)
+                        <div class="p-3.5 rounded-xl bg-cream-50 border border-coffee-200/60">
+                            <p class="text-xs font-semibold text-coffee-500">{{ __('messages.owner_dashboard.payment_other') }}</p>
+                            <p class="text-lg font-bold text-coffee-950 mt-1">Rp {{ number_format($paymentMix['other'], 0, ',', '.') }}</p>
+                        </div>
+                    @endif
+                </div>
+            </x-card>
+
+            <!-- Recent Orders Card -->
             <x-card
                 :title="__('messages.dashboard.recent_orders')"
                 :subtitle="__('messages.owner_dashboard.recent_orders_subtitle')"
                 padding="p-0"
             >
-                <x-table :headers="[
-                    __('messages.dashboard.order_id'),
-                    __('messages.dashboard.customer_table'),
-                    __('messages.dashboard.items'),
-                    __('messages.dashboard.payment_method'),
-                    __('messages.dashboard.total'),
-                    __('messages.dashboard.status')
-                ]">
-                    @foreach ($recentOrders as $order)
-                        <tr class="hover:bg-cream-50/60 transition-colors">
-                            <td class="px-5 py-3.5 font-bold text-coffee-950">
-                                #{{ $order['id'] }}
-                                <span class="block text-[11px] font-normal text-coffee-400">{{ $order['time'] }}</span>
-                            </td>
-                            <td class="px-5 py-3.5 font-medium text-coffee-800">
-                                {{ $order['customer'] }}
-                            </td>
-                            <td class="px-5 py-3.5 text-xs text-coffee-600 max-w-[200px] truncate" title="{{ $order['items_summary'] }}">
-                                {{ $order['items_summary'] }}
-                            </td>
-                            <td class="px-5 py-3.5">
-                                <span class="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-coffee-100 text-coffee-800 border border-coffee-200">
-                                    {{ $order['payment'] }}
-                                </span>
-                            </td>
-                            <td class="px-5 py-3.5 font-bold text-coffee-900">
-                                Rp {{ number_format($order['total'], 0, ',', '.') }}
-                            </td>
-                            <td class="px-5 py-3.5">
-                                <x-badge variant="success" size="xs">
-                                    {{ __('messages.dashboard.status_completed') }}
-                                </x-badge>
-                            </td>
-                        </tr>
-                    @endforeach
-                </x-table>
+                @if ($recentOrders->isEmpty())
+                    <div class="p-8 text-center space-y-1.5">
+                        <p class="text-sm font-semibold text-coffee-800">{{ __('messages.owner_dashboard.no_sales_today') }}</p>
+                        <p class="text-xs text-coffee-500">{{ __('messages.owner_dashboard.no_orders_today_desc') }}</p>
+                    </div>
+                @else
+                    <x-table :headers="[
+                        __('messages.dashboard.order_id'),
+                        __('messages.dashboard.customer_table'),
+                        __('messages.owner_dashboard.order_type_col'),
+                        __('messages.dashboard.total'),
+                        __('messages.dashboard.status')
+                    ]">
+                        @foreach ($recentOrders as $order)
+                            @php
+                                [$statusLabel, $statusVariant] = match ($order['status']) {
+                                    'draft' => [__('messages.owner_dashboard.badge_draft'), 'neutral'],
+                                    'awaiting_payment' => [__('messages.orders.badge_awaiting_payment'), 'warning'],
+                                    'paid' => [__('messages.orders.badge_paid'), 'info'],
+                                    'queued' => [__('messages.orders.badge_queued'), 'info'],
+                                    'preparing' => [__('messages.orders.badge_preparing'), 'warning'],
+                                    'ready' => [__('messages.orders.badge_ready'), 'success'],
+                                    'completed' => [__('messages.orders.badge_completed'), 'success'],
+                                    'cancelled' => [__('messages.orders.badge_cancelled'), 'danger'],
+                                    default => [$order['status'], 'neutral'],
+                                };
+                            @endphp
+                            <tr class="hover:bg-cream-50/60 transition-colors">
+                                <td class="px-5 py-3.5 font-bold text-coffee-950">
+                                    {{ $order['order_number'] }}
+                                    <span class="block text-[11px] font-normal text-coffee-400">{{ $order['call_number'] }} • {{ $order['time'] }}</span>
+                                </td>
+                                <td class="px-5 py-3.5 font-medium text-coffee-800">
+                                    {{ $order['customer_name'] ?: __('messages.orders.walk_in_customer') }}
+                                </td>
+                                <td class="px-5 py-3.5">
+                                    <span class="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-coffee-100 text-coffee-800 border border-coffee-200">
+                                        {{ $order['order_type'] === 'takeaway' ? __('messages.orders.type_takeaway') : __('messages.orders.type_dine_in') }}
+                                    </span>
+                                </td>
+                                <td class="px-5 py-3.5 font-bold text-coffee-900">
+                                    Rp {{ number_format($order['total_amount'], 0, ',', '.') }}
+                                </td>
+                                <td class="px-5 py-3.5">
+                                    <x-badge :variant="$statusVariant" size="xs">
+                                        {{ $statusLabel }}
+                                    </x-badge>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </x-table>
+                @endif
 
                 <x-slot:footer>
                     <div class="flex items-center justify-between text-xs text-coffee-500">
@@ -175,7 +209,7 @@
             </x-card>
         </div>
 
-        <!-- Right Column: Top Products & Store Hardware (1/3 width) -->
+        <!-- Right Column: Low Stock, Top Products & Store Hardware (1/3 width) -->
         <div class="space-y-6">
 
             @if (auth()->user()?->isOwner())
@@ -221,23 +255,27 @@
                 :title="__('messages.dashboard.best_sellers')"
                 :subtitle="__('messages.owner_dashboard.best_sellers_subtitle')"
             >
-                <div class="space-y-4">
-                    @foreach ($topProducts as $item)
-                        <div class="space-y-1.5">
-                            <div class="flex items-center justify-between text-xs font-semibold text-coffee-900">
-                                <span class="truncate">{{ $item['name'] }}</span>
-                                <span class="text-coffee-500 font-normal shrink-0 ml-2">{{ __('messages.owner_dashboard.sold_count', ['count' => $item['sold_count']]) }}</span>
+                @if ($topProducts->isEmpty())
+                    <p class="text-xs text-coffee-500 italic py-2">{{ __('messages.owner_dashboard.no_best_sellers_today') }}</p>
+                @else
+                    <div class="space-y-4">
+                        @foreach ($topProducts as $item)
+                            <div class="space-y-1.5">
+                                <div class="flex items-center justify-between text-xs font-semibold text-coffee-900">
+                                    <span class="truncate">{{ $item['name'] }}</span>
+                                    <span class="text-coffee-500 font-normal shrink-0 ml-2">{{ __('messages.owner_dashboard.sold_count', ['count' => $item['sold_count']]) }}</span>
+                                </div>
+                                <div class="w-full bg-cream-100 rounded-full h-2 overflow-hidden border border-coffee-200/50">
+                                    <div class="bg-gradient-to-r from-coffee-700 to-caramel-500 h-2 rounded-full" style="width: {{ $item['percentage'] }}%"></div>
+                                </div>
+                                <div class="flex items-center justify-between text-[11px] text-coffee-400">
+                                    <span>{{ $item['sku'] }}</span>
+                                    <span class="font-medium text-coffee-700">Rp {{ number_format($item['revenue'], 0, ',', '.') }}</span>
+                                </div>
                             </div>
-                            <div class="w-full bg-cream-100 rounded-full h-2 overflow-hidden border border-coffee-200/50">
-                                <div class="bg-gradient-to-r from-coffee-700 to-caramel-500 h-2 rounded-full" style="width: {{ $item['percentage'] }}%"></div>
-                            </div>
-                            <div class="flex items-center justify-between text-[11px] text-coffee-400">
-                                <span>{{ $item['sku'] }}</span>
-                                <span class="font-medium text-coffee-700">Rp {{ number_format($item['revenue'], 0, ',', '.') }}</span>
-                            </div>
-                        </div>
-                    @endforeach
-                </div>
+                        @endforeach
+                    </div>
+                @endif
             </x-card>
 
             <!-- Store & Hardware Configuration Card -->
@@ -264,7 +302,7 @@
                             <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0"></span>
                             <div>
                                 <p class="font-bold text-coffee-900">{{ __('messages.owner_dashboard.tax_service_title') }}</p>
-                                <p class="text-[11px] text-coffee-500">{{ __('messages.owner_dashboard.tax_service_meta', ['tax' => $shopSetting->tax_percentage ?? 0.0, 'service' => $shopSetting->service_charge_percentage ?? 0.0]) }}</p>
+                                <p class="text-[11px] text-coffee-500">{{ __('messages.owner_dashboard.tax_service_meta', ['tax' => $formattedTaxRate, 'service' => $formattedServiceRate]) }}</p>
                             </div>
                         </div>
                         <x-badge variant="neutral" size="xs">{{ __('messages.owner_dashboard.default_zero_badge') }}</x-badge>

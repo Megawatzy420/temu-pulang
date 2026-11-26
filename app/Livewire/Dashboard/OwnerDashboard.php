@@ -1,12 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Livewire\Dashboard;
 
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\Shift;
 use App\Models\ShopSetting;
-use App\Models\User;
+use App\Services\DashboardMetricsService;
 use App\Services\Inventory\LowStockService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
@@ -15,13 +17,32 @@ use Livewire\Component;
 class OwnerDashboard extends Component
 {
     /**
-     * Render the Owner Dashboard view.
+     * Mount the Owner Dashboard component and verify Owner authorization.
      */
-    public function render(): View
+    public function mount(): void
     {
+        $user = Auth::user();
+        if (! $user || ! $user->isOwner()) {
+            abort(403);
+        }
+    }
+
+    /**
+     * Render the Owner Dashboard view with live operational metrics.
+     */
+    public function render(DashboardMetricsService $metricsService): View
+    {
+        $user = Auth::user();
+        if (! $user || ! $user->isOwner()) {
+            abort(403);
+        }
+
         $shopSetting = ShopSetting::current() ?? new ShopSetting([
             'name' => 'Temu Pulang Coffee & Eatery',
             'tax_rate' => 0,
+            'service_charge_rate' => 0,
+            'business_day_start_time' => '06:00:00',
+            'timezone' => 'Asia/Jakarta',
             'printer_connection' => 'usb',
             'printer_paper_width' => '80mm',
         ]);
@@ -29,94 +50,36 @@ class OwnerDashboard extends Component
         $productCount = Product::active()->count();
         $categoryCount = Category::active()->count();
         $activeShift = Shift::open()->with('user')->latest('opened_at')->first();
-        $activeCashier = $activeShift?->user ?? User::whereHas('roles', fn ($q) => $q->where('slug', 'cashier'))->first();
 
-        // Realistic operational metrics
+        $snapshot = $metricsService->getDashboardSnapshot(setting: $shopSetting);
+
         $metrics = [
-            'today_sales' => 3420000, // Rp 3.420.000
-            'today_orders' => 86,
-            'avg_ticket' => 39767,
-            'cash_total' => 1480000,
-            'qris_total' => 1940000,
+            'gross_sales' => $snapshot['gross_sales'],
+            'refunds' => $snapshot['refunds'],
+            'net_sales' => $snapshot['net_sales'],
+            'paid_orders' => $snapshot['paid_orders'],
+            'avg_ticket' => $snapshot['avg_ticket'],
+            'previous_net_sales' => $snapshot['previous_net_sales'],
+            'change_vs_previous' => $snapshot['change_vs_previous'],
         ];
 
-        // Realistic recent orders placeholder dataset (clearly distinguished)
-        $recentOrders = [
-            [
-                'id' => 'TP-0104',
-                'time' => '19:42',
-                'customer' => 'Pelanggan 04 (Dine In)',
-                'items_summary' => '1x Chicken Katsu (Large), 1x Lemon Tea',
-                'payment' => 'QRIS',
-                'status' => 'completed',
-                'total' => 49000,
-            ],
-            [
-                'id' => 'TP-0103',
-                'time' => '19:28',
-                'customer' => 'Dimas (Takeaway)',
-                'items_summary' => '2x Kopi Temu, 1x Kentang Goreng',
-                'payment' => __('messages.pos.payment_cash'),
-                'status' => 'completed',
-                'total' => 56000,
-            ],
-            [
-                'id' => 'TP-0102',
-                'time' => '19:15',
-                'customer' => 'Pelanggan 02 (Dine In)',
-                'items_summary' => '1x Chicken Katsu (Extra Rice), 1x Teh Lemon',
-                'payment' => 'Debit BCA',
-                'status' => 'completed',
-                'total' => 45000,
-            ],
-            [
-                'id' => 'TP-0101',
-                'time' => '18:50',
-                'customer' => 'Rina (Takeaway)',
-                'items_summary' => '1x Kentang Goreng',
-                'payment' => 'QRIS',
-                'status' => 'completed',
-                'total' => 20000,
-            ],
-            [
-                'id' => 'TP-0100',
-                'time' => '18:32',
-                'customer' => 'Pelanggan 07 (Dine In)',
-                'items_summary' => '2x Kopi Temu, 1x Chicken Katsu',
-                'payment' => __('messages.pos.payment_cash'),
-                'status' => 'completed',
-                'total' => 64000,
-            ],
-        ];
+        $lowStockItems = app(LowStockService::class)->lowStockIngredients(limit: 5);
 
-        // Top selling products with real DB products when available
-        $topProducts = Product::with('translations')->take(4)->get()->map(function ($product, $index) {
-            $quantities = [42, 35, 29, 21];
-            $revenues = [840000, 980000, 420000, 420000];
-
-            return [
-                'name' => $product->name,
-                'sku' => $product->sku,
-                'sold_count' => $quantities[$index] ?? 15,
-                'revenue' => $revenues[$index] ?? 300000,
-                'percentage' => max(25, 95 - ($index * 20)),
-            ];
-        });
-
-        $lowStockItems = Auth::user()?->isOwner()
-            ? app(LowStockService::class)->lowStockIngredients(limit: 5)
-            : collect();
+        $formattedTaxRate = DashboardMetricsService::formatBasisPoints((int) ($shopSetting->tax_rate ?? 0));
+        $formattedServiceRate = DashboardMetricsService::formatBasisPoints((int) ($shopSetting->service_charge_rate ?? 0));
 
         return view('livewire.dashboard.owner-dashboard', [
             'shopSetting' => $shopSetting,
             'productCount' => $productCount,
             'categoryCount' => $categoryCount,
-            'activeCashier' => $activeCashier,
             'activeShift' => $activeShift,
             'metrics' => $metrics,
-            'recentOrders' => $recentOrders,
-            'topProducts' => $topProducts,
+            'paymentMix' => $snapshot['payment_mix'],
+            'recentOrders' => $snapshot['recent_orders'],
+            'topProducts' => $snapshot['best_sellers'],
             'lowStockItems' => $lowStockItems,
+            'formattedTaxRate' => $formattedTaxRate,
+            'formattedServiceRate' => $formattedServiceRate,
         ])->layout('components.layouts.app', [
             'title' => __('messages.nav.dashboard'),
             'headerTitle' => __('messages.dashboard.welcome'),
