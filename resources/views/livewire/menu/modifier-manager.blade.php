@@ -277,7 +277,7 @@
                                                     type="number"
                                                     wire:model="options.{{ $index }}.price"
                                                     min="0"
-                                                    step="500"
+                                                    step="1"
                                                     placeholder="0"
                                                     class="w-full pl-7 pr-2 py-1.5 rounded-lg border border-coffee-200 text-xs font-mono bg-white focus:outline-none focus:ring-1 focus:ring-coffee-500"
                                                 />

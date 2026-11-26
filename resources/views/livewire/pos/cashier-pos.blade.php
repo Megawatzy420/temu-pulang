@@ -193,7 +193,7 @@
                 <button
                     type="button"
                     wire:click="clearCart"
-                    :disabled="$paymentInFlight"
+                    @disabled($paymentInFlight)
                     class="text-xs text-rose-600 hover:text-rose-800 font-semibold p-1 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     {{ __('messages.pos.clear_cart') }}
@@ -261,7 +261,7 @@
                         <button
                             type="button"
                             wire:click="removeItem({{ $index }})"
-                            :disabled="$paymentInFlight"
+                            @disabled($paymentInFlight)
                             class="text-coffee-300 hover:text-rose-600 p-1 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                             title="{{ __('messages.pos.delete_item') }}"
                         >
@@ -282,7 +282,7 @@
                             <button
                                 type="button"
                                 wire:click="decreaseQty({{ $index }})"
-                                :disabled="$paymentInFlight"
+                                @disabled($paymentInFlight)
                                 class="w-6 h-6 rounded-lg bg-coffee-50 hover:bg-coffee-200 text-coffee-800 flex items-center justify-center font-bold text-xs transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 -
@@ -293,7 +293,7 @@
                             <button
                                 type="button"
                                 wire:click="increaseQty({{ $index }})"
-                                :disabled="$paymentInFlight"
+                                @disabled($paymentInFlight)
                                 class="w-6 h-6 rounded-lg bg-coffee-900 hover:bg-coffee-800 text-white flex items-center justify-center font-bold text-xs transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 +
@@ -681,18 +681,18 @@
 
                     <!-- QRIS payment details -->
                     @if ($paymentMethod === 'qris')
-                        <div class="space-y-3">
+                        <div class="space-y-2.5">
                             @if ($qrisImagePath)
-                                <div class="flex flex-col items-center gap-2 p-4 rounded-xl bg-white border border-coffee-200">
+                                <div class="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-white border border-coffee-200 max-h-72 overflow-hidden">
                                     <img
                                         src="{{ Storage::url($qrisImagePath) }}"
                                         alt="QRIS"
-                                        class="max-h-64 w-auto object-contain rounded-lg"
+                                        class="max-h-56 h-auto w-auto object-contain rounded-lg"
                                     />
-                                    <span class="text-xs font-bold uppercase tracking-wider text-coffee-600">
+                                    <span class="text-[11px] font-bold uppercase tracking-wider text-coffee-600">
                                         {{ __('messages.pos.qris_amount_to_pay') }}
                                     </span>
-                                    <p class="text-xl font-extrabold text-coffee-950 tracking-tight">
+                                    <p class="text-lg font-extrabold text-coffee-950 tracking-tight leading-none">
                                         Rp {{ number_format($total, 0, ',', '.') }}
                                     </p>
                                 </div>
@@ -702,8 +702,8 @@
                                 </div>
                             @endif
 
-                            <div class="p-3 rounded-xl bg-blue-50 border border-blue-200 text-xs text-blue-900">
-                                <p class="font-bold mb-1">{{ __('messages.pos.qris_instructions_title') }}</p>
+                            <div class="p-2.5 rounded-xl bg-blue-50 border border-blue-200 text-xs text-blue-900">
+                                <p class="font-bold mb-0.5">{{ __('messages.pos.qris_instructions_title') }}</p>
                                 <p>{{ __('messages.pos.qris_instruction_1') }}</p>
                                 <p>{{ __('messages.pos.qris_instruction_2') }}</p>
                                 <p>{{ __('messages.pos.qris_instruction_3') }}</p>
@@ -722,7 +722,7 @@
                             <label class="flex items-start gap-2 cursor-pointer">
                                 <input
                                     type="checkbox"
-                                    wire:model="qrisCashierConfirmed"
+                                    wire:model.live="qrisCashierConfirmed"
                                     class="mt-0.5 rounded border-coffee-300 text-coffee-900 focus:ring-coffee-500"
                                 />
                                 <span class="text-xs text-coffee-800 font-semibold leading-snug">
@@ -749,7 +749,7 @@
                             <label class="flex items-start gap-2 cursor-pointer">
                                 <input
                                     type="checkbox"
-                                    wire:model="debitCashierConfirmed"
+                                    wire:model.live="debitCashierConfirmed"
                                     class="mt-0.5 rounded border-coffee-300 text-coffee-900 focus:ring-coffee-500"
                                 />
                                 <span class="text-xs text-coffee-800 font-semibold leading-snug">
@@ -788,7 +788,7 @@
                 </div>
 
                 <!-- Modal Footer -->
-                <div class="p-4 bg-cream-50 border-t border-coffee-200/80 flex items-center justify-between">
+                <div class="p-4 bg-cream-50 border-t border-coffee-200/80 flex items-center justify-between gap-3">
                     <x-button
                         type="button"
                         variant="secondary"
@@ -798,24 +798,32 @@
                         {{ __('messages.pos.cancel') }}
                     </x-button>
 
-                    <x-button
-                        type="button"
-                        variant="primary"
-                        size="md"
-                        wire:click="processPayment"
-                        wire:loading.attr="disabled"
-                        :disabled="$isProcessingPayment || ($paymentMethod === 'qris' && !$qrisCashierConfirmed) || ($paymentMethod === 'debit' && !$debitCashierConfirmed)"
-                        class="shadow-md font-bold bg-emerald-700 hover:bg-emerald-800 relative"
-                    >
-                        <span wire:loading.remove wire:target="processPayment">{{ __('messages.pos.pay_button') }}</span>
-                        <span wire:loading wire:target="processPayment" class="flex items-center gap-2">
-                            <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                            </svg>
-                            {{ __('messages.pos.processing') }}
-                        </span>
-                    </x-button>
+                    <div class="flex items-center gap-3">
+                        @if (($paymentMethod === 'qris' && !$qrisCashierConfirmed) || ($paymentMethod === 'debit' && !$debitCashierConfirmed))
+                            <span class="text-[11px] font-semibold text-amber-800 text-right leading-tight">
+                                {{ __('messages.pos.confirm_to_enable_pay') }}
+                            </span>
+                        @endif
+
+                        <x-button
+                            type="button"
+                            variant="primary"
+                            size="md"
+                            wire:click="processPayment"
+                            wire:loading.attr="disabled"
+                            :disabled="$isProcessingPayment || ($paymentMethod === 'qris' && !$qrisCashierConfirmed) || ($paymentMethod === 'debit' && !$debitCashierConfirmed)"
+                            class="shadow-md font-bold bg-emerald-700 hover:bg-emerald-800 relative shrink-0"
+                        >
+                            <span wire:loading.remove wire:target="processPayment">{{ __('messages.pos.pay_button') }}</span>
+                            <span wire:loading wire:target="processPayment" class="flex items-center gap-2">
+                                <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                                </svg>
+                                {{ __('messages.pos.processing') }}
+                            </span>
+                        </x-button>
+                    </div>
                 </div>
             </div>
         </div>

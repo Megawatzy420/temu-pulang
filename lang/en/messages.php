@@ -115,6 +115,7 @@ return [
         'retry_print_queued_success' => 'Print retry queued.',
         'error_conflict' => 'Transaction key has already been used with different data. Please check transaction first.',
         'shift_closed_error' => 'Cashier shift has been closed. Cannot process payment.',
+        'shift_access_denied' => 'You cannot take payments in a shift opened by another cashier. Ask the Owner or open your own shift.',
         'qris_expired_or_used' => 'QRIS confirmation has already been used or expired.',
         'qris_confirmation_invalid' => 'QRIS confirmation data is invalid or incomplete.',
         'order_cancelled_error' => 'Cannot process payment for a cancelled order.',
@@ -171,6 +172,7 @@ return [
         'order_notes_label' => 'Overall Order Notes',
         'order_notes_placeholder' => 'e.g. Pack items separately',
         'pay_button' => 'Pay',
+        'confirm_to_enable_pay' => 'Tick the confirmation to enable Pay.',
         'processing' => 'Processing...',
 
         // Success Modal UI

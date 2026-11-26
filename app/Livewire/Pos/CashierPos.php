@@ -10,6 +10,7 @@ use App\Exceptions\Payment\OrderCancelledForPaymentException;
 use App\Exceptions\Payment\PaymentIdempotencyConflictException;
 use App\Exceptions\Payment\QrisConfirmationExpiredOrUsedException;
 use App\Exceptions\Payment\QrisConfirmationInvalidException;
+use App\Exceptions\Payment\ShiftAccessDeniedException;
 use App\Exceptions\Payment\ShiftClosedForPaymentException;
 use App\Models\ApplicationSetting;
 use App\Models\Category;
@@ -455,6 +456,7 @@ class CashierPos extends Component
     protected function addItemToCart(array $item): void
     {
         $this->cart[] = $item;
+        $this->resetDraftIdempotencyKey();
         $this->dispatch('notify', message: __('messages.pos.item_added', ['name' => $item['name']]), type: 'success');
     }
 
@@ -462,17 +464,24 @@ class CashierPos extends Component
 
     /**
      * Reset draft checkout idempotency key when cart changes,
-     * unless payment is in-flight, an unpaid order is pending,
+     * unless payment is in-flight, an unpaid order is pending for the exact current cart,
      * or the key belongs to an already completed checkout.
      */
     protected function resetDraftIdempotencyKey(): void
     {
-        if (! $this->paymentInFlight && ! $this->hasUnresolvedOrder) {
-            $this->checkoutIdempotencyKey = '';
-            $currentSessionKey = (string) session(self::SESSION_CHECKOUT_KEY, '');
-            if (! $this->isCheckoutCompleted($currentSessionKey)) {
-                session()->forget(self::SESSION_CHECKOUT_KEY);
-            }
+        if ($this->paymentInFlight) {
+            return;
+        }
+
+        if ($this->hasUnresolvedOrder && $this->checkoutIdempotencyKey !== '' && $this->currentCartMatchesExistingOrder($this->checkoutIdempotencyKey)) {
+            return;
+        }
+
+        $this->hasUnresolvedOrder = false;
+        $this->checkoutIdempotencyKey = '';
+        $currentSessionKey = (string) session(self::SESSION_CHECKOUT_KEY, '');
+        if (! $this->isCheckoutCompleted($currentSessionKey)) {
+            session()->forget(self::SESSION_CHECKOUT_KEY);
         }
     }
 
@@ -573,9 +582,15 @@ class CashierPos extends Component
         }
 
         // Generate a fresh idempotency key only when this cart does not have one yet,
-        // or if the current key has already been settled in a previous completed checkout.
-        if ($this->checkoutIdempotencyKey === '' || $this->isCheckoutCompleted($this->checkoutIdempotencyKey)) {
+        // if the current key has already been settled in a previous completed checkout,
+        // or if the current key belongs to an existing order whose payload differs from the current cart.
+        if (
+            $this->checkoutIdempotencyKey === ''
+            || $this->isCheckoutCompleted($this->checkoutIdempotencyKey)
+            || $this->hasConflictingExistingOrder($this->checkoutIdempotencyKey)
+        ) {
             $this->checkoutIdempotencyKey = (string) Str::uuid();
+            $this->hasUnresolvedOrder = false;
             session([self::SESSION_CHECKOUT_KEY => $this->checkoutIdempotencyKey]);
         }
 
@@ -617,6 +632,12 @@ class CashierPos extends Component
             return;
         }
 
+        if (! $paymentService->userMayTakePaymentInShift(Auth::user(), $shift)) {
+            $this->dispatch('notify', message: __('messages.pos.shift_access_denied'), type: 'error');
+
+            return;
+        }
+
         // Validate payment method inputs
         if ($this->paymentMethod === 'cash' && $this->cashGiven < $this->getTotalProperty()) {
             $this->dispatch('notify', message: __('messages.pos.insufficient_cash'), type: 'error');
@@ -644,26 +665,19 @@ class CashierPos extends Component
         ]);
 
         try {
-            // Ensure idempotency key exists and is not already completed
-            if ($this->checkoutIdempotencyKey === '' || $this->isCheckoutCompleted($this->checkoutIdempotencyKey)) {
+            // Ensure idempotency key exists, is not already completed, and does not conflict with a stale order
+            if (
+                $this->checkoutIdempotencyKey === ''
+                || $this->isCheckoutCompleted($this->checkoutIdempotencyKey)
+                || $this->hasConflictingExistingOrder($this->checkoutIdempotencyKey)
+            ) {
                 $this->checkoutIdempotencyKey = (string) Str::uuid();
+                $this->hasUnresolvedOrder = false;
                 session([self::SESSION_CHECKOUT_KEY => $this->checkoutIdempotencyKey]);
             }
 
             // Build order payload
-            $orderPayload = [
-                'order_type' => $this->diningMode,
-                'customer_name' => $this->customerName,
-                'notes' => $this->orderNotes,
-                'idempotency_key' => $this->checkoutIdempotencyKey,
-                'items' => collect($this->cart)->map(fn ($item) => [
-                    'product_id' => $item['product_id'],
-                    'variant_id' => $item['variant_id'],
-                    'quantity' => $item['quantity'],
-                    'notes' => $item['notes'],
-                    'modifier_ids' => $item['modifier_ids'] ?? [],
-                ])->toArray(),
-            ];
+            $orderPayload = $this->buildOrderPayload($this->checkoutIdempotencyKey);
 
             // Create order
             $order = $orderService->createOrder(Auth::user(), $shift, $orderPayload);
@@ -797,6 +811,16 @@ class CashierPos extends Component
         $existingOrder = Order::where('idempotency_key', $this->checkoutIdempotencyKey)->first();
 
         if ($existingOrder && $existingOrder->payment_status === Order::PAYMENT_STATUS_UNPAID) {
+            if (! empty($this->cart) && ! $this->currentCartMatchesExistingOrder($this->checkoutIdempotencyKey)) {
+                $this->paymentInFlight = false;
+                $this->hasUnresolvedOrder = false;
+                $this->checkoutIdempotencyKey = '';
+                session()->forget([self::SESSION_CHECKOUT_KEY, self::SESSION_PAYMENT_INFLIGHT]);
+                $this->dispatch('notify', message: __('messages.pos.unpaid_order_recovered_warning'), type: 'warning');
+
+                return;
+            }
+
             $this->paymentInFlight = false;
             $this->hasUnresolvedOrder = true;
             session([self::SESSION_PAYMENT_INFLIGHT => false]);
@@ -896,6 +920,86 @@ class CashierPos extends Component
         $this->showPaymentModal = true;
 
         $this->dispatch('notify', message: __('messages.pos.unpaid_order_resumed'), type: 'info');
+    }
+
+    /**
+     * Build the current cart order payload for OrderService.
+     *
+     * @return array{
+     *     order_type: string,
+     *     customer_name: string,
+     *     notes: string,
+     *     idempotency_key: string,
+     *     items: array<int, array{
+     *         product_id: mixed,
+     *         variant_id: mixed,
+     *         quantity: mixed,
+     *         notes: mixed,
+     *         modifier_ids: mixed
+     *     }>
+     * }
+     */
+    protected function buildOrderPayload(string $idempotencyKey): array
+    {
+        return [
+            'order_type' => $this->diningMode,
+            'customer_name' => $this->customerName,
+            'notes' => $this->orderNotes,
+            'idempotency_key' => $idempotencyKey,
+            'items' => collect($this->cart)->map(fn ($item) => [
+                'product_id' => $item['product_id'],
+                'variant_id' => $item['variant_id'],
+                'quantity' => $item['quantity'],
+                'notes' => $item['notes'],
+                'modifier_ids' => $item['modifier_ids'] ?? [],
+            ])->toArray(),
+        ];
+    }
+
+    /**
+     * Check whether an existing order with the given key matches the current cart payload.
+     */
+    protected function currentCartMatchesExistingOrder(string $key): bool
+    {
+        if ($key === '' || empty($this->cart)) {
+            return false;
+        }
+
+        $existingOrder = Order::with(['items.modifiers'])->where('idempotency_key', $key)->first();
+        if (! $existingOrder) {
+            return true;
+        }
+
+        try {
+            app(OrderService::class)->assertPayloadMatchesExistingOrder($existingOrder, $this->buildOrderPayload($key));
+
+            return true;
+        } catch (OrderIdempotencyConflictException|ConflictHttpException) {
+            return false;
+        }
+    }
+
+    /**
+     * Determine whether the given key belongs to an existing order in DB whose payload conflicts with the current cart.
+     */
+    protected function hasConflictingExistingOrder(string $key): bool
+    {
+        if ($key === '') {
+            return false;
+        }
+
+        $existingOrder = Order::with(['items.modifiers'])->where('idempotency_key', $key)->first();
+        if (! $existingOrder) {
+            return false;
+        }
+
+        try {
+            app(OrderService::class)->assertPayloadMatchesExistingOrder($existingOrder, $this->buildOrderPayload($key));
+
+            return false;
+        } catch (OrderIdempotencyConflictException|ConflictHttpException) {
+            return true;
+        }
     }
 
     /**
@@ -1110,6 +1214,10 @@ class CashierPos extends Component
 
         if ($e instanceof ShiftClosedForOrderException || $e instanceof ShiftClosedForPaymentException) {
             return __('messages.pos.shift_closed_error');
+        }
+
+        if ($e instanceof ShiftAccessDeniedException) {
+            return __('messages.pos.shift_access_denied');
         }
 
         if ($e instanceof InsufficientCashTenderedException) {

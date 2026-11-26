@@ -8,6 +8,7 @@ use App\Exceptions\Payment\OrderCancelledForPaymentException;
 use App\Exceptions\Payment\PaymentIdempotencyConflictException;
 use App\Exceptions\Payment\QrisConfirmationExpiredOrUsedException;
 use App\Exceptions\Payment\QrisConfirmationInvalidException;
+use App\Exceptions\Payment\ShiftAccessDeniedException;
 use App\Exceptions\Payment\ShiftClosedForPaymentException;
 use App\Models\ActivityLog;
 use App\Models\Order;
@@ -233,6 +234,30 @@ class PaymentService
     }
 
     /**
+     * Determine whether the given user may take payment in the given shift.
+     * Allowed if:
+     *   (1) the user opened the shift,
+     *   (2) the user is an owner, or
+     *   (3) the shift was opened by an owner and the user has the cashier role (delegated shift).
+     */
+    public function userMayTakePaymentInShift(User $user, Shift $shift): bool
+    {
+        if ((int) $user->id === (int) $shift->user_id) {
+            return true;
+        }
+
+        if ($user->hasRole('owner')) {
+            return true;
+        }
+
+        if ($user->hasRole('cashier') && $shift->user?->hasRole('owner')) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
      * Settle single or split payment for an order atomically.
      *
      * @param  array<int, array<string, mixed>>  $tenders
@@ -252,8 +277,8 @@ class PaymentService
         }
 
         // 2. Pre-flight cashier permission check
-        if ($cashier->id !== $shift->user_id && ! $cashier->hasRole('owner')) {
-            throw new InvalidArgumentException('Kasir tidak memiliki akses ke shift ini.');
+        if (! $this->userMayTakePaymentInShift($cashier, $shift)) {
+            throw new ShiftAccessDeniedException('Kasir tidak memiliki akses ke shift ini.');
         }
 
         // 3. Pre-flight order status checks
@@ -307,8 +332,8 @@ class PaymentService
             if (! $lockedShift || ! $lockedShift->isOpen()) {
                 throw new ShiftClosedForPaymentException('Shift kasir sudah ditutup. Tidak dapat memproses pembayaran.');
             }
-            if ($cashier->id !== $lockedShift->user_id && ! $cashier->hasRole('owner')) {
-                throw new InvalidArgumentException('Kasir tidak memiliki akses ke shift ini.');
+            if (! $this->userMayTakePaymentInShift($cashier, $lockedShift)) {
+                throw new ShiftAccessDeniedException('Kasir tidak memiliki akses ke shift ini.');
             }
 
             // Re-validate & lock order inside transaction

@@ -392,7 +392,7 @@
                             </span>
                             <input
                                 type="number"
-                                step="1000"
+                                step="1"
                                 min="0"
                                 wire:model="openingCash"
                                 class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-coffee-200 text-sm font-bold text-coffee-950 focus:outline-none focus:ring-2 focus:ring-coffee-400"
@@ -522,7 +522,7 @@
                             <input
                                 type="number"
                                 min="1"
-                                step="1000"
+                                step="1"
                                 wire:model="movementAmount"
                                 class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-coffee-200 text-sm font-bold text-coffee-950 focus:outline-none focus:ring-2 focus:ring-coffee-400"
                                 placeholder="50000"
@@ -726,7 +726,7 @@
                             <input
                                 type="number"
                                 min="0"
-                                step="1000"
+                                step="1"
                                 wire:model.live.debounce.150ms="actualCash"
                                 class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-coffee-200 text-sm font-bold text-coffee-950 focus:outline-none focus:ring-2 focus:ring-coffee-400"
                             />

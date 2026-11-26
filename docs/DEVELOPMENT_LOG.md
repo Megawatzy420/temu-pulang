@@ -1815,6 +1815,59 @@ To support printing X-Reports and Z-Reports directly to the 80mm/58mm USB therma
 - **Laravel Pint (`php vendor/bin/pint --dirty --test`):** ✅ Clean (`passed`)
 - **Vite Build (`npm run build`):** ✅ Compiled successfully in 966ms
 
+---
+
+## Manual Browser Testing Bug-Fix Pack (BUG 1, BUG 2, BUG 3, BUG 4 & BUG 5)
+
+**Date:** 2026-11-26  
+**Status:** ✅ COMPLETED
+
+### Summary
+Resolved the manual browser testing bug-fix pack across shift/catalog whole-Rupiah number inputs (BUG 1), POS stale checkout idempotency key lifecycle and deferred QRIS/Debit confirmation checkbox bindings (BUG 2), QRIS payment modal image height constraints and confirmation hint (BUG 3), plain-HTML `:disabled="$paymentInFlight"` Alpine ReferenceError (BUG 4), and delegated Owner-opened shift payment access for Cashiers with `ShiftAccessDeniedException` (BUG 5), while keeping all existing tests passing unmodified.
+
+### Root Causes & Fixes Applied
+1. **BUG 1 — Browser Blocks Valid Whole-Rupiah Amounts (`step="1000"` / `step="500"`):**
+   - **Cause:** HTML5 `<input type="number">` validates `value` against `min + k * step`. In `shift-manager.blade.php:523-525`, `min="1" step="1000"` allowed only `1, 1001, 2001, ..., 19001, 20001` and rejected `20000`. Similarly, `step="1000"` on `openingCash` (`shift-manager.blade.php:395`) and `actualCash` (`shift-manager.blade.php:729`) rejected whole-Rupiah amounts not divisible by `1000`, and `step="500"` on `basePrice` (`product-form.blade.php:83`), `variants.*.price` (`product-form.blade.php:274`), and `options.*.price` (`modifier-manager.blade.php:280`) rejected whole-Rupiah prices not divisible by `500`.
+   - **Fix:** Changed `step="1000"` and `step="500"` to `step="1"` on all 6 whole-Rupiah inputs while keeping decimal percentage inputs (`step="0.1"` in `shop-settings-manager.blade.php:235,272`) and server-side validation unchanged.
+2. **BUG 2 — POS Checkout Blocked on QRIS/Debit Confirmation & Stale Checkout Key Conflict:**
+   - **Cause A — Deferred Checkbox Binding (`resources/views/livewire/pos/cashier-pos.blade.php:725,752`):** In Livewire 4, `wire:model` without `.live` is deferred until the next action request. Because `qrisCashierConfirmed` (`line 725`) and `debitCashierConfirmed` (`line 752`) used deferred `wire:model`, ticking the checkbox in the browser never triggered a Livewire round-trip to re-render the server-side `:disabled="$isProcessingPayment || ($paymentMethod === 'qris' && !$qrisCashierConfirmed) || ($paymentMethod === 'debit' && !$debitCashierConfirmed)"` prop on the `<x-button>` (`line 814`). The native `<button disabled>` attribute remained in the DOM (`disabled:cursor-not-allowed`), blocking clicks for both Owner and Cashier.
+   - **Fix A:** Changed both checkboxes to `wire:model.live="qrisCashierConfirmed"` and `wire:model.live="debitCashierConfirmed"`.
+   - **Cause B — Stale Checkout Idempotency Key Lock-In (`app/Livewire/Pos/CashierPos.php`):** When an unpaid order exists in the database for the session-stored `pos_active_checkout_key`, `CashierPos::mount()` sets `$this->hasUnresolvedOrder = true`. Previously, `addItemToCart()` did not call `resetDraftIdempotencyKey()`, `resetDraftIdempotencyKey()` refused to clear `$this->checkoutIdempotencyKey` whenever `$this->hasUnresolvedOrder` was `true`, and `openCheckout()` / `processPayment()` only checked `isCheckoutCompleted()`. As a result, building a new cart with different items reused the old unpaid order's `idempotency_key` and triggered `OrderIdempotencyConflictException` (`"Kunci transaksi sudah digunakan dengan data berbeda. Silakan periksa transaksi terlebih dahulu."`).
+   - **Fix B:** Updated `addItemToCart()`, `resetDraftIdempotencyKey()`, `openCheckout()`, `processPayment()`, and `recoverPendingPayment()` (with `buildOrderPayload()`, `currentCartMatchesExistingOrder()`, and `hasConflictingExistingOrder()`) so that when the current cart differs from an existing unpaid order on `$this->checkoutIdempotencyKey`, the stale key is released and a fresh UUID is generated (without cancelling or altering the old unpaid order), while retries of the exact same cart continue to reuse the key.
+3. **BUG 3 — QRIS Panel Height & Missing Confirmation Hint (`resources/views/livewire/pos/cashier-pos.blade.php`):**
+   - **Fix:** Limited the QRIS image to `max-h-56 h-auto w-auto object-contain` inside a `max-h-72 overflow-hidden` container so the QR image, amount to pay, and confirmation checkbox are all visible without scrolling on a `1366x768` viewport, and added the translated hint `messages.pos.confirm_to_enable_pay` next to the Pay button whenever QRIS or Debit confirmation is not yet ticked.
+4. **BUG 4 — `"Uncaught ReferenceError: $paymentInFlight is not defined"` (`resources/views/livewire/pos/cashier-pos.blade.php:196,264,285,296`):**
+   - **Cause:** On plain HTML `<button>` elements (unlike `<x-...>` Blade components), `:disabled="$paymentInFlight"` is not compiled by Blade and is passed verbatim into the DOM, where Alpine.js interprets `:disabled` as `x-bind:disabled` and tries to evaluate the JavaScript identifier `$paymentInFlight` (which does not exist in JS scope).
+   - **Fix:** Replaced `:disabled="$paymentInFlight"` on the 4 plain `<button>` tags in `resources/views/livewire/pos/cashier-pos.blade.php` (`lines 196, 264, 285, 296`) with server-side Blade `@disabled($paymentInFlight)`.
+5. **BUG 5 — Cashier Cannot Settle Payment in a Shift Opened by the Owner (`app/Services/PaymentService.php`, `app/Exceptions/Payment/ShiftAccessDeniedException.php`, `app/Livewire/Pos/CashierPos.php`):**
+   - **Cause:** `PaymentService::settlePayment()` checked `if ($cashier->id !== $shift->user_id && ! $cashier->hasRole('owner'))` at lines `255` and `310`, rejecting a Cashier operating in a shift opened by the Owner after `OrderService::createOrder()` had already committed an unpaid `Order`.
+   - **Fix:**
+     - Added pure `PaymentService::userMayTakePaymentInShift(User $user, Shift $shift): bool` returning `true` when `(1)` `$user->id === $shift->user_id`, `(2)` `$user->hasRole('owner')`, or `(3)` `$user->hasRole('cashier') && $shift->user?->hasRole('owner')` (delegated shift), and `false` when Cashier B attempts to take payment in Cashier A's shift.
+     - Created `App\Exceptions\Payment\ShiftAccessDeniedException extends InvalidArgumentException` and threw it at both shift-access check sites in `PaymentService::settlePayment()` (keeping the message `'Kasir tidak memiliki akses ke shift ini.'`).
+     - Added `messages.pos.shift_access_denied` in `lang/id/messages.php` and `lang/en/messages.php`, mapped `ShiftAccessDeniedException` in `CashierPos::mapPaymentExceptionToMessage()`, and checked `$paymentService->userMayTakePaymentInShift(Auth::user(), $shift)` in `CashierPos::processPayment()` **before** `OrderService::createOrder()` so denied attempts create no orphan unpaid order.
+
+### Deliverables
+- **Files Created:**
+  - `app/Exceptions/Payment/ShiftAccessDeniedException.php`
+  - `tests/Feature/ManualBrowserBugFixPackTest.php` (7 tests, 115 assertions)
+- **Files Modified:**
+  - `app/Services/PaymentService.php`
+  - `app/Livewire/Pos/CashierPos.php`
+  - `resources/views/livewire/pos/cashier-pos.blade.php`
+  - `resources/views/livewire/shifts/shift-manager.blade.php`
+  - `resources/views/livewire/menu/product-form.blade.php`
+  - `resources/views/livewire/menu/modifier-manager.blade.php`
+  - `lang/id/messages.php`, `lang/en/messages.php`
+  - `docs/ARCHITECTURE.md`, `docs/PROJECT_PLAN.md`, `docs/DEVELOPMENT_LOG.md`
+
+### Automated Test Results
+- **Bug-Fix Pack Feature Tests (`ManualBrowserBugFixPackTest`):** 7 tests, 115 assertions — 100% passing
+- **Existing Test Suites (Unmodified):** 481 tests, 7137 assertions — 100% passing
+- **Full Test Suite (`php artisan test --compact`):** 488 tests, 7252 assertions — 100% passing (0 failures, 0 errors)
+- **Laravel Pint (`php vendor/bin/pint --dirty --test`):** ✅ Clean (`passed`)
+- **Vite Build (`npm run build`):** ✅ Compiled successfully in 791ms
+
+
 
 
 

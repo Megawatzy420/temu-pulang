@@ -115,6 +115,7 @@ return [
         'retry_print_queued_success' => 'Cetak ulang dijadwalkan.',
         'error_conflict' => 'Kunci transaksi sudah digunakan dengan data berbeda. Silakan periksa transaksi terlebih dahulu.',
         'shift_closed_error' => 'Shift kasir sudah ditutup. Tidak dapat memproses pembayaran.',
+        'shift_access_denied' => 'Anda tidak dapat menerima pembayaran di shift milik kasir lain. Minta Pemilik atau buka shift Anda sendiri.',
         'qris_expired_or_used' => 'Konfirmasi QRIS sudah pernah digunakan atau kadaluarsa.',
         'qris_confirmation_invalid' => 'Data konfirmasi QRIS tidak valid atau belum lengkap.',
         'order_cancelled_error' => 'Tidak dapat memproses pembayaran untuk pesanan yang dibatalkan.',
@@ -171,6 +172,7 @@ return [
         'order_notes_label' => 'Catatan Pesanan Keseluruhan',
         'order_notes_placeholder' => 'misal: Bawa pulang kantong terpisah',
         'pay_button' => 'Bayar',
+        'confirm_to_enable_pay' => 'Centang konfirmasi untuk mengaktifkan tombol Bayar.',
         'processing' => 'Memproses...',
 
         // Success Modal UI

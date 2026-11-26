@@ -80,7 +80,7 @@
                         <label class="block text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1">{{ __('messages.products.base_price_label') }} <span class="text-rose-500">*</span></label>
                         <div class="relative">
                             <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-xs text-zinc-400 font-bold">Rp</span>
-                            <input type="number" wire:model="basePrice" min="0" step="500" class="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-amber-500">
+                            <input type="number" wire:model="basePrice" min="0" step="1" class="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-amber-500">
                         </div>
                         <p class="text-[11px] text-zinc-400 mt-1">{{ __('messages.products.base_price_hint') }}</p>
                         @error('basePrice') <span class="text-xs text-rose-500 mt-1 block">{{ $message }}</span> @enderror
@@ -271,7 +271,7 @@
                                         <input type="text" wire:model="variants.{{ $index }}.name_en" placeholder="{{ __('messages.products.variant_name_en_placeholder') }}" class="w-full px-2.5 py-1.5 rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 text-xs">
                                     </td>
                                     <td class="py-2.5 pr-2">
-                                        <input type="number" wire:model="variants.{{ $index }}.price" min="0" step="500" class="w-full px-2.5 py-1.5 rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 text-xs">
+                                        <input type="number" wire:model="variants.{{ $index }}.price" min="0" step="1" class="w-full px-2.5 py-1.5 rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 text-xs">
                                         @error("variants.$index.price") <span class="text-[10px] text-rose-500 block">{{ $message }}</span> @enderror
                                     </td>
                                     <td class="py-2.5 pr-2">

@@ -263,7 +263,8 @@ flowchart TD
    - `tendered_amount >= amount`.
    - `change_amount = tendered_amount - amount`.
    - Non-cash tenders require `tendered_amount === amount` and `change_amount === 0`.
-4. **Server-Authoritative QRIS Verification & Cashier Ownership**:
+4. **Server-Authoritative QRIS Verification, Shift Payment Access & Cashier Ownership**:
+   - **Shift Payment Access (`PaymentService::userMayTakePaymentInShift(User $user, Shift $shift): bool`)**: A user may take payment in an active shift if `(1)` they opened the shift (`$user->id === $shift->user_id`), `(2)` they are an Owner (`$user->hasRole('owner')`), or `(3)` the shift was opened by an Owner and the user has the `cashier` role (delegated shift). A Cashier cannot take payments in a shift opened by another Cashier (throws `ShiftAccessDeniedException`). Payments always record the real acting cashier (`$cashier->id`, `$cashier->name`), never the shift opener.
    - Cashiers record incoming merchant confirmations via `createQrisConfirmation(...)`.
    - Stored in `qris_confirmations` with cashier user ID, expected integer amount, server timestamp, and `pending` status.
    - During settlement, the confirmation is locked (`lockForUpdate()`), validated against the target order and tender amount, and checked for cashier ownership (`$qris->user_id === $cashier->id || $cashier->hasRole('owner')`).
@@ -284,7 +285,11 @@ flowchart TD
 8. **Audit Trail**:
    - Logs `ActivityLog::record(action: 'payment.settled', module: 'payments', ...)`.
 9. **POS Checkout UI (`App\Livewire\Pos\CashierPos`)**:
-   - Single-tender payment modal supporting Cash (Alpine-formatted integer `cashGiven` input with `id-ID` thousand separators, `Uang Pas`, and up to 4 integer-computed quick-cash suggestions via `suggestCashAmounts()`), QRIS (displays `payment.qris_image_path` + prominent amount to pay, or localized notice if unset), and Debit.
+   - Single-tender payment modal supporting Cash (Alpine-formatted integer `cashGiven` input with `id-ID` thousand separators, `Uang Pas`, and up to 4 integer-computed quick-cash suggestions via `suggestCashAmounts()`), QRIS (displays `payment.qris_image_path` constrained to `max-h-56 object-contain` inside a `max-h-72` container + prominent amount to pay, or localized notice if unset), and Debit.
+   - QRIS and Debit confirmation checkboxes use `wire:model.live` (`wire:model.live="qrisCashierConfirmed"`, `wire:model.live="debitCashierConfirmed"`) so ticking either checkbox immediately re-renders the Pay button without the `disabled` attribute, and the modal footer displays `messages.pos.confirm_to_enable_pay` next to the Pay button whenever a required QRIS or Debit confirmation is still unchecked.
+   - Plain HTML buttons in `cashier-pos.blade.php` use server-side `@disabled($paymentInFlight)` rather than Alpine `:disabled="$paymentInFlight"` so browser Alpine evaluation never encounters an undefined `$paymentInFlight` JavaScript variable.
+   - Pre-order shift access check: `CashierPos::processPayment()` validates `$paymentService->userMayTakePaymentInShift(Auth::user(), $shift)` **before** calling `OrderService::createOrder()`, displaying `messages.pos.shift_access_denied` and creating no orphan unpaid order if denied.
+   - Stale-key conflict protection: if a session-restored `checkoutIdempotencyKey` points to an unresolved unpaid order whose payload differs from the current cart, modifying the cart or opening/submitting checkout automatically releases the stale key and generates a fresh UUID (without cancelling or altering the previous unpaid order), while retrying the exact same cart reuses the key.
 
 ---
 
@@ -383,6 +388,7 @@ UI components (`CashierPos::mapPaymentExceptionToMessage()`, `OrderRefund::mapRe
 | Order | `App\Exceptions\Order\ShiftClosedForOrderException` | `InvalidArgumentException` | `messages.pos.shift_closed_error` |
 | Order | `App\Exceptions\Order\OrderIdempotencyConflictException` | `ConflictHttpException` | `messages.pos.error_conflict` |
 | Payment | `App\Exceptions\Payment\ShiftClosedForPaymentException` | `InvalidArgumentException` | `messages.pos.shift_closed_error` |
+| Payment | `App\Exceptions\Payment\ShiftAccessDeniedException` | `InvalidArgumentException` | `messages.pos.shift_access_denied` |
 | Payment | `App\Exceptions\Payment\InsufficientCashTenderedException` | `InvalidArgumentException` | `messages.pos.insufficient_cash` |
 | Payment | `App\Exceptions\Payment\QrisConfirmationInvalidException` | `InvalidArgumentException` | `messages.pos.qris_confirmation_invalid` |
 | Payment | `App\Exceptions\Payment\QrisConfirmationExpiredOrUsedException` | `DomainException` | `messages.pos.qris_expired_or_used` |
