@@ -14,6 +14,10 @@ class ModifierSeeder extends Seeder
      */
     public function run(): void
     {
+        if (! app()->environment(['local', 'testing'])) {
+            return;
+        }
+
         // 1. Sugar Level (Required free customization: min 1, max 1)
         $sugarGroup = ModifierGroup::updateOrCreate(
             ['slug' => 'sugar-level'],

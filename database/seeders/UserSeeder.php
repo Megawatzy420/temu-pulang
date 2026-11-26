@@ -15,6 +15,10 @@ class UserSeeder extends Seeder
      */
     public function run(): void
     {
+        if (! app()->environment(['local', 'testing'])) {
+            return;
+        }
+
         $ownerRole = Role::where('slug', 'owner')->first();
         $cashierRole = Role::where('slug', 'cashier')->first();
 

@@ -11,13 +11,22 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        if (app()->environment(['local', 'testing'])) {
+            $this->call([
+                RoleAndPermissionSeeder::class,
+                UserSeeder::class,
+                ShopSettingSeeder::class,
+                ProductCategorySeeder::class,
+                ProductSeeder::class,
+                ModifierSeeder::class,
+            ]);
+
+            return;
+        }
+
         $this->call([
             RoleAndPermissionSeeder::class,
-            UserSeeder::class,
             ShopSettingSeeder::class,
-            ProductCategorySeeder::class,
-            ProductSeeder::class,
-            ModifierSeeder::class,
         ]);
     }
 }

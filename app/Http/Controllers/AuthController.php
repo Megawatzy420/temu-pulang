@@ -12,6 +12,19 @@ use Illuminate\View\View;
 class AuthController extends Controller
 {
     /**
+     * Determine whether quick demo login is enabled in the current environment.
+     */
+    public static function isDemoLoginEnabled(): bool
+    {
+        $override = config('app.demo_login_enabled');
+        if ($override !== null) {
+            return (bool) $override;
+        }
+
+        return app()->environment(['local', 'testing']);
+    }
+
+    /**
      * Show the login page.
      */
     public function showLogin(): View|RedirectResponse
@@ -25,7 +38,41 @@ class AuthController extends Controller
                 : redirect()->route('pos');
         }
 
-        return view('auth.login');
+        return view('auth.login', [
+            'demoLoginEnabled' => self::isDemoLoginEnabled(),
+        ]);
+    }
+
+    /**
+     * Handle a quick demo authentication attempt (local and testing environments only).
+     */
+    public function demoLogin(Request $request, ?string $role = null): RedirectResponse
+    {
+        if (! self::isDemoLoginEnabled()) {
+            abort(404);
+        }
+
+        $targetRole = strtolower(trim((string) ($role ?? $request->input('role', 'owner'))));
+
+        $demoCredentials = match ($targetRole) {
+            'owner' => [
+                'email' => (string) env('SEED_OWNER_EMAIL', 'owner@temupulang.local'),
+                'password' => (string) env('SEED_OWNER_PASSWORD', 'TemuPulang@2026!'),
+            ],
+            'cashier' => [
+                'email' => (string) env('SEED_CASHIER_EMAIL', 'cashier@temupulang.local'),
+                'password' => (string) env('SEED_CASHIER_PASSWORD', 'Cashier@2026!'),
+            ],
+            default => abort(404),
+        };
+
+        $request->merge([
+            'email' => $demoCredentials['email'],
+            'password' => $demoCredentials['password'],
+            'remember' => true,
+        ]);
+
+        return $this->login($request);
     }
 
     /**

@@ -1,0 +1,260 @@
+<?php
+
+namespace App\Console\Commands;
+
+use App\Http\Controllers\AuthController;
+use App\Models\ShopSetting;
+use App\Models\User;
+use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Throwable;
+
+class PreflightCommand extends Command
+{
+    protected $signature = 'temupulang:preflight';
+
+    protected $description = 'Run read-only production preflight checks before go-live.';
+
+    /**
+     * Demo emails created by UserSeeder.
+     *
+     * @var list<string>
+     */
+    private const DEMO_EMAILS = [
+        'owner@temupulang.local',
+        'cashier@temupulang.local',
+    ];
+
+    /**
+     * Demo passwords used by UserSeeder (checked via Hash::check, never printed).
+     *
+     * @var list<string>
+     */
+    private const DEMO_PASSWORDS = [
+        'TemuPulang@2026!',
+        'Cashier@2026!',
+    ];
+
+    public function handle(): int
+    {
+        $passCount = 0;
+        $warnCount = 0;
+        $failCount = 0;
+        $remediations = [];
+
+        $record = function (string $status, string $label, ?string $remediation = null) use (&$passCount, &$warnCount, &$failCount, &$remediations): void {
+            if ($status === 'PASS') {
+                $passCount++;
+                $this->line("[PASS] {$label}");
+
+                return;
+            }
+
+            if ($status === 'WARN') {
+                $warnCount++;
+                $this->warn("[WARN] {$label}");
+                if ($remediation !== null) {
+                    $remediations[] = $remediation;
+                }
+
+                return;
+            }
+
+            $failCount++;
+            $this->error("[FAIL] {$label}");
+            if ($remediation !== null) {
+                $remediations[] = $remediation;
+            }
+        };
+
+        $env = (string) app()->environment();
+        $isProduction = $env === 'production';
+
+        // 1. APP_ENV is production (WARN otherwise)
+        if ($isProduction) {
+            $record('PASS', "APP_ENV is 'production'.");
+        } else {
+            $record('WARN', "APP_ENV is '{$env}' (expected 'production' for go-live).", 'Set APP_ENV=production in .env and run: php artisan config:clear');
+        }
+
+        // 2. APP_DEBUG is false (FAIL if true in production)
+        $debug = (bool) config('app.debug');
+        if (! $debug) {
+            $record('PASS', 'APP_DEBUG is false.');
+        } elseif ($isProduction) {
+            $record('FAIL', 'APP_DEBUG is true while APP_ENV is production.', 'Set APP_DEBUG=false in .env and run: php artisan config:clear');
+        } else {
+            $record('WARN', "APP_DEBUG is true in '{$env}' environment.", 'Set APP_DEBUG=false in .env before go-live.');
+        }
+
+        // 3. APP_KEY is set (FAIL)
+        $appKey = trim((string) config('app.key'));
+        if ($appKey !== '') {
+            $record('PASS', 'APP_KEY is set.');
+        } else {
+            $record('FAIL', 'APP_KEY is missing or empty.', 'Run: php artisan key:generate');
+        }
+
+        // 4. Database connection works (FAIL)
+        $dbConnected = false;
+        try {
+            DB::connection()->getPdo();
+            DB::select('SELECT 1');
+            $dbConnected = true;
+            $record('PASS', 'Database connection is healthy.');
+        } catch (Throwable $e) {
+            $record('FAIL', 'Database connection failed: '.$e->getMessage(), 'Check DB_* settings in .env and run: php artisan migrate --force');
+        }
+
+        // 5. storage and bootstrap/cache are writable (FAIL)
+        $storagePath = storage_path();
+        $bootstrapCachePath = base_path('bootstrap/cache');
+        if (is_dir($storagePath) && is_writable($storagePath) && is_dir($bootstrapCachePath) && is_writable($bootstrapCachePath)) {
+            $record('PASS', 'storage/ and bootstrap/cache/ are writable.');
+        } else {
+            $record('FAIL', 'storage/ or bootstrap/cache/ is not writable.', 'Grant write permissions to storage/ and bootstrap/cache/.');
+        }
+
+        // 6. public/storage link exists (WARN)
+        if (file_exists(public_path('storage'))) {
+            $record('PASS', 'public/storage link exists.');
+        } else {
+            $record('WARN', 'public/storage link is missing.', 'Run: php artisan storage:link');
+        }
+
+        // 7. Demo login is disabled in the current environment (FAIL if enabled while APP_ENV=production)
+        $demoEnabled = AuthController::isDemoLoginEnabled();
+        if (! $demoEnabled) {
+            $record('PASS', 'Quick demo login is disabled.');
+        } elseif ($isProduction) {
+            $record('FAIL', 'Quick demo login is enabled while APP_ENV is production.', 'Disable demo login in production and run: php artisan config:clear');
+        } else {
+            $record('WARN', "Quick demo login is enabled in '{$env}' environment.", 'Set APP_ENV=production to disable quick demo login.');
+        }
+
+        // 8. At least one ACTIVE owner exists (FAIL)
+        if ($dbConnected) {
+            try {
+                $activeOwnerCount = User::query()
+                    ->where('is_active', true)
+                    ->whereHas('roles', fn ($q) => $q->where('slug', 'owner'))
+                    ->count();
+
+                if ($activeOwnerCount >= 1) {
+                    $record('PASS', "Found {$activeOwnerCount} active owner account(s).");
+                } else {
+                    $record('FAIL', 'No active owner account found.', 'Run: php artisan temupulang:create-user --role=owner');
+                }
+            } catch (Throwable $e) {
+                $record('FAIL', 'Could not verify active owner accounts: '.$e->getMessage(), 'Run: php artisan migrate --force');
+            }
+        } else {
+            $record('FAIL', 'Cannot check active owner accounts without database connection.', 'Fix database connection first.');
+        }
+
+        // 9. No active user still has an email or password from the demo seeders (FAIL)
+        if ($dbConnected) {
+            try {
+                $demoEmails = array_values(array_unique(array_filter([
+                    ...self::DEMO_EMAILS,
+                    strtolower(trim((string) env('SEED_OWNER_EMAIL', ''))),
+                    strtolower(trim((string) env('SEED_CASHIER_EMAIL', ''))),
+                ])));
+
+                $demoPasswords = array_values(array_unique(array_filter([
+                    ...self::DEMO_PASSWORDS,
+                    (string) env('SEED_OWNER_PASSWORD', ''),
+                    (string) env('SEED_CASHIER_PASSWORD', ''),
+                ])));
+
+                $flaggedEmails = [];
+                $activeUsers = User::query()->where('is_active', true)->get();
+
+                foreach ($activeUsers as $activeUser) {
+                    $emailLower = strtolower((string) $activeUser->email);
+                    $hasDemoEmail = in_array($emailLower, $demoEmails, true);
+                    $hasDemoPassword = false;
+
+                    foreach ($demoPasswords as $candidate) {
+                        if ($candidate !== '' && Hash::check($candidate, (string) $activeUser->password)) {
+                            $hasDemoPassword = true;
+                            break;
+                        }
+                    }
+
+                    if ($hasDemoEmail || $hasDemoPassword) {
+                        $flaggedEmails[] = $activeUser->email;
+                    }
+                }
+
+                if ($flaggedEmails === []) {
+                    $record('PASS', 'No active user account uses a demo seeder email or demo seeder password.');
+                } else {
+                    $list = implode(', ', $flaggedEmails);
+                    $record(
+                        'FAIL',
+                        "Active user account(s) still use a demo seeder email or demo seeder password: {$list}",
+                        'Run: php artisan temupulang:deactivate-user <email> or php artisan temupulang:set-password <email>'
+                    );
+                }
+            } catch (Throwable $e) {
+                $record('FAIL', 'Could not verify demo credentials on active accounts: '.$e->getMessage());
+            }
+        } else {
+            $record('FAIL', 'Cannot check active user demo credentials without database connection.');
+        }
+
+        // 10. Shop settings row exists (WARN)
+        $shopSetting = null;
+        if ($dbConnected) {
+            try {
+                $shopSetting = ShopSetting::current();
+            } catch (Throwable) {
+                $shopSetting = null;
+            }
+        }
+
+        if ($shopSetting !== null) {
+            $record('PASS', "Active shop_settings row exists ({$shopSetting->name}).");
+        } else {
+            $record('WARN', 'No active shop_settings row exists.', 'Run: php artisan db:seed --class=ShopSettingSeeder');
+        }
+
+        // 11. Configured receipt printer destination is set (WARN)
+        $printerName = trim((string) ($shopSetting?->printer_name ?? ''));
+        if ($printerName !== '') {
+            $record('PASS', "Receipt printer destination is configured ({$printerName}).");
+        } else {
+            $record('WARN', 'Receipt printer destination (printer_name) is not set.', 'Configure the thermal printer name in Owner Shop Settings (/settings) and test with: php artisan print:test');
+        }
+
+        // 12. Cache/queue/session drivers (WARN if 'array')
+        $cacheDriver = (string) config('cache.default');
+        $queueDriver = (string) config('queue.default');
+        $sessionDriver = (string) config('session.driver');
+
+        if (in_array('array', [$cacheDriver, $queueDriver, $sessionDriver], true)) {
+            $record(
+                'WARN',
+                "Non-persistent 'array' driver detected (cache={$cacheDriver}, queue={$queueDriver}, session={$sessionDriver}).",
+                'Set CACHE_STORE=database, QUEUE_CONNECTION=database, and SESSION_DRIVER=database in .env'
+            );
+        } else {
+            $record('PASS', "Cache ({$cacheDriver}), queue ({$queueDriver}), and session ({$sessionDriver}) drivers are persistent.");
+        }
+
+        $this->newLine();
+        $this->line("Preflight summary: {$passCount} PASS, {$warnCount} WARN, {$failCount} FAIL.");
+
+        if ($remediations !== []) {
+            $this->newLine();
+            $this->line('Recommended remediation commands / actions:');
+            foreach (array_values(array_unique($remediations)) as $cmd) {
+                $this->line("  - {$cmd}");
+            }
+        }
+
+        return $failCount > 0 ? self::FAILURE : self::SUCCESS;
+    }
+}

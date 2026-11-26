@@ -14,6 +14,10 @@ class ProductSeeder extends Seeder
      */
     public function run(): void
     {
+        if (! app()->environment(['local', 'testing'])) {
+            return;
+        }
+
         $beverages = Category::where('slug', 'beverages')->first();
         $food = Category::where('slug', 'food')->first();
         $snacks = Category::where('slug', 'snacks')->first();

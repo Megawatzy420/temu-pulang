@@ -29,7 +29,7 @@
                 name="email"
                 type="email"
                 id="emailInput"
-                :value="old('email', 'owner@temupulang.local')"
+                :value="old('email', ($demoLoginEnabled ?? false) ? 'owner@temupulang.local' : '')"
                 :error="$errors->first('email')"
                 required
                 autocomplete="email"
@@ -43,7 +43,7 @@
                 name="password"
                 type="password"
                 id="passwordInput"
-                value="TemuPulang@2026!"
+                :value="($demoLoginEnabled ?? false) ? 'TemuPulang@2026!' : ''"
                 :error="$errors->first('password')"
                 required
                 autocomplete="current-password"
@@ -80,56 +80,44 @@
             </div>
         </form>
 
-        <!-- Quick Demo Switcher Section -->
-        <div class="mt-7 pt-6 border-t border-coffee-100">
-            <p class="text-center text-xs font-semibold uppercase tracking-wider text-coffee-500 mb-3">
-                {{ __('messages.auth.quick_demo_login') }}
-            </p>
+        @if ($demoLoginEnabled ?? false)
+            <!-- Quick Demo Switcher Section -->
+            <div class="mt-7 pt-6 border-t border-coffee-100">
+                <p class="text-center text-xs font-semibold uppercase tracking-wider text-coffee-500 mb-3">
+                    {{ __('messages.auth.quick_demo_login') }}
+                </p>
 
-            <div class="grid grid-cols-2 gap-2.5">
-                <button
-                    type="button"
-                    onclick="fillOwnerDemo()"
-                    class="px-3 py-2.5 rounded-xl border border-coffee-200 bg-cream-50 hover:bg-coffee-100/70 text-coffee-800 text-xs font-medium transition-all flex flex-col items-center justify-center gap-1 cursor-pointer hover:border-coffee-300 shadow-2xs"
-                >
-                    <span class="font-bold text-coffee-950 flex items-center gap-1.5">
-                        <span class="w-2 h-2 rounded-full bg-caramel-500"></span>
-                        {{ __('messages.auth.owner_demo') }}
-                    </span>
-                    <span class="text-[10px] text-coffee-500">owner@temupulang.local</span>
-                </button>
+                <div class="grid grid-cols-2 gap-2.5">
+                    <form method="POST" action="{{ route('login.demo', ['role' => 'owner']) }}">
+                        @csrf
+                        <button
+                            type="submit"
+                            class="w-full px-3 py-2.5 rounded-xl border border-coffee-200 bg-cream-50 hover:bg-coffee-100/70 text-coffee-800 text-xs font-medium transition-all flex flex-col items-center justify-center gap-1 cursor-pointer hover:border-coffee-300 shadow-2xs"
+                        >
+                            <span class="font-bold text-coffee-950 flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-caramel-500"></span>
+                                {{ __('messages.auth.owner_demo') }}
+                            </span>
+                            <span class="text-[10px] text-coffee-500">owner@temupulang.local</span>
+                        </button>
+                    </form>
 
-                <button
-                    type="button"
-                    onclick="fillCashierDemo()"
-                    class="px-3 py-2.5 rounded-xl border border-coffee-200 bg-cream-50 hover:bg-coffee-100/70 text-coffee-800 text-xs font-medium transition-all flex flex-col items-center justify-center gap-1 cursor-pointer hover:border-coffee-300 shadow-2xs"
-                >
-                    <span class="font-bold text-coffee-950 flex items-center gap-1.5">
-                        <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                        {{ __('messages.auth.cashier_demo') }}
-                    </span>
-                    <span class="text-[10px] text-coffee-500">cashier@temupulang.local</span>
-                </button>
+                    <form method="POST" action="{{ route('login.demo', ['role' => 'cashier']) }}">
+                        @csrf
+                        <button
+                            type="submit"
+                            class="w-full px-3 py-2.5 rounded-xl border border-coffee-200 bg-cream-50 hover:bg-coffee-100/70 text-coffee-800 text-xs font-medium transition-all flex flex-col items-center justify-center gap-1 cursor-pointer hover:border-coffee-300 shadow-2xs"
+                        >
+                            <span class="font-bold text-coffee-950 flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                {{ __('messages.auth.cashier_demo') }}
+                            </span>
+                            <span class="text-[10px] text-coffee-500">cashier@temupulang.local</span>
+                        </button>
+                    </form>
+                </div>
             </div>
-        </div>
+        @endif
     </div>
-
-    <script>
-        function fillOwnerDemo() {
-            const email = document.getElementById('emailInput') || document.querySelector('input[name="email"]');
-            const pass = document.getElementById('passwordInput') || document.querySelector('input[name="password"]');
-            if (email) email.value = 'owner@temupulang.local';
-            if (pass) pass.value = 'TemuPulang@2026!';
-            document.getElementById('loginForm').submit();
-        }
-
-        function fillCashierDemo() {
-            const email = document.getElementById('emailInput') || document.querySelector('input[name="email"]');
-            const pass = document.getElementById('passwordInput') || document.querySelector('input[name="password"]');
-            if (email) email.value = 'cashier@temupulang.local';
-            if (pass) pass.value = 'Cashier@2026!';
-            document.getElementById('loginForm').submit();
-        }
-    </script>
 </x-layouts.guest>
 

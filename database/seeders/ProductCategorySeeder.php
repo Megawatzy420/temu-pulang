@@ -12,6 +12,10 @@ class ProductCategorySeeder extends Seeder
      */
     public function run(): void
     {
+        if (! app()->environment(['local', 'testing'])) {
+            return;
+        }
+
         $categories = [
             [
                 'slug' => 'beverages',
