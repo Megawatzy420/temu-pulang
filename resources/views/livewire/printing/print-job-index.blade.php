@@ -54,7 +54,7 @@
                             </td>
                             <td class="px-4 py-3.5">
                                 <span class="font-medium">
-                                    {{ $job->job_type === 'receipt' ? __('messages.printing.job_type_receipt') : __('messages.printing.job_type_kitchen') }}
+                                    {{ in_array($job->job_type, ['receipt', 'customer_receipt'], true) ? __('messages.printing.job_type_receipt') : __('messages.printing.job_type_kitchen') }}
                                 </span>
                                 @if ($job->is_reprint)
                                     <span class="ml-1 text-[10px] text-coffee-500 font-semibold">{{ __('messages.printing.reprint_tag') }}</span>
@@ -76,8 +76,16 @@
                                         {{ __('messages.printing.status_failed') }}
                                     </span>
                                 @else
+                                    @php
+                                        $printStatusLabel = match ($job->status) {
+                                            'pending' => __('messages.printing.status_pending'),
+                                            'processing' => __('messages.printing.status_processing'),
+                                            'completed' => __('messages.printing.status_completed'),
+                                            default => $job->status,
+                                        };
+                                    @endphp
                                     <span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-gray-100 text-gray-800">
-                                        {{ $job->status }}
+                                        {{ $printStatusLabel }}
                                     </span>
                                 @endif
                             </td>

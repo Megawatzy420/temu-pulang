@@ -244,7 +244,7 @@
                             href="{{ route('inventory.ingredients', ['stock' => 'low_or_out']) }}"
                             class="text-xs font-bold text-caramel-700 hover:text-caramel-900 underline underline-offset-2"
                         >
-                            {{ __('messages.stock_alert.view_all') }} &rarr;
+                            {{ __('messages.stock_alert.view_all') }} →
                         </a>
                     </x-slot:footer>
                 </x-card>

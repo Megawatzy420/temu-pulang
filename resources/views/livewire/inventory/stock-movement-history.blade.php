@@ -174,7 +174,7 @@
                                 {{ $qtyDisplay }} {{ $unit }}
                             </td>
                             <td class="px-4 py-3 text-right font-mono text-[11px] text-coffee-700 whitespace-nowrap">
-                                {{ $beforeFormatted }} &rarr; <strong>{{ $afterFormatted }}</strong>
+                                {{ $beforeFormatted }} → <strong>{{ $afterFormatted }}</strong>
                             </td>
                             <td class="px-4 py-3 text-right font-mono whitespace-nowrap text-coffee-800">
                                 Rp {{ number_format($mov->unit_cost, 0, ',', '.') }}

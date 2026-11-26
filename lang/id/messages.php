@@ -147,6 +147,8 @@ return [
         'payment_cash' => 'Tunai',
         'payment_qris' => 'QRIS',
         'payment_debit' => 'Debit',
+        'payment_credit' => 'Kartu Kredit',
+        'payment_transfer' => 'Transfer Bank',
         'cash_received' => 'Uang Diterima',
         'exact_cash' => 'Uang Pas',
         'change_label' => 'Kembalian:',
@@ -680,6 +682,9 @@ return [
         'reprint_tag' => '(Cetak Ulang)',
         'status_uncertain' => 'Uncertain',
         'status_failed' => 'Failed',
+        'status_pending' => 'Menunggu',
+        'status_processing' => 'Diproses',
+        'status_completed' => 'Selesai',
     ],
 
     // Shifts & Cash Drawer Management (Owner & Cashier)

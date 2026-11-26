@@ -74,7 +74,7 @@
                     <p>{{ __('messages.stock.result_quantity') }}: <strong>{{ $lastResult['quantity'] }} {{ $lastResult['unit'] }}</strong></p>
                     <p>
                         {{ __('messages.stock.result_balance_before') }}: <strong>{{ $lastResult['balance_before'] }} {{ $lastResult['unit'] }}</strong>
-                        &rarr;
+                        →
                         {{ __('messages.stock.result_balance_after') }}: <strong>{{ $lastResult['balance_after'] }} {{ $lastResult['unit'] }}</strong>
                     </p>
                 </div>

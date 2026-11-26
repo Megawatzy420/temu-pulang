@@ -147,6 +147,8 @@ return [
         'payment_cash' => 'Cash',
         'payment_qris' => 'QRIS',
         'payment_debit' => 'Debit',
+        'payment_credit' => 'Credit Card',
+        'payment_transfer' => 'Bank Transfer',
         'cash_received' => 'Cash Received',
         'exact_cash' => 'Exact Cash',
         'change_label' => 'Change:',
@@ -680,6 +682,9 @@ return [
         'reprint_tag' => '(Reprint)',
         'status_uncertain' => 'Uncertain',
         'status_failed' => 'Failed',
+        'status_pending' => 'Pending',
+        'status_processing' => 'Processing',
+        'status_completed' => 'Completed',
     ],
 
     // Shifts & Cash Drawer Management (Owner & Cashier)

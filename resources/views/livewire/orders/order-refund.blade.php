@@ -74,11 +74,19 @@
             @foreach ($order->payments as $payment)
                 @php
                     $remaining = $payment->remainingRefundableBalance();
+                    $paymentMethodLabel = match ($payment->payment_method) {
+                        'cash' => __('messages.pos.payment_cash'),
+                        'qris' => __('messages.pos.payment_qris'),
+                        'debit' => __('messages.pos.payment_debit'),
+                        'credit' => __('messages.pos.payment_credit'),
+                        'transfer' => __('messages.pos.payment_transfer'),
+                        default => $payment->payment_method,
+                    };
                 @endphp
                 <div class="p-4 rounded-2xl bg-cream-50/70 border border-coffee-200/70 space-y-3">
                     <div class="flex flex-wrap items-center justify-between gap-2">
                         <span class="text-sm font-bold text-coffee-950">
-                            {{ __('messages.refund.payment_label', ['id' => $payment->id, 'method' => strtoupper($payment->payment_method)]) }}
+                            {{ __('messages.refund.payment_label', ['id' => $payment->id, 'method' => $paymentMethodLabel]) }}
                         </span>
                         <div class="flex items-center gap-4 text-xs">
                             <span class="text-coffee-700">

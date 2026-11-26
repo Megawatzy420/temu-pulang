@@ -22,7 +22,7 @@
                             <x-badge variant="success" size="sm">{{ __('messages.shifts.active_badge') }}</x-badge>
                         </div>
                         <p class="text-xs text-coffee-600 mt-0.5">
-                            {!! __('messages.shifts.opened_by_meta', ['user' => e($activeShift->user->name), 'datetime' => $activeShift->opened_at->timezone('Asia/Jakarta')->translatedFormat('d M Y, H:i')]) !!}
+                            {!! __('messages.shifts.opened_by_meta', ['user' => e($activeShift->user->name), 'datetime' => e($activeShift->opened_at->timezone('Asia/Jakarta')->translatedFormat('d M Y, H:i'))]) !!}
                             @if ($activeShift->opening_note)
                                 • <span class="italic text-coffee-500">"{{ $activeShift->opening_note }}"</span>
                             @endif
@@ -122,7 +122,7 @@
                         <svg class="w-4 h-4 text-sky-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
-                        <span>{!! __('messages.shifts.non_cash_sales_banner', ['amount' => number_format($activeShift->totalNonCashPayments(), 0, ',', '.')]) !!}</span>
+                        <span>{!! __('messages.shifts.non_cash_sales_banner', ['amount' => e(number_format($activeShift->totalNonCashPayments(), 0, ',', '.'))]) !!}</span>
                     </div>
                     <span class="text-[11px] text-sky-700 font-medium hidden sm:inline">{{ __('messages.shifts.non_cash_sales_hint') }}</span>
                 </div>
@@ -167,7 +167,20 @@
                                             @endif
                                         </td>
                                         <td class="py-2.5 px-3.5 font-medium text-coffee-800">
-                                            {{ ucfirst(str_replace('_', ' ', $m->category)) }}
+                                            @php
+                                                $movementCategoryLabel = match ($m->category) {
+                                                    'capital_add' => __('messages.shifts.cat_capital_add'),
+                                                    'owner_deposit' => __('messages.shifts.cat_owner_deposit'),
+                                                    'other_in' => __('messages.shifts.cat_other_in'),
+                                                    'expense' => __('messages.shifts.cat_expense'),
+                                                    'cash_drop' => __('messages.shifts.cat_cash_drop'),
+                                                    'owner_withdrawal' => __('messages.shifts.cat_owner_withdrawal'),
+                                                    'other_out' => __('messages.shifts.cat_other_out'),
+                                                    'reversal' => __('messages.shifts.cat_reversal'),
+                                                    default => $m->category,
+                                                };
+                                            @endphp
+                                            {{ $movementCategoryLabel }}
                                         </td>
                                         <td class="py-2.5 px-3.5 text-coffee-700 max-w-xs truncate" title="{{ $m->description }}">
                                             {{ $m->description }}

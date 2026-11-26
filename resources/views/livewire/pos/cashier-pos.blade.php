@@ -726,7 +726,7 @@
                                     class="mt-0.5 rounded border-coffee-300 text-coffee-900 focus:ring-coffee-500"
                                 />
                                 <span class="text-xs text-coffee-800 font-semibold leading-snug">
-                                    {!! __('messages.pos.qris_confirm_checkbox', ['amount' => number_format($total, 0, ',', '.')]) !!}
+                                    {!! __('messages.pos.qris_confirm_checkbox', ['amount' => e(number_format($total, 0, ',', '.'))]) !!}
                                 </span>
                             </label>
                         </div>
@@ -753,7 +753,7 @@
                                     class="mt-0.5 rounded border-coffee-300 text-coffee-900 focus:ring-coffee-500"
                                 />
                                 <span class="text-xs text-coffee-800 font-semibold leading-snug">
-                                    {!! __('messages.pos.debit_confirm_checkbox', ['amount' => number_format($total, 0, ',', '.')]) !!}
+                                    {!! __('messages.pos.debit_confirm_checkbox', ['amount' => e(number_format($total, 0, ',', '.'))]) !!}
                                 </span>
                             </label>
                         </div>
@@ -879,9 +879,19 @@
                         @endif
 
                         @if ($lastPaymentMethod)
+                            @php
+                                $lastPaymentMethodLabel = match ($lastPaymentMethod) {
+                                    'cash' => __('messages.pos.payment_cash'),
+                                    'qris' => __('messages.pos.payment_qris'),
+                                    'debit' => __('messages.pos.payment_debit'),
+                                    'credit' => __('messages.pos.payment_credit'),
+                                    'transfer' => __('messages.pos.payment_transfer'),
+                                    default => $lastPaymentMethod,
+                                };
+                            @endphp
                             <div class="flex items-center justify-between text-coffee-600">
                                 <span class="text-xs">{{ __('messages.pos.payment_method_label') }}</span>
-                                <span class="font-semibold text-coffee-800 uppercase text-xs">{{ $lastPaymentMethod }}</span>
+                                <span class="font-semibold text-coffee-800 uppercase text-xs">{{ $lastPaymentMethodLabel }}</span>
                             </div>
                         @endif
                     </div>

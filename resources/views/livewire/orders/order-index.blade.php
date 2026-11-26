@@ -152,7 +152,9 @@
                             </span>
                             
                             <!-- Status Badge -->
-                            @if($order->status === 'awaiting_payment')
+                            @if($order->status === 'draft')
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">{{ __('messages.owner_dashboard.badge_draft') }}</span>
+                            @elseif($order->status === 'awaiting_payment')
                                 <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">{{ __('messages.orders.badge_awaiting_payment') }}</span>
                             @elseif($order->status === 'paid')
                                 <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">{{ __('messages.orders.badge_paid') }}</span>
@@ -378,11 +380,32 @@
                 <div class="pt-3 border-t border-zinc-100 dark:border-zinc-800 space-y-2">
                     <h4 class="text-xs font-bold uppercase tracking-wider text-zinc-400">{{ __('messages.orders.status_history_heading') }}</h4>
                     <div class="space-y-2 text-xs">
+                        @php
+                            $translateHistoryStatus = static fn (?string $status): ?string => match ($status) {
+                                null, '' => null,
+                                'draft' => __('messages.owner_dashboard.badge_draft'),
+                                'awaiting_payment' => __('messages.orders.badge_awaiting_payment'),
+                                'paid' => __('messages.orders.badge_paid'),
+                                'queued' => __('messages.orders.badge_queued'),
+                                'preparing' => __('messages.orders.badge_preparing'),
+                                'ready' => __('messages.orders.badge_ready'),
+                                'completed' => __('messages.orders.badge_completed'),
+                                'cancelled' => __('messages.orders.badge_cancelled'),
+                                'unpaid' => __('messages.refund.status_unpaid'),
+                                'partially_refunded' => __('messages.refund.status_partially_refunded'),
+                                'refunded' => __('messages.refund.status_refunded'),
+                                default => $status,
+                            };
+                        @endphp
                         @foreach($selectedOrder->statusHistories as $hist)
+                            @php
+                                $fromStatusLabel = $translateHistoryStatus($hist->from_status);
+                                $toStatusLabel = $translateHistoryStatus($hist->to_status) ?? '';
+                            @endphp
                             <div class="p-2 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800">
                                 <div class="flex items-center justify-between text-[11px]">
                                     <span class="font-semibold text-zinc-800 dark:text-zinc-200">
-                                        {{ $hist->from_status ? "{$hist->from_status} &rarr; " : '' }}{{ $hist->to_status }}
+                                        {{ $fromStatusLabel !== null ? "{$fromStatusLabel} → {$toStatusLabel}" : $toStatusLabel }}
                                     </span>
                                     <span class="text-zinc-400">{{ $hist->created_at->format('H:i:s') }}</span>
                                 </div>

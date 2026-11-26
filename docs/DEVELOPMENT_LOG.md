@@ -1610,6 +1610,98 @@ Replaced all hardcoded demo data, fake orders (`TP-0100`..`TP-0104`), fake best 
 - **Laravel Pint (`php vendor/bin/pint --dirty --test`):** ✅ Clean (`passed`)
 - **Vite Build (`npm run build`):** ✅ Compiled successfully in 812ms
 
+---
+
+## UI Text Hardening — Raw Machine Keys, Escaped HTML Entities & `{!! !!}` Placeholder Escaping
+
+**Date:** 2026-11-26  
+**Status:** ✅ COMPLETED
+
+### Summary
+Audited all language files (`lang/id/messages.php`, `lang/en/messages.php`), Blade views (`resources/views/**`), and Livewire components (`app/Livewire/**`) for HTML entities, raw machine keys rendered to users, and unescaped `{!! ... !!}` expressions. Verified and fixed the root cause of `"awaiting_payment &rarr; paid"` in the Order Detail modal (`resources/views/livewire/orders/order-index.blade.php:385`, where `" &rarr; "` and raw `$hist->from_status` / `$hist->to_status` were interpolated inside `{{ ... }}`), replaced raw machine keys across `ShiftManager`, `CashierPos`, `OrderRefund`, and `PrintJobIndex` with translated labels, replaced remaining `&rarr;` entities in Blade views with real Unicode `→`, and wrapped all dynamic `{!! __('...') !!}` placeholder arguments in `e(...)`.
+
+### Before / After Audit Tables
+
+#### Table 1(a) — HTML Entities (`&[A-Za-z]+;` and `&#[0-9]+;`) in `lang/id/messages.php` & `lang/en/messages.php` (Plus Blade `{{ }}` / View Entities)
+| Location | Before | After | Explanation |
+|---|---|---|---|
+| `lang/id/messages.php` (all 1,122 lines) | 0 HTML entities | 0 HTML entities | All lang values use real Unicode characters (`→`, `✓`, `•`, `&`, `—`) |
+| `lang/en/messages.php` (all 1,122 lines) | 0 HTML entities | 0 HTML entities | All lang values use real Unicode characters (`→`, `✓`, `•`, `&`, `—`) |
+| `resources/views/livewire/orders/order-index.blade.php:385` | `{{ $hist->from_status ? "{$hist->from_status} &rarr; " : '' }}{{ $hist->to_status }}` (printed `&rarr;` literally due to `{{ }}` escaping) | `{{ $fromStatusLabel !== null ? "{$fromStatusLabel} → {$toStatusLabel}" : $toStatusLabel }}` | Replaced `&rarr;` inside `{{ }}` with real Unicode `→` and translated status labels |
+| `resources/views/livewire/dashboard/owner-dashboard.blade.php:247` | `{{ __('messages.stock_alert.view_all') }} &rarr;` | `{{ __('messages.stock_alert.view_all') }} →` | Replaced `&rarr;` with real Unicode `→` |
+| `resources/views/livewire/inventory/stock-adjustment-manager.blade.php:77` | `&rarr;` | `→` | Replaced `&rarr;` with real Unicode `→` |
+| `resources/views/livewire/inventory/stock-movement-history.blade.php:177` | `{{ $beforeFormatted }} &rarr; <strong>{{ $afterFormatted }}</strong>` | `{{ $beforeFormatted }} → <strong>{{ $afterFormatted }}</strong>` | Replaced `&rarr;` with real Unicode `→` |
+
+#### Table 1(b) — Raw Machine Keys Printed as Visible UI Text in Views / Livewire
+| File & Line | Raw Machine Key / Expression (Before) | Fixed Output (After) | Status |
+|---|---|---|---|
+| `resources/views/livewire/orders/order-index.blade.php:385` | `{{ $hist->from_status ? "{$hist->from_status} &rarr; " : '' }}{{ $hist->to_status }}` (printed raw `awaiting_payment`, `paid`, `queued`, `preparing`, `ready`, `completed`, `cancelled`, `partially_refunded`, `refunded`) | Mapped `from_status` and `to_status` via `$translateHistoryStatus` to `messages.owner_dashboard.badge_draft`, `messages.orders.badge_*`, and `messages.refund.status_*` with real `→` | Fixed ✅ |
+| `resources/views/livewire/orders/order-index.blade.php:155-169` | Status badge `@if/@elseif` chain omitted `draft` status | Added `@if($order->status === 'draft')` badge rendering `__('messages.owner_dashboard.badge_draft')` | Fixed ✅ |
+| `resources/views/livewire/shifts/shift-manager.blade.php:170` | `{{ ucfirst(str_replace('_', ' ', $m->category)) }}` (printed raw `"Capital add"`, `"Cash drop"`, `"Owner withdrawal"`, etc. in both ID and EN) | Mapped `$m->category` to `__('messages.shifts.cat_'.$m->category)` (`Tambah Modal Awal` / `Add Starting Float`, etc.) | Fixed ✅ |
+| `resources/views/livewire/pos/cashier-pos.blade.php:884` | `<span class="... uppercase text-xs">{{ $lastPaymentMethod }}</span>` (printed raw `'cash'`, `'qris'`, `'debit'` in POS success modal) | Mapped `$lastPaymentMethod` to `messages.pos.payment_cash`, `payment_qris`, `payment_debit`, `payment_credit`, `payment_transfer` | Fixed ✅ |
+| `resources/views/livewire/orders/order-refund.blade.php:81` | `{{ __('messages.refund.payment_label', ['id' => $payment->id, 'method' => strtoupper($payment->payment_method)]) }}` (printed `Pembayaran #1 (CASH)`) | Mapped `$payment->payment_method` to `messages.pos.payment_*` (`Pembayaran #1 (Tunai)` / `Payment #1 (Cash)`) | Fixed ✅ |
+| `resources/views/livewire/printing/print-job-index.blade.php:57,80` | Line 57 only matched `$job->job_type === 'receipt'` (missing `'customer_receipt'`); line 80 fallback printed raw `{{ $job->status }}` | Line 57 matches `['receipt', 'customer_receipt']`; line 80 maps `pending`, `processing`, `completed` to `messages.printing.status_*` | Fixed ✅ |
+| `resources/views/livewire/activity-logs/activity-log-index.blade.php:114,124,173` | `{{ $log->action }}` (`order.created`, `shift.opened`, etc.) and `{{ class_basename($log->subject_type) }} #{{ $log->subject_id }}` in `font-mono` | Kept as technical audit action/subject codes per Rule 4 | Intentional Code Identifier (Kept) |
+
+#### Table 1(c) — Every `{!! ... !!}` Expression in Views & Placeholder Escaping Status
+| File & Line | Expression (Before) | Placeholder Escaping (Before) | Action / Status (After) |
+|---|---|---|---|
+| `resources/views/components/button.blade.php:35` | `<span class="shrink-0">{!! $icon !!}</span>` | Internal component SVG icon prop (no user data) | Unchanged (Safe internal SVG prop) |
+| `resources/views/components/input.blade.php:28` | `{!! $icon !!}` | Internal component SVG icon prop (no user data) | Unchanged (Safe internal SVG prop) |
+| `resources/views/livewire/inventory/ingredient-manager.blade.php:316` | `{!! __('messages.ingredients.empty_categories_html') !!}` | Static translation string with `<strong>`, 0 placeholders | Unchanged (Safe, no placeholders) |
+| `resources/views/livewire/inventory/ingredient-manager.blade.php:497` | `{!! __('messages.ingredients.delete_ingredient_modal_desc', ['name' => e($deletingIngredientName)]) !!}` | `name` escaped with `e()` | Unchanged (Safe, escaped with `e()`) |
+| `resources/views/livewire/inventory/ingredient-manager.blade.php:593` | `{!! __('messages.ingredients.delete_category_modal_desc', ['name' => e($deletingCategoryName)]) !!}` | `name` escaped with `e()` | Unchanged (Safe, escaped with `e()`) |
+| `resources/views/livewire/pos/cashier-pos.blade.php:729` | `{!! __('messages.pos.qris_confirm_checkbox', ['amount' => number_format($total, 0, ',', '.')]) !!}` | `amount` formatted integer, not wrapped in `e()` | Wrapped in `e(number_format($total, 0, ',', '.'))` ✅ |
+| `resources/views/livewire/pos/cashier-pos.blade.php:756` | `{!! __('messages.pos.debit_confirm_checkbox', ['amount' => number_format($total, 0, ',', '.')]) !!}` | `amount` formatted integer, not wrapped in `e()` | Wrapped in `e(number_format($total, 0, ',', '.'))` ✅ |
+| `resources/views/livewire/shifts/shift-manager.blade.php:25` | `{!! __('messages.shifts.opened_by_meta', ['user' => e($activeShift->user->name), 'datetime' => $activeShift->opened_at->timezone('Asia/Jakarta')->translatedFormat('d M Y, H:i')]) !!}` | `user` escaped with `e()`; `datetime` not wrapped in `e()` | Wrapped `datetime` in `e(...)` as well ✅ |
+| `resources/views/livewire/shifts/shift-manager.blade.php:125` | `{!! __('messages.shifts.non_cash_sales_banner', ['amount' => number_format($activeShift->totalNonCashPayments(), 0, ',', '.')]) !!}` | `amount` formatted integer, not wrapped in `e()` | Wrapped in `e(number_format($activeShift->totalNonCashPayments(), 0, ',', '.'))` ✅ |
+
+### Step 5 Report — Stored Free Text Containing Raw Keys or Fixed-Locale Wording (Reported Only, Not Changed)
+1. **`order_status_histories.notes` (Written by Services at Transition Time, Rendered at `resources/views/livewire/orders/order-index.blade.php:411`):**
+   - `app/Services/OrderService.php:269`: `'Pesanan baru dibuat melalui kasir.'` (Indonesian free text).
+   - `app/Services/OrderService.php:432`: `$notes ?: "Status diperbarui menjadi {$newStatus}."` (Indonesian free text embedding raw `$newStatus` key such as `paid`, `queued`, `preparing`, `ready`, `completed`).
+   - `app/Services/OrderService.php:505`: `"Dibatalkan oleh Owner. Alasan: {$reason}"` (Indonesian free text).
+   - `app/Services/PaymentService.php:450`: `'Pembayaran lunas diterima ('.implode(', ', array_column($normalizedTenders, 'payment_method')).').'` (Indonesian free text embedding raw `payment_method` keys such as `cash`, `qris`, `debit`).
+   - `app/Services/RefundService.php:255`: `'Pesanan dibatalkan akibat refund penuh oleh Owner. Alasan: '.trim($reason)` (Indonesian free text).
+   - `app/Services/RefundService.php:268`: `"Status pembayaran diperbarui menjadi {$newPaymentStatus} setelah refund {$refundTransaction->refund_transaction_number}."` (Indonesian free text embedding raw `$newPaymentStatus` key `partially_refunded` or `refunded`).
+   - *(Note: The `(oleh: :user)` / `(by: :user)` suffix on `order-index.blade.php:411` uses the localized `__('messages.orders.history_by_user', ...)` key at render time).*
+2. **`orders.cancellation_reason` (Written by `RefundService` on Full Refund):**
+   - `app/Services/RefundService.php:244`: `'Refund penuh telah diproses. Alasan: '.trim($reason)` (Indonesian prefix stored in DB).
+3. **`stock_movements.notes` (Written by `InventoryService` on Order Deduction / Refund Restock, Rendered at `resources/views/livewire/inventory/stock-movement-history.blade.php:203`):**
+   - `app/Services/Inventory/InventoryService.php:87`: `"Order {$order->order_number} ({$transaction->payment_transaction_number})"` (English prefix stored in DB).
+   - `app/Services/Inventory/InventoryService.php:164`: `"Refund {$refund->refund_transaction_number}"` (English prefix stored in DB).
+4. **`activity_logs.description` (Written at Event Time, Rendered Verbatim at `resources/views/livewire/activity-logs/activity-log-index.blade.php:119`):**
+   - **Writes embedding raw machine keys in Indonesian or English free text:**
+     - `app/Services/CashMovementService.php:78`: `"{$typeName} sebesar {$formattedAmount} dicatat oleh {$user->name} pada Shift {$freshShift->shift_number}. Kategori: {$category}, Alasan: {$description}"` (embeds raw `$category` key such as `capital_add`, `expense`).
+     - `app/Services/OrderService.php:437`: `"Status pesanan {$order->order_number} diubah dari {$currentStatus} ke {$newStatus}."` (embeds raw `$currentStatus` and `$newStatus` keys).
+     - `app/Services/PrintService.php:176`: `"Pekerjaan cetak #{$job->id} diselesaikan secara manual sebagai '{$resolution}' oleh {$user->name}."` (embeds raw `$resolution` key `completed` or `failed`).
+     - `app/Livewire/Inventory/StockAdjustmentManager.php:217`: `"Stock movement ({$auditAction}) for {$ingredient->name}: {$movement->quantity} {$ingredient->unit}."` (English text embedding raw `$auditAction` key `stock_in`, `stock_wastage`, or `stock_adjustment`).
+   - **Other fixed-locale `activity_logs.description` write sites:**
+     - Indonesian: `app/Http/Middleware/EnsureUserHasRole.php:47`, `app/Livewire/Inventory/IngredientManager.php:215,235,260,328,354`, `app/Livewire/Menu/CategoryManager.php:121,153,176`, `app/Livewire/Menu/ModifierManager.php:261,283,315`, `app/Livewire/Menu/ProductIndex.php:35,59,91`, `app/Livewire/Printing/PrintJobIndex.php:83`, `app/Livewire/Settings/ShopSettingsManager.php:187`, `app/Services/CashMovementService.php:170`, `app/Services/OrderService.php:277,510`, `app/Services/PaymentService.php:456`, `app/Services/PrintService.php:102`, `app/Services/RefundService.php:275`, `app/Services/ShiftService.php:86,187`.
+     - English: `app/Console/Commands/DeactivateUserCommand.php:35,68`, `app/Http/Controllers/AuthController.php:113,134`, `app/Livewire/Orders/OrderRefund.php:166`, `app/Livewire/Settings/ShopSettingsManager.php:256,293`, `app/Services/PaymentService.php:507`.
+
+### Deliverables
+- **Files Created:**
+  - `tests/Feature/Localization/RawKeysAndEntitiesUiTest.php` (5 tests, 4176 assertions)
+- **Files Modified:**
+  - `lang/id/messages.php`, `lang/en/messages.php`
+  - `resources/views/livewire/orders/order-index.blade.php`
+  - `resources/views/livewire/shifts/shift-manager.blade.php`
+  - `resources/views/livewire/pos/cashier-pos.blade.php`
+  - `resources/views/livewire/orders/order-refund.blade.php`
+  - `resources/views/livewire/printing/print-job-index.blade.php`
+  - `resources/views/livewire/dashboard/owner-dashboard.blade.php`
+  - `resources/views/livewire/inventory/stock-adjustment-manager.blade.php`
+  - `resources/views/livewire/inventory/stock-movement-history.blade.php`
+  - `docs/ARCHITECTURE.md`, `docs/PROJECT_PLAN.md`, `docs/DEVELOPMENT_LOG.md`
+
+### Automated Test Results
+- **Raw Keys & Entities UI Tests (`RawKeysAndEntitiesUiTest`):** 5 tests, 4176 assertions — 100% passing
+- **Existing Test Suites (Unmodified):** 466 tests, 2534 assertions — 100% passing
+- **Full Test Suite (`php artisan test --compact`):** 471 tests, 6710 assertions — 100% passing (0 failures, 0 errors)
+- **Laravel Pint (`php vendor/bin/pint --dirty --test`):** ✅ Clean (`passed`)
+- **Vite Build (`npm run build`):** ✅ Compiled successfully in 666ms
+
 
 
 
