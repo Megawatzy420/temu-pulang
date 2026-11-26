@@ -8,20 +8,34 @@ use Illuminate\Database\Seeder;
 
 class ShopSettingSeeder extends Seeder
 {
+    public const SAMPLE_ADDRESS = 'Jl. Boulevard Raya Blok A No. 12, Jakarta';
+
+    public const SAMPLE_PHONE = '0812-3456-7890';
+
+    public const SAMPLE_EMAIL = 'halo@temupulang.local';
+
+    public const SAMPLE_RECEIPT_HEADER = "TEMU PULANG\nCoffee & Eatery\nJl. Boulevard Raya Blok A No. 12, Jakarta\nTelp: 0812-3456-7890";
+
+    public const SAMPLE_RECEIPT_FOOTER = "Terima Kasih Atas Kunjungan Anda!\nFollow Instagram: @temupulang\nWiFi: TemuPulang | Pass: kopienak";
+
+    public const GENERIC_RECEIPT_FOOTER = 'Terima kasih atas kunjungan Anda';
+
     /**
      * Run the database seeds.
      */
     public function run(): void
     {
+        $useSampleValues = app()->environment(['local', 'testing']);
+
         // 1. Physical Shop / Branch Profile & Hardware Configuration
         ShopSetting::updateOrCreate(
             ['id' => 1],
             [
                 'branch_id' => null,
                 'name' => 'Temu Pulang Coffee & Eatery',
-                'address' => 'Jl. Boulevard Raya Blok A No. 12, Jakarta',
-                'phone' => '0812-3456-7890',
-                'email' => 'halo@temupulang.local',
+                'address' => $useSampleValues ? self::SAMPLE_ADDRESS : '',
+                'phone' => $useSampleValues ? self::SAMPLE_PHONE : '',
+                'email' => $useSampleValues ? self::SAMPLE_EMAIL : '',
                 'logo_path' => 'images/logo.png',
                 'currency' => 'IDR',
                 'timezone' => 'Asia/Jakarta',
@@ -38,8 +52,8 @@ class ShopSettingSeeder extends Seeder
                 'tax_rate' => 0, // 0.00% default
                 'is_tax_inclusive' => false,
                 'service_charge_rate' => 0, // 0.00% default
-                'receipt_header' => "TEMU PULANG\nCoffee & Eatery\nJl. Boulevard Raya Blok A No. 12, Jakarta\nTelp: 0812-3456-7890",
-                'receipt_footer' => "Terima Kasih Atas Kunjungan Anda!\nFollow Instagram: @temupulang\nWiFi: TemuPulang | Pass: kopienak",
+                'receipt_header' => $useSampleValues ? self::SAMPLE_RECEIPT_HEADER : null,
+                'receipt_footer' => $useSampleValues ? self::SAMPLE_RECEIPT_FOOTER : self::GENERIC_RECEIPT_FOOTER,
                 'receipt_show_logo' => true,
                 'receipt_show_tax' => false,
                 'receipt_show_customer_info' => true,

@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\View\View;
 
 class AuthController extends Controller
@@ -85,13 +86,38 @@ class AuthController extends Controller
             'password' => ['required', 'string'],
         ]);
 
+        $normalizedEmail = strtolower(trim((string) $credentials['email']));
+        $throttleKey = $normalizedEmail.'|'.$request->ip();
+
+        if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
+            $seconds = RateLimiter::availableIn($throttleKey);
+
+            ActivityLog::record(
+                action: 'auth.login_throttled',
+                description: "Throttled sign-in attempt for {$normalizedEmail}.",
+                properties: [
+                    'email' => $normalizedEmail,
+                    'retry_after_seconds' => $seconds,
+                ],
+                module: 'auth'
+            );
+
+            return back()->withInput($request->only('email', 'remember'))->withErrors([
+                'email' => __('messages.auth.too_many_attempts', ['seconds' => $seconds]),
+            ]);
+        }
+
         $remember = $request->boolean('remember');
 
         if (! Auth::attempt($credentials, $remember)) {
+            RateLimiter::hit($throttleKey, 60);
+
             return back()->withInput($request->only('email', 'remember'))->withErrors([
                 'email' => __('messages.auth.invalid_credentials'),
             ]);
         }
+
+        RateLimiter::clear($throttleKey);
 
         $request->session()->regenerate();
 

@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Http\Controllers\AuthController;
 use App\Models\ShopSetting;
 use App\Models\User;
+use Database\Seeders\ShopSettingSeeder;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -221,6 +222,49 @@ class PreflightCommand extends Command
             $record('WARN', 'No active shop_settings row exists.', 'Run: php artisan db:seed --class=ShopSettingSeeder');
         }
 
+        // 10b. Shop settings sample placeholder check (FAIL) & empty address/phone check (WARN)
+        if ($shopSetting !== null) {
+            $address = trim((string) ($shopSetting->address ?? ''));
+            $phone = trim((string) ($shopSetting->phone ?? ''));
+            $email = trim((string) ($shopSetting->email ?? ''));
+            $footer = trim((string) ($shopSetting->receipt_footer ?? ''));
+
+            $placeholderFields = [];
+            if ($address === ShopSettingSeeder::SAMPLE_ADDRESS) {
+                $placeholderFields[] = 'address';
+            }
+            if ($phone === ShopSettingSeeder::SAMPLE_PHONE) {
+                $placeholderFields[] = 'phone';
+            }
+            if ($email === ShopSettingSeeder::SAMPLE_EMAIL) {
+                $placeholderFields[] = 'email';
+            }
+            if ($footer === ShopSettingSeeder::SAMPLE_RECEIPT_FOOTER || str_contains($footer, 'Pass: kopienak')) {
+                $placeholderFields[] = 'receipt_footer';
+            }
+
+            if ($placeholderFields !== []) {
+                $fieldsList = implode(', ', $placeholderFields);
+                $record(
+                    'FAIL',
+                    "shop_settings still contains sample seeder placeholder value(s) in: {$fieldsList}.",
+                    'Open Pengaturan Toko (/settings) and replace the sample address, phone, email, and receipt footer.'
+                );
+            } else {
+                $record('PASS', 'shop_settings does not contain sample seeder placeholder values.');
+            }
+
+            if ($address === '' || $phone === '') {
+                $record(
+                    'WARN',
+                    'Shop address or phone number is empty in shop_settings.',
+                    'Open Pengaturan Toko (/settings) and fill in the store address and phone number.'
+                );
+            } else {
+                $record('PASS', 'Shop address and phone number are populated.');
+            }
+        }
+
         // 11. Configured receipt printer destination is set (WARN)
         $printerName = trim((string) ($shopSetting?->printer_name ?? ''));
         if ($printerName !== '') {
@@ -242,6 +286,35 @@ class PreflightCommand extends Command
             );
         } else {
             $record('PASS', "Cache ({$cacheDriver}), queue ({$queueDriver}), and session ({$sessionDriver}) drivers are persistent.");
+        }
+
+        // 13. SESSION_LIFETIME is at least 480 minutes (WARN if below 480)
+        $sessionLifetime = (int) config('session.lifetime', 120);
+        if ($sessionLifetime < 480) {
+            $record(
+                'WARN',
+                "SESSION_LIFETIME is {$sessionLifetime} minutes (below recommended 480 minutes for a full cashier shift).",
+                'Set SESSION_LIFETIME=720 in .env and run: php artisan config:clear'
+            );
+        } else {
+            $record('PASS', "SESSION_LIFETIME is {$sessionLifetime} minutes (>= 480).");
+        }
+
+        // 14. LOG_LEVEL is not debug while APP_ENV is production (WARN)
+        $defaultChannel = (string) config('logging.default', 'stack');
+        $configuredLevel = config("logging.channels.{$defaultChannel}.level")
+            ?? config('logging.channels.single.level')
+            ?? env('LOG_LEVEL', 'debug');
+        $logLevel = strtolower(trim((string) $configuredLevel));
+
+        if ($isProduction && $logLevel === 'debug') {
+            $record(
+                'WARN',
+                "LOG_LEVEL is 'debug' while APP_ENV is 'production'.",
+                'Set LOG_LEVEL=warning in .env and run: php artisan config:clear'
+            );
+        } else {
+            $record('PASS', "LOG_LEVEL is '{$logLevel}'.");
         }
 
         $this->newLine();

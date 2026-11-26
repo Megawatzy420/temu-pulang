@@ -42,14 +42,14 @@ class ShiftManager extends Component
     public bool $showReversalModal = false;
 
     // Open Shift Form
-    public int $openingCash = 200000;
+    public ?int $openingCash = null;
 
     public string $openingNote = '';
 
     // Cash Movement Form
     public string $movementType = 'in';
 
-    public int $movementAmount = 50000;
+    public ?int $movementAmount = null;
 
     public string $movementCategory = 'capital_add';
 
@@ -70,7 +70,7 @@ class ShiftManager extends Component
      */
     public function openNewShiftModal(): void
     {
-        $this->openingCash = 200000;
+        $this->openingCash = null;
         $this->openingNote = '';
         $this->showOpenShiftModal = true;
     }
@@ -88,7 +88,7 @@ class ShiftManager extends Component
         try {
             $shiftService->openShift(
                 user: Auth::user(),
-                openingCash: $this->openingCash,
+                openingCash: (int) $this->openingCash,
                 openingNote: $this->openingNote ?: null
             );
 
@@ -105,7 +105,7 @@ class ShiftManager extends Component
     public function openNewMovementModal(string $type = 'in'): void
     {
         $this->movementType = in_array($type, ['in', 'out'], true) ? $type : 'in';
-        $this->movementAmount = 50000;
+        $this->movementAmount = null;
         $this->movementCategory = $this->movementType === 'in' ? 'capital_add' : 'expense';
         $this->movementDescription = '';
         $this->showMovementModal = true;
@@ -135,7 +135,7 @@ class ShiftManager extends Component
                 shift: $activeShift,
                 user: Auth::user(),
                 type: $this->movementType,
-                amount: $this->movementAmount,
+                amount: (int) $this->movementAmount,
                 category: $this->movementCategory,
                 description: $this->movementDescription
             );
