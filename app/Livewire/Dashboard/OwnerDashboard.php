@@ -8,6 +8,7 @@ use App\Models\Category;
 use App\Models\Product;
 use App\Models\Shift;
 use App\Models\ShopSetting;
+use App\Services\BackupService;
 use App\Services\DashboardMetricsService;
 use App\Services\Inventory\LowStockService;
 use Illuminate\Support\Facades\Auth;
@@ -64,6 +65,9 @@ class OwnerDashboard extends Component
         ];
 
         $lowStockItems = app(LowStockService::class)->lowStockIngredients(limit: 5);
+        $backupStatus = app(BackupService::class)->getDashboardStatus(
+            timezone: (string) ($shopSetting->timezone ?: 'Asia/Jakarta'),
+        );
 
         $formattedTaxRate = DashboardMetricsService::formatBasisPoints((int) ($shopSetting->tax_rate ?? 0));
         $formattedServiceRate = DashboardMetricsService::formatBasisPoints((int) ($shopSetting->service_charge_rate ?? 0));
@@ -78,6 +82,7 @@ class OwnerDashboard extends Component
             'recentOrders' => $snapshot['recent_orders'],
             'topProducts' => $snapshot['best_sellers'],
             'lowStockItems' => $lowStockItems,
+            'backupStatus' => $backupStatus,
             'formattedTaxRate' => $formattedTaxRate,
             'formattedServiceRate' => $formattedServiceRate,
         ])->layout('components.layouts.app', [

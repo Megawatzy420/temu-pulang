@@ -1989,6 +1989,56 @@ Implemented Phase 7 Task 7.3 (read-only Sales Analytics for a single business da
 - **Laravel Pint (`php vendor/bin/pint --test`):** ✅ Clean (`passed`)
 - **Vite Build (`npm run build`):** ✅ Compiled successfully in 1.79s
 
+---
+
+## Phase 8 Task 8.1 — Automated Database Backup, Restore Check & Backup Monitoring
+
+**Date:** 2026-11-27  
+**Status:** ✅ COMPLETED
+
+### Summary
+Implemented Phase 8 Task 8.1 (automated MySQL database and QRIS asset backup, automated scratch-database restore verification, Windows Task Scheduler batch wrapper, preflight backup readiness checks, and an Owner Dashboard read-only backup status banner) using `Illuminate\Support\Facades\Process` and PHP's `ZipArchive` (no external Composer packages) while keeping all existing tests passing unmodified.
+
+### Implementation Details & Key Decisions
+1. **Configuration (`config/backup.php`, `.env.example`, `.env.production.example`):**
+   - Added `BACKUP_PATH` (default `storage_path('app/backups')`), `BACKUP_COPY_PATH` (optional secondary destination), `BACKUP_RETENTION_DAYS` (default `14`), `MYSQLDUMP_PATH` (default `'mysqldump'`), `MYSQL_CLIENT_PATH` (default `'mysql'`), `BACKUP_MAX_AGE_HOURS` (default `26`), and `BACKUP_REQUIRED` (boolean, default `false` in `.env.example` and code; `true` in `.env.production.example`).
+2. **Backup Engine (`App\Services\BackupService` & `php artisan temupulang:backup {--no-copy}`):**
+   - Refuses to run unless `config('database.default') === 'mysql'` (exits `1` with a clear message).
+   - Executes `mysqldump` with `--single-transaction`, `--routines`, `--triggers`, `--no-tablespaces`, `--default-character-set=utf8mb4`, `--host`, `--port`, `--user`, `--result-file=<temp.sql>`, and `<database>`.
+   - **Zero Secret Leakage**: Passes the database password exclusively through the child process's `MYSQL_PWD` environment variable and scrubs any occurrence of the password with `'[REDACTED]'` before printing or storing in `ActivityLog`. Never includes `.env` in the backup zip.
+   - Verifies that the dump file exists, is at least `1024` bytes, contains `CREATE TABLE`, and ends with `Dump completed` on its last non-empty line; deletes partial files on failure.
+   - Packages `database.sql`, `manifest.txt` (timestamp, app name, DB name, table count, dump size in bytes — no secrets), and `qris/` (from `storage/app/public/qris` when present) into `temu_pulang_YYYYmmdd_HHMMSS.zip` (shop timezone), removes the temporary `.sql`, optionally copies the zip to `BACKUP_COPY_PATH` (logging a `backup.copy_failed` warning on copy error without failing the main backup), prunes `temu_pulang_*.zip` files older than `BACKUP_RETENTION_DAYS` in both folders while **never deleting the newest 3 backups**, and logs `backup.completed` or `backup.failed` to `activity_logs` (`module: 'system'`).
+3. **Restore Verification (`php artisan temupulang:backup-verify {--file=}`):**
+   - Selects the newest `temu_pulang_*.zip` in `BACKUP_PATH` (or `--file`), extracts `database.sql` to a temp folder, generates a temporary database name `temu_restore_check_<10 random lowercase alphanumeric>`, refuses to run if the name equals the live database name or lacks the `temu_restore_check_` prefix, imports the dump via `mysql` (`MYSQL_PWD`), compares table counts and row counts of `orders`, `payment_transactions`, and `stock_movements` against the live database, and **always drops** the temporary database and removes the temp folder inside a `finally` block. Records `backup.verified` or `backup.verify_failed` in `ActivityLog`.
+4. **Preflight Checks (`PreflightCommand`) & Owner Dashboard Banner (`OwnerDashboard`):**
+   - `PreflightCommand` checks PHP `zip` extension (`[FAIL]` if missing), `mysqldump` binary discoverability (`[WARN]`), same-disk backup path without `BACKUP_COPY_PATH` (`[WARN]`), and latest `backup.completed` age (`[FAIL]` when `BACKUP_REQUIRED=true` in `production` and no `backup.completed` exists; `[WARN]` when older than `BACKUP_MAX_AGE_HOURS` or when `BACKUP_REQUIRED=false`).
+   - `OwnerDashboard` renders an Owner-only read-only backup status banner at the top of `/dashboard` using a single consolidated `ActivityLog` query (keeping total dashboard queries `<= 15`), showing red when never backed up or `>= BACKUP_MAX_AGE_HOURS`, amber when `>= intdiv(BACKUP_MAX_AGE_HOURS, 2)`, neutral `"Last backup: <date time> (<size>)"` otherwise, and a failure notice whenever `backup.failed` is newer than `backup.completed`.
+
+### Deliverables
+- **Files Created:**
+  - `config/backup.php`
+  - `app/Services/BackupService.php`
+  - `app/Console/Commands/BackupCommand.php`
+  - `app/Console/Commands/BackupVerifyCommand.php`
+  - `scripts/backup-nightly.bat`
+  - `tests/Unit/Services/BackupServiceTest.php` (5 tests, 48 assertions)
+  - `tests/Feature/Backup/BackupTest.php` (6 tests, 151 assertions)
+- **Files Modified:**
+  - `.env.example`, `.env.production.example`
+  - `app/Console/Commands/PreflightCommand.php`
+  - `app/Livewire/Dashboard/OwnerDashboard.php`
+  - `resources/views/livewire/dashboard/owner-dashboard.blade.php`
+  - `lang/id/messages.php`, `lang/en/messages.php`
+  - `docs/DEPLOYMENT.md`, `docs/ARCHITECTURE.md`, `docs/PROJECT_PLAN.md`, `docs/DEVELOPMENT_LOG.md`
+
+### Automated Test Results
+- **Backup Unit & Feature Tests (`BackupServiceTest` & `BackupTest`):** 11 tests, 199 assertions — 100% passing
+- **Existing Test Suites (Unmodified, including `GoLiveHardeningPart1Test`, `GoLiveHardeningPart2ATest`, and `OwnerDashboardMetricsTest`):** 506 tests, 8015 assertions — 100% passing
+- **Full Test Suite (`php artisan test --compact`):** 517 tests, 8214 assertions — 100% passing (0 failures, 0 errors)
+- **Laravel Pint (`php vendor/bin/pint --test`):** ✅ Clean (`passed`)
+- **Vite Build (`npm run build`):** ✅ Compiled successfully in 1.75s
+
+
 
 
 

@@ -625,3 +625,23 @@ All core Phase 6 inventory deduction services (`StockAdjustmentService`, `Recipe
 - **Owner-Only Livewire Analytics View (`App\Livewire\Reports\SalesAnalytics` at `/reports/analytics`, route `reports.analytics`)**:
   - **RBAC**: Protected by `auth` and `role:owner` middleware on the route and `Auth::user()?->isOwner()` checks in `mount()`, `updated()`, `applyPreset()`, `refreshAnalytics()`, and `render()`.
   - **Filters, Presets, Charts & Print**: URL-persisted `$from` and `$to` (`#[Url]`) with presets (`Today`, `Yesterday`, `This week`, `This month`, `Last month`), graceful validation reset with translated notice, plain HTML/Tailwind bars with values printed beside every bar, `@media print` stylesheet (`window.print()`), and Owner sidebar navigation link (`Analitik Penjualan` / `Sales Analytics`).
+
+---
+
+## 16. Automated Database Backup, Restore Verification & Monitoring Architecture (Phase 8)
+
+### 16.1. Backup & Restore Verification Service (`App\Services\BackupService`, Task 8.1)
+
+- **Zero-Package, Zero-Secret Subprocess Execution**:
+  - Uses `Illuminate\Support\Facades\Process` and PHP's native `ZipArchive` configured via `config/backup.php` (`BACKUP_PATH`, `BACKUP_COPY_PATH`, `BACKUP_RETENTION_DAYS`, `MYSQLDUMP_PATH`, `MYSQL_CLIENT_PATH`, `BACKUP_MAX_AGE_HOURS`, `BACKUP_REQUIRED`).
+  - Database passwords are **never** passed on the command line or stored in manifests, logs, or `ActivityLog` entries; they are passed exclusively via `Process::env(['MYSQL_PWD' => $secret])` and scrubbed (`'[REDACTED]'`) from all subprocess output and exception messages. `.env` is never included in backup zip archives.
+- **Backup Lifecycle (`BackupService::runBackup()` & `php artisan temupulang:backup {--no-copy}`)**:
+  - Requires `config('database.default') === 'mysql'`.
+  - Runs `mysqldump --single-transaction --routines --triggers --no-tablespaces --default-character-set=utf8mb4 --result-file=<temp.sql>`, verifies the dump file (`size >= 1024` bytes, contains `CREATE TABLE`, and ends with `Dump completed`), packages `database.sql`, `manifest.txt`, and `qris/` (`storage/app/public/qris`) into `temu_pulang_YYYYmmdd_HHMMSS.zip`, and deletes the temp `.sql` file.
+  - Copies the archive to `BACKUP_COPY_PATH` when configured (recording `backup.copy_failed` warning on error without failing the primary backup), prunes `temu_pulang_*.zip` older than `BACKUP_RETENTION_DAYS` while always preserving the newest 3 backups in both folders, and records `backup.completed` or `backup.failed` in `ActivityLog` (`module: 'system'`).
+  - Wrapped for Windows Task Scheduler by `scripts/backup-nightly.bat` (logging to `storage/logs/backup.log`).
+- **Automated Scratch-Database Restore Check (`BackupService::verifyBackup()` & `php artisan temupulang:backup-verify {--file=}`)**:
+  - Extracts `database.sql` from the newest `temu_pulang_*.zip` (or `--file`), creates a temporary database named `temu_restore_check_<10 random lowercase alphanumeric>`, asserts that the name starts with `temu_restore_check_` and does not equal the live database name, imports `database.sql` via the `mysql` client, compares table counts and row counts of `orders`, `payment_transactions`, and `stock_movements` against the live database, and **always drops** the temporary database and deletes the temporary extraction directory in a `finally` block. Records `backup.verified` or `backup.verify_failed` in `ActivityLog`.
+- **Preflight Checks (`PreflightCommand`) & Owner Dashboard Banner (`OwnerDashboard`)**:
+  - `temupulang:preflight` checks PHP `zip` extension loaded (`[FAIL]`), `mysqldump` discoverability (`[WARN]`), same-disk backup path without `BACKUP_COPY_PATH` (`[WARN]`), and latest `backup.completed` age (`[FAIL]` when `BACKUP_REQUIRED=true` in `production` and never backed up; `[WARN]` when older than `BACKUP_MAX_AGE_HOURS` or when `BACKUP_REQUIRED=false`).
+  - `OwnerDashboard` renders a read-only Owner-only backup health banner at the top of `/dashboard` using a single SQL query (`BackupService::getDashboardStatus()`), showing red (`danger`) when never backed up or age `>= BACKUP_MAX_AGE_HOURS`, amber (`warning`) when age `>= intdiv(BACKUP_MAX_AGE_HOURS, 2)`, neutral (`ok`) `"Last backup: <date time> (<size>)"` otherwise, and a failure notice whenever the newest `backup.failed` is newer than the newest `backup.completed`.

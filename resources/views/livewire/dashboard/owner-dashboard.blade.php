@@ -1,5 +1,56 @@
 <div class="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
 
+    @if (auth()->user()?->isOwner() && isset($backupStatus))
+        @php
+            $bannerClasses = match ($backupStatus['level']) {
+                'danger' => 'bg-rose-50 border-rose-300 text-rose-900',
+                'warning' => 'bg-amber-50 border-amber-300 text-amber-900',
+                default => 'bg-cream-50/90 border-coffee-200/80 text-coffee-800',
+            };
+            $dotClasses = match ($backupStatus['level']) {
+                'danger' => 'bg-rose-600',
+                'warning' => 'bg-amber-500',
+                default => 'bg-emerald-500',
+            };
+        @endphp
+        <div class="rounded-2xl border px-4 py-3 text-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 {{ $bannerClasses }}">
+            <div class="flex items-center gap-2.5">
+                <span class="w-2.5 h-2.5 rounded-full shrink-0 {{ $dotClasses }}"></span>
+                <span class="font-semibold">
+                    @if (! $backupStatus['has_completed_backup'])
+                        {{ __('messages.owner_dashboard.backup_never_run') }}
+                    @elseif ($backupStatus['level'] === 'danger')
+                        {{ __('messages.owner_dashboard.backup_overdue', [
+                            'datetime' => $backupStatus['last_completed_at_formatted'],
+                            'size' => $backupStatus['last_size_formatted'],
+                            'hours' => $backupStatus['age_hours'],
+                            'max' => $backupStatus['max_age_hours'],
+                        ]) }}
+                    @elseif ($backupStatus['level'] === 'warning')
+                        {{ __('messages.owner_dashboard.backup_aging', [
+                            'datetime' => $backupStatus['last_completed_at_formatted'],
+                            'size' => $backupStatus['last_size_formatted'],
+                            'hours' => $backupStatus['age_hours'],
+                        ]) }}
+                    @else
+                        {{ __('messages.owner_dashboard.backup_healthy', [
+                            'datetime' => $backupStatus['last_completed_at_formatted'],
+                            'size' => $backupStatus['last_size_formatted'],
+                        ]) }}
+                    @endif
+                </span>
+            </div>
+
+            @if ($backupStatus['show_failure_notice'])
+                <div class="text-rose-700 font-bold flex items-center gap-1.5">
+                    <span>
+                        {{ __('messages.owner_dashboard.backup_recent_failure', ['datetime' => $backupStatus['last_failed_at_formatted']]) }}
+                    </span>
+                </div>
+            @endif
+        </div>
+    @endif
+
     <!-- Top KPI Metrics Grid -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <!-- 1. Total Penjualan Hari Ini (Net, Gross & Refunds) -->

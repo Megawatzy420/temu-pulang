@@ -3,8 +3,11 @@
 namespace App\Console\Commands;
 
 use App\Http\Controllers\AuthController;
+use App\Models\ActivityLog;
 use App\Models\ShopSetting;
 use App\Models\User;
+use App\Services\BackupService;
+use Carbon\CarbonImmutable;
 use Database\Seeders\ShopSettingSeeder;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
@@ -315,6 +318,95 @@ class PreflightCommand extends Command
             );
         } else {
             $record('PASS', "LOG_LEVEL is '{$logLevel}'.");
+        }
+
+        // 15. PHP zip extension is loaded (FAIL if missing)
+        $zipLoaded = (bool) config('backup.preflight_zip_loaded', extension_loaded('zip'));
+        if ($zipLoaded) {
+            $record('PASS', 'PHP zip extension is loaded.');
+        } else {
+            $record(
+                'FAIL',
+                'PHP zip extension is not loaded.',
+                'Enable extension=zip in php.ini and restart Apache / PHP.'
+            );
+        }
+
+        // 16. mysqldump binary can be found (WARN if not found)
+        $mysqldumpPath = (string) config('backup.mysqldump_path', 'mysqldump');
+        if (BackupService::isBinaryDiscoverable($mysqldumpPath)) {
+            $record('PASS', 'mysqldump binary is discoverable.');
+        } else {
+            $record(
+                'WARN',
+                'mysqldump binary could not be located at configured MYSQLDUMP_PATH or on system PATH.',
+                'Set MYSQLDUMP_PATH="C:\xampp\mysql\bin\mysqldump.exe" in .env and run: php artisan config:clear'
+            );
+        }
+
+        // 17. BACKUP_PATH inside project folder while BACKUP_COPY_PATH is empty (WARN)
+        $backupPathRaw = trim((string) config('backup.path', storage_path('app/backups')));
+        $copyPathRaw = trim((string) config('backup.copy_path', ''));
+        $normalizedBackupPath = strtolower(str_replace('\\', '/', rtrim($backupPathRaw, '\\/')));
+        $normalizedBasePath = strtolower(str_replace('\\', '/', rtrim(base_path(), '\\/')));
+        $isInsideProject = $normalizedBackupPath === $normalizedBasePath
+            || str_starts_with($normalizedBackupPath, $normalizedBasePath.'/');
+
+        if ($isInsideProject && $copyPathRaw === '') {
+            $record(
+                'WARN',
+                'BACKUP_PATH is inside the project directory and BACKUP_COPY_PATH is empty (backups are stored on the same disk as the application data).',
+                'Set BACKUP_COPY_PATH in .env to a folder on a separate physical drive or external storage.'
+            );
+        } else {
+            $record('PASS', 'Backup storage destination is separated from the project directory or has a secondary copy path configured.');
+        }
+
+        // 18. Recent completed database backup check (FAIL if BACKUP_REQUIRED=true in production and never backed up; WARN if never backed up otherwise or older than BACKUP_MAX_AGE_HOURS)
+        $maxAgeHours = max(1, (int) config('backup.max_age_hours', 26));
+        $backupRequired = (bool) config('backup.required', false);
+
+        if ($dbConnected) {
+            try {
+                $latestBackup = ActivityLog::query()
+                    ->where('module', 'system')
+                    ->where('action', 'backup.completed')
+                    ->orderByDesc('created_at')
+                    ->orderByDesc('id')
+                    ->first();
+
+                if ($latestBackup === null || $latestBackup->created_at === null) {
+                    if ($isProduction && $backupRequired) {
+                        $record(
+                            'FAIL',
+                            'No completed database backup (backup.completed) found while BACKUP_REQUIRED is enabled in production.',
+                            'Run: php artisan temupulang:backup (this check clears automatically after the first successful backup).'
+                        );
+                    } else {
+                        $record(
+                            'WARN',
+                            'No completed database backup (backup.completed) found in activity_logs yet.',
+                            'Set BACKUP_REQUIRED=true on the cafe host PC and run: php artisan temupulang:backup'
+                        );
+                    }
+                } else {
+                    $completedAt = CarbonImmutable::instance($latestBackup->created_at);
+                    $ageSeconds = max(0, CarbonImmutable::now()->getTimestamp() - $completedAt->getTimestamp());
+                    $ageHours = intdiv($ageSeconds, 3600);
+
+                    if ($ageHours >= $maxAgeHours) {
+                        $record(
+                            'WARN',
+                            "Latest completed backup is {$ageHours} hours old (exceeds BACKUP_MAX_AGE_HOURS={$maxAgeHours}h).",
+                            'Run: php artisan temupulang:backup and verify the Windows Task Scheduler nightly backup task.'
+                        );
+                    } else {
+                        $record('PASS', "Latest completed backup is {$ageHours} hour(s) old (within {$maxAgeHours}h limit).");
+                    }
+                }
+            } catch (Throwable) {
+                $record('WARN', 'Could not inspect activity_logs for backup history.');
+            }
         }
 
         $this->newLine();

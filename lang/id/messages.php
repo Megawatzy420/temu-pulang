@@ -513,6 +513,11 @@ return [
         'no_orders_today_desc' => 'Pesanan yang dibuat pada hari bisnis ini akan muncul di sini.',
         'no_best_sellers_today' => 'Belum ada penjualan hari ini.',
         'badge_draft' => 'Draf',
+        'backup_never_run' => 'Cadangan Database: Belum pernah ada backup otomatis yang berhasil tercatat.',
+        'backup_overdue' => 'Cadangan Database Terlambat: Backup terakhir :datetime (:size) — :hours jam lalu (batas maksimum :max jam).',
+        'backup_aging' => 'Cadangan Database: Backup terakhir :datetime (:size) — :hours jam lalu.',
+        'backup_healthy' => 'Cadangan terakhir: :datetime (:size)',
+        'backup_recent_failure' => 'Peringatan: Percobaan backup terakhir gagal pada :datetime.',
     ],
 
     // Refund Management (Owner only)

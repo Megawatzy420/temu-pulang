@@ -42,6 +42,14 @@ BROADCAST_CONNECTION=log
 FILESYSTEM_DISK=local
 QUEUE_CONNECTION=database
 CACHE_STORE=database
+
+BACKUP_PATH="C:\backups\temu-pulang"
+BACKUP_COPY_PATH="D:\temu-pulang-backups"
+BACKUP_RETENTION_DAYS=14
+MYSQLDUMP_PATH="C:\xampp\mysql\bin\mysqldump.exe"
+MYSQL_CLIENT_PATH="C:\xampp\mysql\bin\mysql.exe"
+BACKUP_MAX_AGE_HOURS=26
+BACKUP_REQUIRED=true
 ```
 
 > **Key Notes:**
@@ -170,6 +178,10 @@ php artisan temupulang:preflight
 12. Cache, queue, and session drivers are not set to `array` (`[WARN]`).
 13. `SESSION_LIFETIME` is at least `480` minutes (`[WARN]` if below `480`).
 14. `LOG_LEVEL` is not `debug` while `APP_ENV=production` (`[WARN]`).
+15. PHP `zip` extension (`ZipArchive`) is loaded (`[FAIL]` if missing).
+16. `mysqldump` binary is discoverable at `MYSQLDUMP_PATH` or on system `PATH` (`[WARN]` if not found).
+17. `BACKUP_PATH` is outside the project directory or `BACKUP_COPY_PATH` is configured on a second drive (`[WARN]` if backups live only inside the project folder on the same disk).
+18. Recent completed database backup (`backup.completed` in `activity_logs`) exists and is newer than `BACKUP_MAX_AGE_HOURS` (`[FAIL]` when `BACKUP_REQUIRED=true` in `production` and no backup has ever completed — clears automatically after the first successful `php artisan temupulang:backup`; `[WARN]` when older than `BACKUP_MAX_AGE_HOURS` or when `BACKUP_REQUIRED=false`).
 
 All `[FAIL]` items must be resolved until `php artisan temupulang:preflight` exits with code `0`.
 
@@ -206,42 +218,135 @@ Configure a single-instance background worker that starts automatically whenever
 
 ---
 
-## 9. Nightly Backup & Restore Verification
+## 9. Automated Nightly Backup, Restore Verification & Disaster Recovery
 
-### 9.1. Nightly Backup Script (`C:\backups\temu-pulang\backup-nightly.ps1`)
-Schedule a nightly Task Scheduler job (e.g. at `23:30 WIB` after closing shift) that backs up:
-1. The MySQL/MariaDB `temu_pulang` database via `mysqldump.exe --single-transaction --routines --triggers`.
-2. The production `.env` file.
-3. Uploaded files under `C:\xampp\htdocs\temu-pulang\storage\app\public` (including `qris/`).
+> **CRITICAL SECURITY RULE — `.env` IS NEVER INCLUDED IN BACKUPS:**
+> Backup zip archives (`temu_pulang_YYYYmmdd_HHMMSS.zip`) intentionally **never** contain `.env`, `APP_KEY`, or database passwords. You **must** keep a separate, offline copy of the production `.env` file (for example, in an encrypted password manager or a locked offline USB key in the owner's safe). Without `.env` (specifically `APP_KEY` and `DB_PASSWORD`), encrypted cookies/payloads cannot be decrypted.
 
-Example PowerShell commands:
+### 9.1. Backup `.env` Keys (`config/backup.php`)
+Configure these keys in `C:\xampp\htdocs\temu-pulang\.env` on the café Windows 11 host PC:
 
-```powershell
-$timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
-$backupDir = "C:\backups\temu-pulang\$timestamp"
-New-Item -ItemType Directory -Force -Path $backupDir | Out-Null
-
-# 1. Dump MySQL database
-& "C:\xampp\mysql\bin\mysqldump.exe" `
-  --host=127.0.0.1 --port=3306 --user=temupulang_app --password="REPLACE_WITH_PASSWORD" `
-  --single-transaction --routines --triggers temu_pulang `
-  --result-file="$backupDir\temu_pulang.sql"
-
-# 2. Copy .env and public storage uploads (QRIS & images)
-Copy-Item "C:\xampp\htdocs\temu-pulang\.env" "$backupDir\.env.backup"
-Copy-Item "C:\xampp\htdocs\temu-pulang\storage\app\public" "$backupDir\public_storage" -Recurse
+```dotenv
+BACKUP_PATH="C:\backups\temu-pulang"
+BACKUP_COPY_PATH="D:\temu-pulang-backups"
+BACKUP_RETENTION_DAYS=14
+MYSQLDUMP_PATH="C:\xampp\mysql\bin\mysqldump.exe"
+MYSQL_CLIENT_PATH="C:\xampp\mysql\bin\mysql.exe"
+BACKUP_MAX_AGE_HOURS=26
+BACKUP_REQUIRED=true
 ```
 
-Copy `C:\backups\temu-pulang` to an external USB drive or secondary local storage daily.
+- `BACKUP_PATH`: Primary backup folder on the host PC (outside `C:\xampp\htdocs\temu-pulang`).
+- `BACKUP_COPY_PATH`: Secondary destination on a different physical drive, external USB drive, or cloud-synced folder (`D:\temu-pulang-backups`).
+- `BACKUP_RETENTION_DAYS`: Deletes `temu_pulang_*.zip` files older than `14` days in both folders, while **always keeping the newest 3 backups** regardless of age.
+- `MYSQLDUMP_PATH` & `MYSQL_CLIENT_PATH`: Full paths to XAMPP's `mysqldump.exe` and `mysql.exe`. The database password is passed exclusively via the child process's `MYSQL_PWD` environment variable and never appears on the command line or in logs.
+- `BACKUP_MAX_AGE_HOURS`: Threshold (`26` hours) used by `temupulang:preflight` and the Owner Dashboard backup status banner.
+- `BACKUP_REQUIRED=true`: Set to `true` on the café host PC so `php artisan temupulang:preflight` enforces that an initial backup has been completed before go-live (clears automatically after the first successful `php artisan temupulang:backup`).
 
-### 9.2. Monthly Restore Test
-A backup is only valid once tested. Once per month (and once before go-live), verify restoration into a scratch database (`temu_pulang_restore_test`):
+### 9.2. Running a Manual Backup (`temupulang:backup`)
+Run a verified backup at any time from PowerShell in `C:\xampp\htdocs\temu-pulang`:
 
 ```powershell
-& "C:\xampp\mysql\bin\mysql.exe" -u root -e "CREATE DATABASE IF NOT EXISTS temu_pulang_restore_test;"
-& "C:\xampp\mysql\bin\mysql.exe" -u root temu_pulang_restore_test -e "SOURCE C:/backups/temu-pulang/LATEST/temu_pulang.sql;"
-& "C:\xampp\mysql\bin\mysql.exe" -u root -e "SELECT COUNT(*) AS orders_count FROM temu_pulang_restore_test.orders; DROP DATABASE temu_pulang_restore_test;"
+# Run full backup (primary BACKUP_PATH + secondary BACKUP_COPY_PATH + retention pruning)
+php artisan temupulang:backup
+
+# Skip secondary copy destination if external drive is temporarily detached
+php artisan temupulang:backup --no-copy
 ```
+
+Each run:
+1. Executes `mysqldump --single-transaction --routines --triggers --no-tablespaces --default-character-set=utf8mb4` into a temporary `.sql` file.
+2. Verifies the dump exists, exceeds the minimum byte size (`>= 1 KB`), contains at least one `CREATE TABLE`, and ends with `Dump completed`.
+3. Packages `database.sql`, `manifest.txt` (timestamp, app name, DB name, table count, dump size — no secrets), and `qris/` (copied from `storage/app/public/qris`) into `temu_pulang_YYYYmmdd_HHMMSS.zip`, then deletes the temporary `.sql` file.
+4. Copies the zip to `BACKUP_COPY_PATH` (logging a warning `backup.copy_failed` if the secondary drive is unavailable while still succeeding with exit code `0` if the primary zip is valid).
+5. Prunes `temu_pulang_*.zip` files older than `BACKUP_RETENTION_DAYS` (always preserving the newest 3 backups) and records `backup.completed` in `activity_logs`.
+
+### 9.3. Scheduling Nightly Backups in Windows Task Scheduler (`schtasks`)
+The repository includes `scripts\backup-nightly.bat`, which changes to the project root, runs `php artisan temupulang:backup`, appends output to `storage\logs\backup.log`, and propagates the exit code.
+
+Register the nightly scheduled task at `03:30 WIB` (after shift close, before the `06:00 WIB` business-day cutoff) from an elevated PowerShell or Command Prompt:
+
+```powershell
+schtasks /Create /SC DAILY /ST 03:30 /TN "TemuPulang Backup" /TR "C:\xampp\htdocs\temu-pulang\scripts\backup-nightly.bat" /RU "SYSTEM" /RL HIGHEST /F
+```
+
+> **Account Note:** Run the scheduled task under `SYSTEM` (or a dedicated local Windows Administrator account whose password does not expire and that has read/write access to both `BACKUP_PATH` and `BACKUP_COPY_PATH`) so the task continues running unattended when no user is logged into the desktop.
+
+Test the scheduled task immediately and inspect `storage\logs\backup.log`:
+
+```powershell
+schtasks /Run /TN "TemuPulang Backup"
+Get-Content "C:\xampp\htdocs\temu-pulang\storage\logs\backup.log" -Tail 25
+```
+
+### 9.4. Verifying a Backup Archive (`temupulang:backup-verify`)
+Verify that the latest backup zip (or a specific file) can be cleanly extracted and imported into MySQL:
+
+```powershell
+# Verify the newest temu_pulang_*.zip in BACKUP_PATH
+php artisan temupulang:backup-verify
+
+# Or verify a specific backup zip file
+php artisan temupulang:backup-verify --file="C:\backups\temu-pulang\temu_pulang_20261127_033000.zip"
+```
+
+`temupulang:backup-verify` extracts `database.sql` to a temporary folder, creates a scratch database named `temu_restore_check_<random>`, imports `database.sql` via `mysql.exe`, compares table counts and row counts of `orders`, `payment_transactions`, and `stock_movements` against the live database, and **always drops** the temporary `temu_restore_check_<random>` database and deletes the temporary folder in a `finally` block.
+
+### 9.5. Step-by-Step Disaster Restore Procedure
+If the Windows 11 host PC disk fails or the shop migrates to a replacement PC:
+
+1. **Install Base Stack & Application Code**:
+   - Install XAMPP (PHP 8.5, MySQL/MariaDB, Apache) on the replacement Windows 11 host PC.
+   - Clone or copy the **Temu Pulang** application repository to `C:\xampp\htdocs\temu-pulang` and run:
+     ```powershell
+     cd C:\xampp\htdocs\temu-pulang
+     composer install --no-dev --optimize-autoloader
+     npm ci
+     npm run build
+     ```
+2. **Create Empty Database & Local MySQL User**:
+   - Start MySQL in XAMPP and create the empty `temu_pulang` database and local user:
+     ```powershell
+     & "C:\xampp\mysql\bin\mysql.exe" -u root -e "CREATE DATABASE temu_pulang CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; CREATE USER IF NOT EXISTS 'temupulang_user'@'127.0.0.1' IDENTIFIED BY 'REPLACE_WITH_DB_PASSWORD'; GRANT ALL PRIVILEGES ON temu_pulang.* TO 'temupulang_user'@'127.0.0.1'; FLUSH PRIVILEGES;"
+     ```
+3. **Restore `.env` from Separate Offline Secure Copy**:
+   - Copy your separately stored production `.env` file to `C:\xampp\htdocs\temu-pulang\.env` and verify `APP_KEY`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`, and printer/backup paths.
+4. **Unzip the Backup Archive**:
+   - Extract the newest verified `temu_pulang_YYYYmmdd_HHMMSS.zip` into a temporary folder (`C:\restore_tmp`):
+     ```powershell
+     Expand-Archive -Path "D:\temu-pulang-backups\temu_pulang_YYYYmmdd_HHMMSS.zip" -DestinationPath "C:\restore_tmp" -Force
+     ```
+5. **Import `database.sql` into `temu_pulang`**:
+   ```powershell
+   $env:MYSQL_PWD = "REPLACE_WITH_DB_PASSWORD"
+   & "C:\xampp\mysql\bin\mysql.exe" --default-character-set=utf8mb4 --host=127.0.0.1 --port=3306 --user=temupulang_user temu_pulang -e "SOURCE C:/restore_tmp/database.sql;"
+   Remove-Item Env:\MYSQL_PWD
+   ```
+6. **Restore `qris/` Uploaded Images**:
+   ```powershell
+   if (Test-Path "C:\restore_tmp\qris") {
+       New-Item -ItemType Directory -Force -Path "C:\xampp\htdocs\temu-pulang\storage\app\public\qris" | Out-Null
+       Copy-Item "C:\restore_tmp\qris\*" "C:\xampp\htdocs\temu-pulang\storage\app\public\qris\" -Recurse -Force
+   }
+   Remove-Item "C:\restore_tmp" -Recurse -Force
+   ```
+7. **Apply Any Newer Migrations, Link Storage, Clear Caches & Run Preflight**:
+   ```powershell
+   php artisan migrate --force
+   php artisan storage:link
+   php artisan config:clear
+   php artisan optimize:clear
+   php artisan config:cache
+   php artisan route:cache
+   php artisan view:cache
+   php artisan temupulang:preflight
+   ```
+
+### 9.6. Monthly Backup Maintenance Routine
+On the **1st of every month** (and on rehearsal day before opening):
+1. Run `php artisan temupulang:backup-verify` in PowerShell and confirm `[PASS]` with matching table counts.
+2. Copy the verified `temu_pulang_YYYYmmdd_HHMMSS.zip` archive to an **off-site / separate physical device** (such as an external USB drive stored off-premises by the Owner).
+3. Confirm the Owner Dashboard (`/dashboard`) displays the neutral green-dot `"Cadangan terakhir: <tanggal> (<ukuran>)"` / `"Last backup: <date time> (<size>)"` status banner with no failure notice.
 
 ---
 

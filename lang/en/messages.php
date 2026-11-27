@@ -513,6 +513,11 @@ return [
         'no_orders_today_desc' => 'Orders created during this business day will appear here.',
         'no_best_sellers_today' => 'No sales yet today.',
         'badge_draft' => 'Draft',
+        'backup_never_run' => 'Database Backup: No successful automated backup has been recorded yet.',
+        'backup_overdue' => 'Database Backup Overdue: Last backup :datetime (:size) — :hours hours ago (max limit :max hours).',
+        'backup_aging' => 'Database Backup: Last backup :datetime (:size) — :hours hours ago.',
+        'backup_healthy' => 'Last backup: :datetime (:size)',
+        'backup_recent_failure' => 'Warning: Most recent backup attempt failed at :datetime.',
     ],
 
     // Refund Management (Owner only)
