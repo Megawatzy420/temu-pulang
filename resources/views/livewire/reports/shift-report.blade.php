@@ -34,30 +34,49 @@
             {{ __('messages.reports.back_to_shifts') }}
         </a>
 
-        <div class="flex items-center gap-2">
-            @if ($report['is_open'])
+        <div class="flex flex-col items-start sm:items-end gap-1.5">
+            <div class="flex flex-wrap items-center gap-2">
+                @if ($report['is_open'])
+                    <button
+                        type="button"
+                        wire:click="refreshReport"
+                        class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-coffee-200 bg-white text-xs font-bold text-coffee-800 hover:bg-cream-100 transition cursor-pointer"
+                    >
+                        <svg class="w-4 h-4 text-coffee-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        <span>{{ __('messages.reports.refresh_btn') }}</span>
+                    </button>
+                @endif
+
+                <a
+                    href="{{ route('reports.shift.export', ['shift' => $report['header']['shift_id'], 'format' => 'xlsx']) }}"
+                    class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-emerald-300 bg-emerald-50 text-xs font-bold text-emerald-900 hover:bg-emerald-100 transition"
+                >
+                    <span>{{ __('messages.export.export_excel_btn') }}</span>
+                </a>
+
+                <a
+                    href="{{ route('reports.shift.export', ['shift' => $report['header']['shift_id'], 'format' => 'csv']) }}"
+                    class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-coffee-300 bg-white text-xs font-bold text-coffee-800 hover:bg-cream-100 transition"
+                >
+                    <span>{{ __('messages.export.export_csv_btn') }}</span>
+                </a>
+
                 <button
                     type="button"
-                    wire:click="refreshReport"
-                    class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-coffee-200 bg-white text-xs font-bold text-coffee-800 hover:bg-cream-100 transition cursor-pointer"
+                    onclick="window.print()"
+                    class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-coffee-900 hover:bg-coffee-800 text-cream-50 text-xs font-bold shadow-xs transition cursor-pointer"
                 >
-                    <svg class="w-4 h-4 text-coffee-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
                     </svg>
-                    <span>{{ __('messages.reports.refresh_btn') }}</span>
+                    <span>{{ __('messages.reports.print_btn') }}</span>
                 </button>
-            @endif
-
-            <button
-                type="button"
-                onclick="window.print()"
-                class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-coffee-900 hover:bg-coffee-800 text-cream-50 text-xs font-bold shadow-xs transition cursor-pointer"
-            >
-                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                </svg>
-                <span>{{ __('messages.reports.print_btn') }}</span>
-            </button>
+            </div>
+            <p class="text-[11px] text-coffee-500">
+                {{ __('messages.export.pdf_print_hint') }}
+            </p>
         </div>
     </div>
 

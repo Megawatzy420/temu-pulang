@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\ReportExportController;
 use App\Livewire\ActivityLogs\ActivityLogIndex;
 use App\Livewire\Dashboard\OwnerDashboard;
 use App\Livewire\Inventory\IngredientManager;
@@ -73,9 +74,17 @@ Route::middleware('auth')->group(function () {
         ->middleware('role:owner')
         ->name('reports.sales');
 
+    Route::get('/reports/sales/export', [ReportExportController::class, 'exportSales'])
+        ->middleware('role:owner')
+        ->name('reports.sales.export');
+
     Route::get('/reports/analytics', SalesAnalytics::class)
         ->middleware('role:owner')
         ->name('reports.analytics');
+
+    Route::get('/reports/analytics/export', [ReportExportController::class, 'exportAnalytics'])
+        ->middleware('role:owner')
+        ->name('reports.analytics.export');
 
     // Menu Management Backoffice: Owner Only
     Route::prefix('menu')->middleware('role:owner')->name('menu.')->group(function () {
@@ -110,4 +119,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/reports/shift/{shift}', ShiftReport::class)
         ->middleware('role:owner,cashier')
         ->name('reports.shift');
+
+    Route::get('/reports/shift/{shift}/export', [ReportExportController::class, 'exportShift'])
+        ->middleware('role:owner,cashier')
+        ->name('reports.shift.export');
 });

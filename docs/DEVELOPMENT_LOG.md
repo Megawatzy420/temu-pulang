@@ -1969,6 +1969,19 @@ Implemented Phase 7 Task 7.3 (read-only Sales Analytics for a single business da
 6. **Sales by Order Type (`sales_by_order_type`, `dine_in` & `takeaway`):**
    - Groups gross-sales orders by `order_type` (`dine_in` and `takeaway`), returning `orders_count`, `gross_sales`, share of gross sales and share of orders in tenths of a percent (`shareInTenths()`), and `sales_bar_pct`.
 
+### Step 4 Report — Products Renamed Across Range, `NULL` `product_id` & Ranking Oddities (Reported Only, Not Fixed)
+1. **Products Whose Names Changed Across the Range (`DashboardMetricsService` vs `AnalyticsService`):**
+   - `OrderService::createOrder()` snapshots `product_name_id`, `product_name_en`, and `sku` onto each `order_items` row when an order is created.
+   - `DashboardMetricsService::bestSellers()` (`app/Services/DashboardMetricsService.php:302`) groups by `order_items.product_name_id, order_items.product_name_en, order_items.sku` without `product_id`, so renaming a product mid-period splits its sales across old and new names on the dashboard.
+   - `AnalyticsService` groups by `order_items.product_id` (when non-null) and looks up the snapshot from `MAX(order_items.id)` in that group, so all units and revenue before and after a catalog rename are combined into one ranking entry displaying the latest sold snapshot name. (If a product is renamed in the catalog after its last sale in the period, the ranking displays the snapshot name from its most recent sale in the period rather than the unpurchased new catalog name.)
+2. **`order_items` With `NULL` `product_id`:**
+   - The `order_items.product_id` foreign key is nullable (`nullOnDelete()`). Because normal catalog deletions use Eloquent `SoftDeletes` (`products.deleted_at`), `product_id` remains populated for soft-deleted products and only becomes `NULL` if a product row is hard-deleted at the SQL level or inserted manually without a `product_id`.
+   - When `product_id IS NULL`, `AnalyticsService` falls back to grouping by `(product_name_id, product_name_en, sku)`. If two `NULL`-`product_id` rows had different snapshot names or SKUs, they cannot be merged by `product_id` and rank as separate entries.
+3. **Ranking Oddities:**
+   - **Partially Refunded Orders**: Refunds in Temu Pulang (`RefundTransaction` / `PaymentRefund`) are monetary allocations against payments, not line-item returns. Therefore, orders with `payment_status = 'partially_refunded'` retain their full `order_items.quantity` and `order_items.subtotal` in product rankings, while orders with `payment_status = 'refunded'` are excluded completely.
+   - **Variant SKU on Latest Snapshot**: For products with variants (`has_variants = true`), `OrderService` stores the selected variant's SKU in `order_items.sku`. Because `AnalyticsService` groups by parent `product_id` and reads `sku` from the latest `order_items` row (`MAX(order_items.id)`), the parent product's ranking row displays whichever variant SKU was sold most recently.
+   - **Item Revenue (`SUM(order_items.subtotal)`) vs Store Gross Sales (`SUM(orders.total_amount)`)**: Product rankings sum `order_items.subtotal` (line-item price including modifiers, before order-level tax, service charge, and discounts) and exclude fully refunded orders, whereas time and order-type breakdowns sum `orders.total_amount` across `paid`, `partially_refunded`, and `refunded` orders to tie out 100% with `SalesReportService`.
+
 ### Deliverables
 - **Files Created:**
   - `app/Services/AnalyticsService.php`
@@ -1976,6 +1989,7 @@ Implemented Phase 7 Task 7.3 (read-only Sales Analytics for a single business da
   - `resources/views/livewire/reports/sales-analytics.blade.php`
   - `tests/Unit/Services/AnalyticsServiceTest.php` (5 tests, 73 assertions)
   - `tests/Feature/Reports/SalesAnalyticsTest.php` (3 tests, 65 assertions)
+  - `tests/Feature/Reports/AnalyticsTest.php` (3 tests, 135 assertions)
 - **Files Modified:**
   - `routes/web.php`
   - `resources/views/components/layouts/app.blade.php`
@@ -1983,11 +1997,10 @@ Implemented Phase 7 Task 7.3 (read-only Sales Analytics for a single business da
   - `docs/ARCHITECTURE.md`, `docs/PROJECT_PLAN.md`, `docs/DEVELOPMENT_LOG.md`
 
 ### Automated Test Results
-- **Sales Analytics Unit & Feature Tests (`AnalyticsServiceTest` & `SalesAnalyticsTest`):** 8 tests, 138 assertions — 100% passing
-- **Existing Test Suites (Unmodified):** 498 tests, 7877 assertions — 100% passing
-- **Full Test Suite (`php artisan test --compact`):** 506 tests, 8015 assertions — 100% passing (0 failures, 0 errors)
+- **Sales Analytics Unit & Feature Tests (`AnalyticsServiceTest`, `SalesAnalyticsTest` & `AnalyticsTest`):** 11 tests, 273 assertions — 100% passing
+- **Full Test Suite (`php artisan test --compact`):** 520 tests, 8349 assertions — 100% passing (0 failures, 0 errors)
 - **Laravel Pint (`php vendor/bin/pint --test`):** ✅ Clean (`passed`)
-- **Vite Build (`npm run build`):** ✅ Compiled successfully in 1.79s
+- **Vite Build (`npm run build`):** ✅ Compiled successfully in 678ms
 
 ---
 
@@ -2037,6 +2050,63 @@ Implemented Phase 8 Task 8.1 (automated MySQL database and QRIS asset backup, au
 - **Full Test Suite (`php artisan test --compact`):** 517 tests, 8214 assertions — 100% passing (0 failures, 0 errors)
 - **Laravel Pint (`php vendor/bin/pint --test`):** ✅ Clean (`passed`)
 - **Vite Build (`npm run build`):** ✅ Compiled successfully in 1.75s
+
+---
+
+## Phase 7 Task 7.4 — Export Operational & Financial Reports to Excel (XLSX) and CSV
+
+**Date:** 2026-11-27  
+**Status:** ✅ COMPLETED (Phase 7 Complete)
+
+### Summary
+Implemented Phase 7 Task 7.4 (read-only export of the Sales, COGS & Gross-Profit Report, Sales Analytics Report, and Shift X/Z-Report to OpenXML `.xlsx` and UTF-8 BOM `.csv`) using PHP's native `ZipArchive` (`App\Services\Export\XlsxWriter`), a hand-written RFC-4180 semicolon CSV writer (`App\Services\Export\CsvWriter`), and `App\Http\Controllers\ReportExportController` without adding any Composer packages or modifying any existing services, models, migrations, or existing tests.
+
+### Implementation Details & Exported Service Keys
+1. **Writers (`App\Services\Export\XlsxWriter` & `App\Services\Export\CsvWriter`):**
+   - `XlsxWriter`: creates multi-worksheet OpenXML `.xlsx` archives via `ZipArchive` in a short-lived temp file (always unlinked in a `finally` block), including `[Content_Types].xml`, `_rels/.rels`, `xl/workbook.xml`, `xl/_rels/workbook.xml.rels`, `xl/styles.xml` (style `0` normal, style `1` bold header with light fill), and `xl/worksheets/sheet1.xml..sheetN.xml` with frozen header row (`ySplit="1"`, `state="frozen"`), custom column widths, typed numeric cells (`t="n"><v>...</v>`), inline string cells (`t="inlineStr"`), integer-to-decimal string conversion (`tenthsToDecimalString()` via `intdiv` and `%`), and 31-character tab name sanitization/deduplication.
+   - `CsvWriter`: creates a single UTF-8 BOM (`\xEF\xBB\xBF`) CSV payload with semicolon (`;`) delimiter and CRLF (`\r\n`) line endings, separating multiple sections with a blank line and a section title row, and quoting fields containing `;`, `"`, `\r`, or `\n` (doubling internal `"`).
+   - **Formula-Injection Neutralization**: `XlsxWriter::sanitizeStringCell()` prefixes any string cell whose first character (or first character after leading spaces/newlines) is `=`, `+`, `-`, `@`, `\t`, or `\r` with a leading apostrophe `'`. Numeric cells (`type === 'n'`) are never prefixed, so negative Rupiah values and negative margins remain true numeric cells.
+2. **Controller, Routes, RBAC, Validation & Audit Logging (`App\Http\Controllers\ReportExportController`):**
+   - `GET /reports/sales/export` (`reports.sales.export`, Owner only): calls `SalesReportService::buildReport($from, $to)` and exports 3 sheets/sections (`Summary`, `Per day` with Totals row, `Payment mix`) as `temu_pulang_sales_YYYY-MM-DD_to_YYYY-MM-DD.xlsx|.csv`.
+   - `GET /reports/analytics/export` (`reports.analytics.export`, Owner only): calls `AnalyticsService::buildAnalytics($from, $to)` and exports 6 sheets/sections (`Top by Quantity`, `Top by Revenue`, `Products Without Sales`, `Hours` 0–23, `Weekdays`, `Order Types`) as `temu_pulang_analytics_YYYY-MM-DD_to_YYYY-MM-DD.xlsx|.csv`.
+   - `GET /reports/shift/{shift}/export` (`reports.shift.export`, Owner any shift; Cashier only own shift): calls `ShiftReportService::buildReport($shift)` and exports 3 sheets/sections (`Header & Cash Drawer`, `Payments & Refunds`, `Sales Summary`) as `temu_pulang_shift_<shift_number>.xlsx|.csv`.
+   - Validates `format` (`xlsx` or `csv`) and date range (`Y-m-d`, `from <= to`, `<= 366` days); invalid inputs redirect back to the report page with a translated warning flash message.
+   - Records `ActivityLog::record(action: 'report.exported', module: 'reports', ...)` with report name, date range or shift number, format, and row count (no personal data and no file content).
+
+### Step 6 Report — Non-Exported Internal Keys, Formula-Prefixed Labels & 32,767-Character Cell Guard (Reported Only, Not Fixed)
+1. **Existing Translated Labels Starting With `=`, `+`, or `-`:**
+   - In `lang/id/messages.php` and `lang/en/messages.php`, several shift/cash-drawer labels begin with `=`, `+`, or `-` (such as `messages.reports.expected_cash` = `"= Expected Cash in Drawer"`, `messages.reports.manual_cash_in` = `"+ Total Manual Cash In"`, `messages.reports.manual_cash_out` = `"- Total Manual Cash Out"`, `messages.shifts.badge_type_in` = `"+ In"`, and `messages.shifts.badge_type_out` = `"- Out"`).
+   - Because `XlsxWriter::sanitizeStringCell()` neutralizes any string cell starting with `=`, `+`, or `-`, those label cells receive a leading apostrophe `'` in the serialized XML/CSV so Excel displays `"= Expected Cash in Drawer"` as text instead of evaluating it as an invalid formula (`#NAME?`).
+2. **Internal / UI-Only Service Array Keys Not Exported as Separate Columns:**
+   - `window.start` / `window.end` (`CarbonImmutable` instances) and `window.cutoff_seconds`: represented in the Summary sheet via `from_date`, `to_date`, `days_count`, and `"{$window['start_time']} {$window['timezone']}"`.
+   - `totals.cogs_milli` and `daily_rows[*].cogs_milli`: internal milli-Rupiah accumulators used to compute half-up whole-Rupiah `cogs` and `cogs_rounding_diff`; the exported sheets output whole-Rupiah `cogs` and the translated `cogs_rounding_note` when `has_cogs_rounding_note` is `true`.
+   - `margin.formatted`, `share_formatted`, `revenue_share_formatted`, `sales_share_formatted`, and `orders_share_formatted`: pre-formatted display strings ending with `%`; exported instead as numeric cells (`t="n"`) built from `tenths` via `XlsxWriter::tenthsToDecimalString()` (or string `'—'` when `margin.tenths` is `null` because `net_sales <= 0`).
+   - `bar_pct`, `sales_bar_pct`, and `orders_bar_pct`: CSS progress-bar width percentages (`0..100`) used only for HTML bar rendering; omitted from spreadsheet exports in favor of the actual order counts, Rupiah amounts, and revenue/sales share percentages.
+3. **Excel 32,767-Character Cell Limit Handling:**
+   - Excel's OpenXML specification limits a cell to `32,767` characters. `XlsxWriter::sanitizeStringCell()` explicitly enforces `mb_substr($cleaned, 0, 32767, 'UTF-8')`. In normal application operation, `shifts.opening_note` and `shifts.closing_note` are validated to `max:500` / `max:1000` characters in `ShiftManager`, so no real shift notes are ever truncated unless an artificial >32,767-character string is written directly to the database.
+
+### Deliverables
+- **Files Created:**
+  - `app/Services/Export/XlsxWriter.php`
+  - `app/Services/Export/CsvWriter.php`
+  - `app/Http/Controllers/ReportExportController.php`
+  - `tests/Unit/Services/Export/ExportWritersTest.php` (4 tests, 65 assertions)
+  - `tests/Feature/Reports/ExportTest.php` (3 tests, 120 assertions)
+- **Files Modified:**
+  - `routes/web.php`
+  - `resources/views/livewire/reports/sales-report.blade.php`
+  - `resources/views/livewire/reports/sales-analytics.blade.php`
+  - `resources/views/livewire/reports/shift-report.blade.php`
+  - `lang/id/messages.php`, `lang/en/messages.php`
+  - `docs/PROJECT_PLAN.md`, `docs/DEVELOPMENT_LOG.md`, `docs/ARCHITECTURE.md`, `docs/DEPLOYMENT.md`
+
+### Automated Test Results
+- **Report Export Unit & Feature Tests (`ExportWritersTest` & `ExportTest`):** 7 tests, 185 assertions — 100% passing
+- **Existing Test Suites (Unmodified):** 520 tests, 8349 assertions — 100% passing
+- **Full Test Suite (`php artisan test --compact`):** 527 tests, 8718 assertions — 100% passing (0 failures, 0 errors)
+- **Laravel Pint (`php vendor/bin/pint --test`):** ✅ Clean (`passed`)
+- **Vite Build (`npm run build`):** ✅ Compiled successfully in 622ms
+
 
 
 

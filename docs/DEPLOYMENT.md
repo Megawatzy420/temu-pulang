@@ -178,7 +178,7 @@ php artisan temupulang:preflight
 12. Cache, queue, and session drivers are not set to `array` (`[WARN]`).
 13. `SESSION_LIFETIME` is at least `480` minutes (`[WARN]` if below `480`).
 14. `LOG_LEVEL` is not `debug` while `APP_ENV=production` (`[WARN]`).
-15. PHP `zip` extension (`ZipArchive`) is loaded (`[FAIL]` if missing).
+15. PHP `zip` extension (`ZipArchive`) is loaded (`[FAIL]` if missing — required for both automated database backup zip archives and `.xlsx` Excel report exports).
 16. `mysqldump` binary is discoverable at `MYSQLDUMP_PATH` or on system `PATH` (`[WARN]` if not found).
 17. `BACKUP_PATH` is outside the project directory or `BACKUP_COPY_PATH` is configured on a second drive (`[WARN]` if backups live only inside the project folder on the same disk).
 18. Recent completed database backup (`backup.completed` in `activity_logs`) exists and is newer than `BACKUP_MAX_AGE_HOURS` (`[FAIL]` when `BACKUP_REQUIRED=true` in `production` and no backup has ever completed — clears automatically after the first successful `php artisan temupulang:backup`; `[WARN]` when older than `BACKUP_MAX_AGE_HOURS` or when `BACKUP_REQUIRED=false`).
