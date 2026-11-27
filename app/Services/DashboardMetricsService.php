@@ -74,6 +74,47 @@ class DashboardMetricsService
     }
 
     /**
+     * Resolve the inclusive business-date range [fromBusinessDate, toBusinessDate] into a
+     * [start, end) timestamp window using shop_settings.business_day_start_time (fallback '06:00:00')
+     * and shop_settings.timezone (fallback 'Asia/Jakarta').
+     *
+     * @return array{
+     *     start: CarbonImmutable,
+     *     end: CarbonImmutable,
+     *     timezone: string,
+     *     start_time: string,
+     *     cutoff_seconds: int
+     * }
+     */
+    public function resolveBusinessDateRangeWindow(
+        string $fromBusinessDate,
+        string $toBusinessDate,
+        ?ShopSetting $setting = null,
+    ): array {
+        $shopSetting = $setting ?? ShopSetting::where('is_active', true)->first();
+        $startTime = $shopSetting?->business_day_start_time ?: '06:00:00';
+        $timezone = $shopSetting?->timezone ?: 'Asia/Jakarta';
+
+        $parts = array_pad(explode(':', $startTime), 3, '0');
+        $cutoffHour = (int) $parts[0];
+        $cutoffMinute = (int) $parts[1];
+        $cutoffSecond = (int) $parts[2];
+        $cutoffSeconds = ($cutoffHour * 3600) + ($cutoffMinute * 60) + $cutoffSecond;
+        $normalizedTime = sprintf('%02d:%02d:%02d', $cutoffHour, $cutoffMinute, $cutoffSecond);
+
+        $start = CarbonImmutable::parse($fromBusinessDate.' '.$normalizedTime, $timezone);
+        $end = CarbonImmutable::parse($toBusinessDate.' '.$normalizedTime, $timezone)->addDay();
+
+        return [
+            'start' => $start,
+            'end' => $end,
+            'timezone' => $timezone,
+            'start_time' => $normalizedTime,
+            'cutoff_seconds' => $cutoffSeconds,
+        ];
+    }
+
+    /**
      * Compute gross sales (sum of order total_amount) for orders paid within [start, end)
      * whose payment_status is paid, partially_refunded, or refunded.
      */

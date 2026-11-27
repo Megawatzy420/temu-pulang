@@ -15,6 +15,8 @@ use App\Livewire\Orders\OrderIndex;
 use App\Livewire\Orders\OrderRefund;
 use App\Livewire\Pos\CashierPos;
 use App\Livewire\Printing\PrintJobIndex;
+use App\Livewire\Reports\SalesAnalytics;
+use App\Livewire\Reports\SalesReport;
 use App\Livewire\Reports\ShiftReport;
 use App\Livewire\Settings\ShopSettingsManager;
 use App\Livewire\Shifts\ShiftManager;
@@ -66,6 +68,14 @@ Route::middleware('auth')->group(function () {
     Route::get('/orders/{order}/refund', OrderRefund::class)
         ->middleware('role:owner')
         ->name('orders.refund');
+
+    Route::get('/reports/sales', SalesReport::class)
+        ->middleware('role:owner')
+        ->name('reports.sales');
+
+    Route::get('/reports/analytics', SalesAnalytics::class)
+        ->middleware('role:owner')
+        ->name('reports.analytics');
 
     // Menu Management Backoffice: Owner Only
     Route::prefix('menu')->middleware('role:owner')->name('menu.')->group(function () {

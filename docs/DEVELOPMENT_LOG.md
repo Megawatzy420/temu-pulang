@@ -1867,6 +1867,130 @@ Resolved the manual browser testing bug-fix pack across shift/catalog whole-Rupi
 - **Laravel Pint (`php vendor/bin/pint --dirty --test`):** ✅ Clean (`passed`)
 - **Vite Build (`npm run build`):** ✅ Compiled successfully in 791ms
 
+---
+
+## Phase 7 Task 7.2 — Sales, COGS & Gross-Profit Report (Day or Date Range)
+
+**Date:** 2026-11-27  
+**Status:** ✅ COMPLETED
+
+### Summary
+Implemented Phase 7 Task 7.2 (read-only Sales, COGS, and Gross-Profit report for a single business day or an inclusive date range up to 366 days) with `App\Services\SalesReportService`, `App\Services\DashboardMetricsService::resolveBusinessDateRangeWindow()`, `App\Livewire\Reports\SalesReport` (`/reports/sales`, route `reports.sales`), print-ready `@media print` styling, and the Owner sidebar link (`Laporan`) without modifying any existing write services, models, migrations, or existing tests.
+
+### Report Definitions Used & Comparison with `DashboardMetricsService`
+1. **Business-Day Window (`DashboardMetricsService::resolveBusinessDateRangeWindow()`):**
+   - Uses `shop_settings.business_day_start_time` (fallback `'06:00:00'`) and `shop_settings.timezone` (fallback `'Asia/Jakarta'`), matching `DashboardMetricsService`, `OrderService`, and `RefundService`.
+   - Verified that `config('app.timezone')` (`'Asia/Jakarta'`) and `ShopSetting::timezone` (`'Asia/Jakarta'`) are equal; `SalesReportService::buildReport()` asserts `$timezone === config('app.timezone', 'Asia/Jakarta')`.
+   - For an inclusive business-date range `[FROM, TO]`, the overall query window is `[FROM at business_day_start_time, TO + 1 day at business_day_start_time)`.
+   - Timestamps are grouped into business dates in SQL using driver-aware expressions (`DATE(column - INTERVAL {$cutoffSeconds} SECOND)` on MySQL/MariaDB and `DATE(column, '-{$cutoffSeconds} seconds')` on SQLite) in a constant number of SQL aggregate queries (`O(1)` query count independent of the number of days in the range), and zero-activity days in `[FROM, TO]` are filled in PHP with zero values.
+2. **Sales, Refunds, Net Sales, Average Ticket & Payment Mix (Identical to `DashboardMetricsService`):**
+   - **Paid Orders & Gross Sales**: Non-soft-deleted `orders` where `orders.paid_at >= $start` and `orders.paid_at < $end` and `orders.payment_status IN ('paid', 'partially_refunded', 'refunded')`. Also sums `orders.subtotal`, `orders.tax_amount`, `orders.service_charge_amount`, and `orders.discount_amount`.
+   - **Average Ticket**: `intdiv($grossSales, $paidOrdersCount)` (`0` when `$paidOrdersCount === 0`).
+   - **Refunds**: `SUM(refund_transactions.total_refunded_amount)` where `refund_transactions.created_at >= $start` and `refund_transactions.created_at < $end` (attributed to the business date of the refund's own `created_at`).
+   - **Net Sales**: `gross_sales - refunds`.
+   - **Payment Mix**: Calls `DashboardMetricsService::paymentMix($start, $end)` (`SUM(payments.amount)` applied to the bill, never cash tendered, grouped into `cash`, `qris`, `debit`, and `other` shown when `> 0`, plus `total`).
+3. **COGS (`order_deduction` minus `refund_credit`):**
+   - Queries `stock_movements` where `created_at >= $start` and `created_at < $end` and `movement_type IN ('order_deduction', 'refund_credit')`, grouped by business date of `created_at` and `movement_type`.
+   - Computes `(abs_quantity_milli * unit_cost)` in milli-Rupiah in SQL (`CAST(ABS(quantity) * 1000 AS SIGNED) * unit_cost` on MySQL/MariaDB; `CAST((ABS(quantity) * 1000) + 0.5 AS INTEGER) * unit_cost` on SQLite), subtracts `refund_credit` milli-Rupiah from `order_deduction` milli-Rupiah, and converts milli-Rupiah to integer Rupiah **once per day** and **once for the period total** via half-up integer arithmetic (`SalesReportService::milliToRupiahHalfUp()`).
+   - When the sum of rounded daily COGS differs from the rounded period total COGS due to rounding only (`cogs_rounding_diff !== 0`), displays a translated one-line rounding note below the per-day table.
+4. **Gross Profit & Margin:**
+   - `gross_profit = net_sales - cogs` (can be negative).
+   - `margin`: `gross_profit / net_sales` in tenths of a percent using half-up integer arithmetic (`SalesReportService::marginInTenths()`), formatted as `"66.7%"` (or `"-25.0%"` when negative), and `"—"` when `net_sales <= 0`.
+5. **Uncosted Sales (Honesty Line) & COGS Tracking Start Warning:**
+   - **Uncosted Sales**: Sums `order_items.subtotal` for orders paid in `[start, end)` with `payment_status IN ('paid', 'partially_refunded')` whose product currently has no recipe rows at all (no row in `recipe_items` for `product_id` and no row in `modifier_recipe_items` for any modifier in a group linked to `product_id` via `product_modifier_groups`), displayed in Rupiah and as a share of `gross_sales` in tenths of a percent (`SalesReportService::shareInTenths()`).
+   - **COGS Tracking Start Warning**: Queries `MIN(created_at)` of `stock_movements` where `movement_type = 'order_deduction'`; if `$from` is before that business date (or if paid orders exist when no `order_deduction` movements exist in the database), shows a translated warning banner explaining that COGS is incomplete and gross profit/margin may be overstated.
+
+### Step 4 Findings — Data Model COGS Reliability Audit (Reported Only, Not Fixed)
+1. **Non-Blocking Post-Payment Deduction (`app/Services/PaymentService.php:519-542`, `app/Services/Inventory/InventoryService.php:26-91`):**
+   - `PaymentService::attemptInventoryDeduction()` wraps `InventoryService::deductForPayment()` in `try/catch (\Throwable)`. If a database lock timeout or runtime error occurs during post-payment stock deduction, payment settlement remains committed and logs `action = 'order_deduction_failed'` to `activity_logs`, leaving the paid order with zero `order_deduction` rows (and `0` COGS) until `php artisan inventory:retry-deductions --apply` is run.
+2. **Historical Orders Paid Before Recipes Were Configured (`app/Services/Inventory/RecipeResolutionService.php:71-113`):**
+   - `deductForPayment()` resolves recipes at the moment of payment. Orders paid before a product's `recipe_items` or `modifier_recipe_items` were created (or paid before Phase 6 was deployed) have no `order_deduction` movements; adding a recipe later does not backfill historical `stock_movements`. Conversely, if an Owner later deletes all recipe rows from a product that previously had `order_deduction` rows, the current-state `whereNotExists` check classifies historical sales of that product as uncosted while its historical `order_deduction` rows remain in COGS.
+3. **Soft-Deleted Products or Variants (`app/Services/Inventory/RecipeResolutionService.php:49-67`):**
+   - If a product or variant is soft-deleted before `deductForPayment()` (or `inventory:retry-deductions`) executes, `Product::whereKey($item->product_id)->exists()` returns `false`, logging a warning and skipping deduction (`0` COGS).
+4. **Partial Refunds & Unrestocked Full Refunds (`app/Services/Inventory/InventoryService.php:106-115`, `app/Livewire/Orders/OrderRefund.php:172-188`):**
+   - `InventoryService::restockForRefund()` only credits stock when `$order->payment_status === Order::PAYMENT_STATUS_REFUNDED` (full refund) and the Owner checks `returnToStock`. Partial refunds reduce `net_sales` (via `refund_transactions.total_refunded_amount`) but never create `refund_credit` movements or reduce COGS. Full refunds where `returnToStock` is unchecked (e.g., prepared food that was discarded) intentionally retain their original `order_deduction` COGS.
+5. **Static `ingredients.cost_per_unit` vs Stock-In `unit_cost` (`app/Services/Inventory/StockAdjustmentService.php:185-202,334`):**
+   - `StockAdjustmentService::recordOrderDeductionRow()` snapshots `$ingredient->cost_per_unit` onto `stock_movements.unit_cost`. However, `StockAdjustmentService::stockIn()` records the purchase `unit_cost` on the `stock_in` movement row without automatically updating `ingredients.cost_per_unit` (which is updated manually in `IngredientManager`). If `ingredients.cost_per_unit` is `0` or stale when orders are settled, `order_deduction.unit_cost` snapshots `0` or the stale cost.
+6. **Negative Stock Balances Allowed on Order Deduction (`app/Services/Inventory/StockAdjustmentService.php:318-323`):**
+   - `recordOrderDeductionRow()` allows `ingredient_balances.current_stock` to go negative (`balance_after < 0`) so POS checkout is never blocked. During negative-stock periods, COGS continues to snapshot `ingredients.cost_per_unit` rather than actual purchase lot cost.
+
+### Deliverables
+- **Files Created:**
+  - `app/Services/SalesReportService.php`
+  - `app/Livewire/Reports/SalesReport.php`
+  - `resources/views/livewire/reports/sales-report.blade.php`
+  - `tests/Unit/Services/SalesReportServiceTest.php` (7 tests, 79 assertions)
+  - `tests/Feature/Reports/SalesReportTest.php` (3 tests, 38 assertions)
+- **Files Modified:**
+  - `app/Services/DashboardMetricsService.php` (added `resolveBusinessDateRangeWindow()` helper only)
+  - `routes/web.php`
+  - `resources/views/components/layouts/app.blade.php`
+  - `lang/id/messages.php`, `lang/en/messages.php`
+  - `docs/ARCHITECTURE.md`, `docs/PROJECT_PLAN.md`, `docs/DEVELOPMENT_LOG.md`
+
+### Automated Test Results
+- **Sales Report Unit & Feature Tests (`SalesReportServiceTest` & `SalesReportTest`):** 10 tests, 117 assertions — 100% passing
+- **Existing Test Suites (Unmodified):** 488 tests, 7496 assertions — 100% passing
+- **Full Test Suite (`php artisan test --compact`):** 498 tests, 7613 assertions — 100% passing (0 failures, 0 errors)
+- **Laravel Pint (`php vendor/bin/pint --test`):** ✅ Clean (`passed`)
+- **Vite Build (`npm run build`):** ✅ Compiled successfully in 899ms
+
+---
+
+## Phase 7 Task 7.3 — Sales Analytics: Best Sellers, Zero-Sale Products, Sales by Hour, by Weekday & by Order Type
+
+**Date:** 2026-11-27  
+**Status:** ✅ COMPLETED
+
+### Summary
+Implemented Phase 7 Task 7.3 (read-only Sales Analytics for a single business day or an inclusive date range up to 366 days) with `App\Services\AnalyticsService`, `App\Livewire\Reports\SalesAnalytics` (`/reports/analytics`, route `reports.analytics`), plain HTML/Tailwind server-computed integer bar visualizations (`intdiv(value * 100, max)`), print-ready `@media print` styling, and the Owner sidebar link (`Analitik Penjualan` / `Sales Analytics`) without modifying any existing services, models, migrations, or existing tests.
+
+### Analytics Definitions Used & Comparison with `SalesReportService`
+1. **Business-Day Range Model & Gross-Sales Set (Identical to `SalesReportService`):**
+   - Uses `DashboardMetricsService::resolveBusinessDateRangeWindow($from, $to, $setting)` (`shop_settings.business_day_start_time` fallback `'06:00:00'`, `shop_settings.timezone` fallback `'Asia/Jakarta'`) and asserts `$timezone === config('app.timezone', 'Asia/Jakarta')`.
+   - Defaults to today's business date, supports presets (`Today`, `Yesterday`, `This week`, `This month`, `Last month`), and validates strict `Y-m-d` calendar dates, `from <= to`, and `<= 366` days inclusive (resetting gracefully to today with a translated notice on invalid input).
+   - **Time & Order-Type Breakdowns**: Use the gross-sales set (`orders.paid_at` in `[start, end)`, `orders.payment_status IN ('paid', 'partially_refunded', 'refunded')`, `orders.deleted_at IS NULL`) so the sum of order counts and gross sales across the 24 hourly buckets, across the 7 weekday buckets, and across the 2 order-type buckets each equal `SalesReportService`'s `paid_orders_count` and `gross_sales` for the same range.
+2. **Product Rankings (Top 10 by Quantity & Top 10 by Revenue):**
+   - Uses `DashboardMetricsService::BEST_SELLER_PAYMENT_STATUSES` (`['paid', 'partially_refunded']`, excluding `refunded` orders).
+   - Groups `order_items` by `product_id` when `product_id IS NOT NULL`, falling back to `(product_name_id, product_name_en, sku)` when `product_id IS NULL`.
+   - Displays the **most recent snapshot name** (from `MAX(order_items.id)` in each group, localized for `id`/`en`), sums `order_items.quantity` and `order_items.subtotal`, and computes each product's share of total ranked revenue in tenths of a percent using half-up integer arithmetic (`AnalyticsService::shareInTenths()`).
+   - Produces two lists:
+     - `top_by_quantity`: top 10 ordered by `quantity DESC, revenue DESC, name ASC`, with `bar_pct = intdiv($quantity * 100, $maxQuantity)`.
+     - `top_by_revenue`: top 10 ordered by `revenue DESC, quantity DESC, name ASC`, with `bar_pct = intdiv($revenue * 100, $maxRevenue)`.
+   - Displays a translated note explaining that per-product margin is not shown because stock deductions (`stock_movements`) are recorded per order (`order_id`), not per item.
+3. **Active Products Without Sales (`products_without_sales`):**
+   - Queries active, non-deleted products (`products.is_active = true`, `products.deleted_at IS NULL`) with zero quantity sold in the ranking set within `[start, end)`, sorted alphabetically by localized name, limited to `20` items with `total_count` and `remaining_count` for the translated `"and :count more"` line.
+4. **Sales by Clock Hour (`sales_by_hour`, Hours `0..23`):**
+   - Buckets gross-sales orders by the real clock hour (`0..23`) of `orders.paid_at` in the shop timezone (not shifted by `business_day_start_time`, using `HOUR(paid_at)` on MySQL/MariaDB and `CAST(STRFTIME('%H', paid_at) AS INTEGER)` on SQLite).
+   - Computes `orders_count`, `gross_sales`, `sales_bar_pct`, `orders_bar_pct`, and `is_peak` marking the busiest hour.
+5. **Sales by Business Weekday (`sales_by_weekday`, Monday to Sunday):**
+   - Groups gross-sales orders by their **business date** (`DATE(paid_at - INTERVAL {$cutoffSeconds} SECOND)` on MySQL/MariaDB; `DATE(paid_at, '-{$cutoffSeconds} seconds')` on SQLite) so an order paid at `01:30` after midnight belongs to the previous business date's weekday.
+   - Ordered Monday (`1`) to Sunday (`7`), with weekday names rendered from `messages.analytics.weekday_1`..`weekday_7` translation keys (never from Carbon locale output).
+6. **Sales by Order Type (`sales_by_order_type`, `dine_in` & `takeaway`):**
+   - Groups gross-sales orders by `order_type` (`dine_in` and `takeaway`), returning `orders_count`, `gross_sales`, share of gross sales and share of orders in tenths of a percent (`shareInTenths()`), and `sales_bar_pct`.
+
+### Deliverables
+- **Files Created:**
+  - `app/Services/AnalyticsService.php`
+  - `app/Livewire/Reports/SalesAnalytics.php`
+  - `resources/views/livewire/reports/sales-analytics.blade.php`
+  - `tests/Unit/Services/AnalyticsServiceTest.php` (5 tests, 73 assertions)
+  - `tests/Feature/Reports/SalesAnalyticsTest.php` (3 tests, 65 assertions)
+- **Files Modified:**
+  - `routes/web.php`
+  - `resources/views/components/layouts/app.blade.php`
+  - `lang/id/messages.php`, `lang/en/messages.php`
+  - `docs/ARCHITECTURE.md`, `docs/PROJECT_PLAN.md`, `docs/DEVELOPMENT_LOG.md`
+
+### Automated Test Results
+- **Sales Analytics Unit & Feature Tests (`AnalyticsServiceTest` & `SalesAnalyticsTest`):** 8 tests, 138 assertions — 100% passing
+- **Existing Test Suites (Unmodified):** 498 tests, 7877 assertions — 100% passing
+- **Full Test Suite (`php artisan test --compact`):** 506 tests, 8015 assertions — 100% passing (0 failures, 0 errors)
+- **Laravel Pint (`php vendor/bin/pint --test`):** ✅ Clean (`passed`)
+- **Vite Build (`npm run build`):** ✅ Compiled successfully in 1.79s
+
+
+
 
 
 
