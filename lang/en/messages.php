@@ -34,6 +34,11 @@ return [
         'role_cashier' => 'Cashier',
         'shift_pill_title' => 'Click to view and manage cashier shifts',
         'no_active_shift' => 'No Active Shift',
+        'open_menu' => 'Open navigation menu',
+        'close_menu' => 'Close navigation menu',
+        'collapse_sidebar' => 'Collapse menu',
+        'expand_sidebar' => 'Expand menu',
+        'sidebar_label' => 'Main navigation',
     ],
 
     // Auth
@@ -193,6 +198,12 @@ return [
         'reprint' => 'Reprint Receipt',
         'retry_print' => 'Retry Print',
         'new_order' => 'New Order',
+        'mobile_tab_menu' => 'Menu',
+        'mobile_tab_order' => 'Order',
+        'mobile_view_switcher_label' => 'POS view switcher',
+        'view_order_bar' => 'View order • :count items • Rp :total',
+        'back_to_menu' => 'Add Items',
+        'add_product_aria' => 'Add :name',
     ],
 
     // Dashboard

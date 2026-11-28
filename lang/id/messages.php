@@ -34,6 +34,11 @@ return [
         'role_cashier' => 'Kasir',
         'shift_pill_title' => 'Klik untuk melihat dan mengelola shift kasir',
         'no_active_shift' => 'Belum Ada Shift Aktif',
+        'open_menu' => 'Buka menu navigasi',
+        'close_menu' => 'Tutup menu navigasi',
+        'collapse_sidebar' => 'Ciutkan menu',
+        'expand_sidebar' => 'Bentangkan menu',
+        'sidebar_label' => 'Navigasi utama',
     ],
 
     // Auth
@@ -193,6 +198,12 @@ return [
         'reprint' => 'Cetak Ulang',
         'retry_print' => 'Coba Cetak Lagi',
         'new_order' => 'Pesanan Baru',
+        'mobile_tab_menu' => 'Menu',
+        'mobile_tab_order' => 'Pesanan',
+        'mobile_view_switcher_label' => 'Tampilan kasir',
+        'view_order_bar' => 'Lihat pesanan • :count item • Rp :total',
+        'back_to_menu' => 'Tambah Item',
+        'add_product_aria' => 'Tambah :name',
     ],
 
     // Dashboard

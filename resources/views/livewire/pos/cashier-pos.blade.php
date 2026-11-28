@@ -1,10 +1,67 @@
-<div class="h-[calc(100vh-65px)] flex flex-col lg:flex-row overflow-hidden bg-cream-50">
+@php
+    $cartItemCount = array_sum(array_map(static fn (array $item): int => (int) ($item['quantity'] ?? 1), $cart));
+@endphp
+<div
+    x-data="{ activeView: 'menu' }"
+    class="h-[calc(100dvh-65px)] flex flex-col lg:flex-row overflow-hidden bg-cream-50"
+>
+    <!-- NARROW SCREENS (< 1024px): Compact Segmented View Switch (Menu vs Order) -->
+    <div
+        id="pos-mobile-view-switch"
+        role="group"
+        aria-label="{{ __('messages.pos.mobile_view_switcher_label') }}"
+        class="lg:hidden shrink-0 bg-white border-b border-coffee-200/80 px-3 py-1.5"
+    >
+        <div class="max-w-md mx-auto grid grid-cols-2 gap-1 bg-cream-100 p-0.5 rounded-xl border border-coffee-200/80">
+            <button
+                id="pos-tab-menu"
+                type="button"
+                aria-pressed="true"
+                :aria-pressed="(activeView === 'menu').toString()"
+                x-on:click="activeView = 'menu'"
+                :class="activeView === 'menu' ? 'bg-coffee-900 text-cream-50 shadow-xs' : 'text-coffee-700 hover:text-coffee-950'"
+                class="min-h-10 h-10 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors motion-reduce:transition-none flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+                <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                </svg>
+                <span>{{ __('messages.pos.mobile_tab_menu') }}</span>
+            </button>
+
+            <button
+                id="pos-tab-order"
+                type="button"
+                aria-pressed="false"
+                :aria-pressed="(activeView === 'order').toString()"
+                x-on:click="activeView = 'order'"
+                :class="activeView === 'order' ? 'bg-coffee-900 text-cream-50 shadow-xs' : 'text-coffee-700 hover:text-coffee-950'"
+                class="min-h-10 h-10 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors motion-reduce:transition-none flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+                <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                </svg>
+                <span>{{ __('messages.pos.mobile_tab_order') }}</span>
+                <span
+                    id="pos-cart-count-badge"
+                    data-cart-count="{{ $cartItemCount }}"
+                    :class="activeView === 'order' ? 'bg-caramel-500 text-white' : 'bg-coffee-200 text-coffee-900'"
+                    class="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full text-[11px] font-extrabold transition-colors motion-reduce:transition-none"
+                >
+                    {{ $cartItemCount }}
+                </span>
+            </button>
+        </div>
+    </div>
 
     <!-- LEFT SECTION: Product Catalog & Filters (65% width on desktop) -->
-    <div class="flex-1 flex flex-col min-w-0 h-full overflow-hidden border-r border-coffee-200/60">
+    <div
+        id="pos-catalog-panel"
+        :class="activeView === 'menu' ? 'flex' : 'hidden lg:flex'"
+        class="flex-1 flex-col min-w-0 min-h-0 h-full overflow-hidden border-r border-coffee-200/60 relative lg:flex lg:!flex"
+    >
 
         <!-- Top Control Bar: Search & Dining Mode Toggle -->
-        <div class="p-3.5 sm:p-4 bg-white/90 border-b border-coffee-200/60 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shrink-0">
+        <div class="px-3.5 py-2 sm:px-4 sm:py-2.5 bg-white/90 border-b border-coffee-200/60 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 shrink-0">
             <!-- Search Bar -->
             <div class="relative flex-1 max-w-md">
                 <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-coffee-400">
@@ -16,7 +73,7 @@
                     type="text"
                     wire:model.live.debounce.250ms="search"
                     placeholder="{{ __('messages.pos.search_placeholder') }}"
-                    class="w-full pl-10 pr-4 py-2 bg-cream-50/80 border border-coffee-200 rounded-xl text-sm text-coffee-950 placeholder-coffee-400 focus:outline-none focus:ring-2 focus:ring-coffee-400 focus:bg-white transition-all"
+                    class="w-full pl-10 pr-4 py-1.5 sm:py-2 bg-cream-50/80 border border-coffee-200 rounded-xl text-sm text-coffee-950 placeholder-coffee-400 focus:outline-none focus:ring-2 focus:ring-coffee-400 focus:bg-white transition-all"
                 />
                 @if ($search !== '')
                     <button
@@ -30,8 +87,8 @@
                 @endif
             </div>
 
-            <!-- Dining Mode Toggle & Table Selection -->
-            <div class="flex items-center gap-2">
+            <!-- Single Dining Mode Toggle (No duplicate standalone pill) -->
+            <div id="pos-dining-mode-toggle" class="flex items-center gap-2">
                 <div class="flex bg-cream-100 p-1 rounded-xl border border-coffee-200/80 text-xs font-semibold">
                     <button
                         type="button"
@@ -54,19 +111,15 @@
                         <span>{{ __('messages.pos.takeaway') }}</span>
                     </button>
                 </div>
-
-                <div class="hidden sm:flex items-center px-3 py-2 bg-white rounded-xl border border-coffee-200 text-xs font-bold text-coffee-800 shadow-2xs">
-                    {{ $diningMode === 'dine_in' ? __('messages.pos.dine_in') : __('messages.pos.takeaway') }}
-                </div>
             </div>
         </div>
 
         <!-- Category Filter Pills Bar -->
-        <div class="px-3.5 sm:px-4 py-2.5 bg-cream-50/60 border-b border-coffee-200/60 flex items-center gap-2 overflow-x-auto shrink-0 no-scrollbar">
+        <div class="px-3.5 sm:px-4 py-1.5 sm:py-2 bg-cream-50/60 border-b border-coffee-200/60 flex items-center gap-2 overflow-x-auto shrink-0 no-scrollbar">
             <button
                 type="button"
                 wire:click="$set('selectedCategory', 'all')"
-                class="px-4 py-2 rounded-xl text-xs font-bold tracking-tight whitespace-nowrap transition-all cursor-pointer {{ $selectedCategory === 'all' ? 'bg-coffee-900 text-cream-50 shadow-xs border border-coffee-950' : 'bg-white text-coffee-800 border border-coffee-200/90 hover:bg-coffee-100/70' }}"
+                class="px-3.5 py-1.5 rounded-xl text-xs font-bold tracking-tight whitespace-nowrap transition-all cursor-pointer {{ $selectedCategory === 'all' ? 'bg-coffee-900 text-cream-50 shadow-xs border border-coffee-950' : 'bg-white text-coffee-800 border border-coffee-200/90 hover:bg-coffee-100/70' }}"
             >
                 {{ __('messages.pos.all_categories') }}
             </button>
@@ -75,7 +128,7 @@
                 <button
                     type="button"
                     wire:click="$set('selectedCategory', '{{ $cat->slug }}')"
-                    class="px-4 py-2 rounded-xl text-xs font-bold tracking-tight whitespace-nowrap transition-all cursor-pointer {{ $selectedCategory === $cat->slug ? 'bg-coffee-900 text-cream-50 shadow-xs border border-coffee-950' : 'bg-white text-coffee-800 border border-coffee-200/90 hover:bg-coffee-100/70' }}"
+                    class="px-3.5 py-1.5 rounded-xl text-xs font-bold tracking-tight whitespace-nowrap transition-all cursor-pointer {{ $selectedCategory === $cat->slug ? 'bg-coffee-900 text-cream-50 shadow-xs border border-coffee-950' : 'bg-white text-coffee-800 border border-coffee-200/90 hover:bg-coffee-100/70' }}"
                 >
                     {{ $cat->name }}
                 </button>
@@ -83,20 +136,20 @@
         </div>
 
         <!-- Product Grid Area -->
-        <div class="flex-1 p-3.5 sm:p-5 overflow-y-auto">
-            <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3.5 sm:gap-4">
+        <div class="flex-1 min-h-0 p-3 sm:p-3.5 lg:p-5 pb-24 lg:pb-5 overflow-y-auto">
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-3 lg:gap-4">
 
                 <!-- 1. Database Products (Real Models) -->
                 @foreach ($realProducts as $product)
                     <div
                         wire:click="selectProduct({{ $product->id }}, false)"
-                        class="group bg-white rounded-2xl border border-coffee-200/80 p-3 sm:p-4 flex flex-col justify-between hover:border-coffee-400 hover:shadow-md transition-all duration-200 cursor-pointer relative overflow-hidden select-none"
+                        class="group bg-white rounded-2xl border border-coffee-200/80 p-2.5 sm:p-3 lg:p-3.5 flex flex-col justify-between hover:border-coffee-400 hover:shadow-md transition-all duration-200 motion-reduce:transition-none cursor-pointer relative overflow-hidden select-none"
                     >
-                        <!-- Top Image / Accent Placeholder -->
-                        <div class="w-full h-24 sm:h-28 rounded-xl bg-gradient-to-br from-cream-100 via-coffee-100/70 to-coffee-200/50 border border-coffee-100 flex items-center justify-center mb-3 relative overflow-hidden group-hover:scale-[1.02] transition-transform">
+                        <!-- Top Image / Accent Placeholder (compact h-20 on phone/tablet, lg:h-24 on desktop) -->
+                        <div class="w-full h-20 sm:h-20 md:h-20 lg:h-24 rounded-xl bg-gradient-to-br from-cream-100 via-coffee-100/70 to-coffee-200/50 border border-coffee-100 flex items-center justify-center mb-2 relative overflow-hidden group-hover:scale-[1.02] transition-transform motion-reduce:transition-none">
                             <!-- Category Badge -->
-                            <div class="absolute top-2 left-2">
-                                <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-white/95 text-coffee-800 border border-coffee-200/80 shadow-2xs">
+                            <div class="absolute top-1.5 left-1.5">
+                                <span class="px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-white/95 text-coffee-800 border border-coffee-200/80 shadow-2xs">
                                     {{ $product->category?->name ?? __('messages.pos.menu_category_fallback') }}
                                 </span>
                             </div>
@@ -105,26 +158,34 @@
                             <div class="text-coffee-600/70">
                                 @if (str_contains(strtolower($product->sku), 'cf') || str_contains(strtolower($product->sku), 'lt'))
                                     <!-- Coffee / Beverage Icon -->
-                                    <svg class="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <svg class="w-8 h-8 lg:w-9 lg:h-9" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                                     </svg>
                                 @else
                                     <!-- Food / Snack Icon -->
-                                    <svg class="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <svg class="w-8 h-8 lg:w-9 lg:h-9" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                                     </svg>
                                 @endif
                             </div>
 
-                            <!-- Options Badge -->
+                            <!-- Options & Sold-Out Badges -->
+                            @if ($product->is_sold_out)
+                                <div class="absolute top-1.5 right-1.5">
+                                    <span class="px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-rose-600 text-white shadow-2xs">
+                                        {{ __('messages.pos.sold_out') }}
+                                    </span>
+                                </div>
+                            @endif
+
                             @if ($product->has_variants)
-                                <div class="absolute bottom-2 right-2">
+                                <div class="absolute bottom-1.5 right-1.5">
                                     <span class="px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-caramel-500 text-white shadow-2xs">
                                         {{ __('messages.pos.variant_count', ['count' => count($product->variants)]) }}
                                     </span>
                                 </div>
                             @elseif ($product->modifierGroups->isNotEmpty())
-                                <div class="absolute bottom-2 right-2">
+                                <div class="absolute bottom-1.5 right-1.5">
                                     <span class="px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-coffee-800 text-white shadow-2xs">
                                         {{ __('messages.pos.custom_badge') }}
                                     </span>
@@ -134,24 +195,28 @@
 
                         <!-- Product Information -->
                         <div>
-                            <h4 class="font-bold text-sm text-coffee-950 line-clamp-1 group-hover:text-caramel-600 transition-colors">
+                            <h4 class="font-bold text-xs sm:text-sm text-coffee-950 line-clamp-2 leading-snug group-hover:text-caramel-600 transition-colors">
                                 {{ $product->name }}
                             </h4>
-                            <p class="text-[11px] text-coffee-400 mt-0.5 font-mono">
+                            <p class="text-[10px] text-coffee-400 mt-0.5 font-mono">
                                 {{ $product->sku }}
                             </p>
                         </div>
 
-                        <!-- Price and Add Action -->
-                        <div class="mt-3 pt-2.5 border-t border-coffee-100 flex items-center justify-between">
-                            <div>
-                                <span class="text-xs text-coffee-500 block text-[10px]">{{ __('messages.pos.price_label') }}</span>
-                                <span class="text-sm font-extrabold text-coffee-950">
+                        <!-- Price and Add Action (44px minimum touch target) -->
+                        <div class="mt-2 pt-2 border-t border-coffee-100 flex items-center justify-between gap-2">
+                            <div class="min-w-0">
+                                <span class="text-coffee-500 block text-[10px] leading-none">{{ __('messages.pos.price_label') }}</span>
+                                <span class="text-xs sm:text-sm font-extrabold text-coffee-950">
                                     Rp {{ number_format($product->effective_price, 0, ',', '.') }}
                                 </span>
                             </div>
 
-                            <span class="w-8 h-8 rounded-xl bg-coffee-900 group-hover:bg-caramel-500 text-white flex items-center justify-center transition-colors shadow-2xs">
+                            <span
+                                role="button"
+                                aria-label="{{ __('messages.pos.add_product_aria', ['name' => $product->name]) }}"
+                                class="min-w-11 min-h-11 w-11 h-11 rounded-xl bg-coffee-900 group-hover:bg-caramel-500 text-white flex items-center justify-center transition-colors motion-reduce:transition-none shadow-2xs shrink-0"
+                            >
                                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
                                 </svg>
@@ -162,15 +227,45 @@
 
             </div>
         </div>
+
+        <!-- Sticky Bottom Bar on Menu View when Cart has Items (< 1024px) -->
+        @if (!empty($cart))
+            <div
+                id="pos-mobile-bottom-bar"
+                class="lg:hidden sticky bottom-0 inset-x-0 z-20 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-gradient-to-t from-cream-50 via-cream-50/95 to-transparent shrink-0"
+            >
+                <button
+                    type="button"
+                    x-on:click="activeView = 'order'"
+                    class="w-full min-h-11 px-4 py-2.5 rounded-2xl bg-coffee-900 hover:bg-caramel-600 text-cream-50 font-bold text-sm shadow-lg flex items-center justify-between gap-3 transition-colors motion-reduce:transition-none cursor-pointer"
+                >
+                    <span class="flex items-center gap-2 truncate">
+                        <svg class="w-4 h-4 shrink-0 text-caramel-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                        </svg>
+                        <span class="truncate">{{ __('messages.pos.view_order_bar', ['count' => $cartItemCount, 'total' => number_format($total, 0, ',', '.')]) }}</span>
+                    </span>
+                    <span class="inline-flex items-center gap-1 text-xs font-extrabold text-caramel-300 shrink-0">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
+                        </svg>
+                    </span>
+                </button>
+            </div>
+        @endif
     </div>
 
     <!-- RIGHT SECTION: Active Order Cart (35% width on desktop) -->
-    <div class="w-full lg:w-[400px] xl:w-[440px] bg-white flex flex-col h-full border-t lg:border-t-0 border-coffee-200/80 shrink-0 shadow-lg z-20">
+    <div
+        id="pos-cart-panel"
+        :class="activeView === 'order' ? 'flex' : 'hidden lg:flex'"
+        class="w-full lg:w-[400px] xl:w-[440px] bg-white flex-col flex-1 lg:flex-none min-h-0 lg:h-full border-t lg:border-t-0 border-coffee-200/80 shrink-0 shadow-lg z-20 lg:flex lg:!flex"
+    >
 
         <!-- Cart Header -->
-        <div class="p-4 border-b border-coffee-100 bg-cream-50/70 flex items-center justify-between">
-            <div>
-                <div class="flex items-center gap-2">
+        <div class="p-3.5 sm:p-4 border-b border-coffee-100 bg-cream-50/70 flex items-center justify-between gap-2 shrink-0">
+            <div class="min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
                     <h3 class="font-bold text-base text-coffee-950 tracking-tight">
                         {{ __('messages.pos.current_order') }}
                     </h3>
@@ -189,21 +284,37 @@
                 </p>
             </div>
 
-            @if (!empty($cart))
+            <div class="flex items-center gap-2 shrink-0">
+                <!-- Narrow Screens: Back to Menu / Add Items button -->
                 <button
+                    id="pos-back-to-menu"
                     type="button"
-                    wire:click="clearCart"
-                    @disabled($paymentInFlight)
-                    class="text-xs text-rose-600 hover:text-rose-800 font-semibold p-1 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    x-on:click="activeView = 'menu'"
+                    class="lg:hidden min-h-11 px-3 py-2 rounded-xl bg-white hover:bg-coffee-100 text-coffee-900 border border-coffee-200 text-xs font-bold inline-flex items-center gap-1.5 transition-colors motion-reduce:transition-none cursor-pointer"
                 >
-                    {{ __('messages.pos.clear_cart') }}
+                    <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    <span>{{ __('messages.pos.back_to_menu') }}</span>
                 </button>
-            @endif
+
+                @if (!empty($cart))
+                    <button
+                        type="button"
+                        wire:click="clearCart"
+                        x-on:click="activeView = 'menu'"
+                        @disabled($paymentInFlight)
+                        class="text-xs text-rose-600 hover:text-rose-800 font-semibold p-1.5 hover:bg-rose-50 rounded-lg transition-colors motion-reduce:transition-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {{ __('messages.pos.clear_cart') }}
+                    </button>
+                @endif
+            </div>
         </div>
 
         <!-- Unresolved payment recovery banner -->
         @if (($paymentInFlight || $hasUnresolvedOrder) && $checkoutIdempotencyKey)
-        <div class="mx-4 mt-3 p-3 rounded-xl bg-amber-50 border border-amber-300 text-xs text-amber-900 space-y-2">
+        <div class="mx-4 mt-3 p-3 rounded-xl bg-amber-50 border border-amber-300 text-xs text-amber-900 space-y-2 shrink-0">
             <p class="font-bold flex items-center gap-1">
                 ⚠️ {{ __('messages.pos.unconfirmed_trx_title') }}
             </p>
@@ -228,7 +339,7 @@
         @endif
 
         <!-- Cart Items List (Scrollable) -->
-        <div class="flex-1 p-3.5 sm:p-4 overflow-y-auto space-y-3">
+        <div class="flex-1 min-h-0 p-3.5 sm:p-4 overflow-y-auto space-y-3">
             @forelse ($cart as $index => $item)
                 <div class="p-3 rounded-2xl border border-coffee-200/70 bg-cream-50/40 hover:bg-cream-50 transition-colors space-y-2">
                     <!-- Top Line: Item Name, Variant & Delete -->
@@ -261,6 +372,9 @@
                         <button
                             type="button"
                             wire:click="removeItem({{ $index }})"
+                            @if (count($cart) === 1)
+                                x-on:click="activeView = 'menu'"
+                            @endif
                             @disabled($paymentInFlight)
                             class="text-coffee-300 hover:text-rose-600 p-1 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                             title="{{ __('messages.pos.delete_item') }}"
@@ -282,6 +396,9 @@
                             <button
                                 type="button"
                                 wire:click="decreaseQty({{ $index }})"
+                                @if (count($cart) === 1 && ((int) ($item['quantity'] ?? 1)) <= 1)
+                                    x-on:click="activeView = 'menu'"
+                                @endif
                                 @disabled($paymentInFlight)
                                 class="w-6 h-6 rounded-lg bg-coffee-50 hover:bg-coffee-200 text-coffee-800 flex items-center justify-center font-bold text-xs transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                             >
@@ -302,9 +419,9 @@
                     </div>
                 </div>
             @empty
-                <div class="h-64 flex flex-col items-center justify-center text-center p-6 text-coffee-400">
-                    <div class="w-16 h-16 rounded-3xl bg-cream-100 flex items-center justify-center text-coffee-400 mb-3 border border-coffee-200/60">
-                        <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div class="min-h-36 py-6 flex flex-col items-center justify-center text-center p-4 sm:p-6 text-coffee-400">
+                    <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-3xl bg-cream-100 flex items-center justify-center text-coffee-400 mb-3 border border-coffee-200/60">
+                        <svg class="w-7 h-7 sm:w-8 sm:h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                         </svg>
                     </div>
@@ -318,8 +435,8 @@
             @endforelse
         </div>
 
-        <!-- Cart Calculation & Checkout Area -->
-        <div class="p-4 bg-cream-50/80 border-t border-coffee-200/80 space-y-3 shrink-0">
+        <!-- Cart Calculation & Checkout Area (Sticky footer inside cart panel) -->
+        <div class="sticky bottom-0 z-10 p-3.5 sm:p-4 pb-[max(0.875rem,env(safe-area-inset-bottom))] bg-cream-50/95 border-t border-coffee-200/80 space-y-2.5 sm:space-y-3 shrink-0">
             <!-- Price Summary -->
             <div class="space-y-1.5 text-xs">
                 <div class="flex items-center justify-between text-coffee-600">
@@ -349,6 +466,7 @@
                     variant="outline"
                     size="md"
                     wire:click="holdOrder"
+                    x-on:click="activeView = 'menu'"
                     :disabled="empty($cart)"
                     class="col-span-1 text-xs font-semibold py-3"
                 >
@@ -374,7 +492,7 @@
 
     <!-- CUSTOMIZATION MODAL (Variant, Modifiers, Notes) -->
     @if ($showCustomizeModal && $activeProduct)
-        <div class="fixed inset-0 z-50 overflow-y-auto px-4 py-6 sm:px-0 flex items-center justify-center">
+        <div class="fixed inset-0 z-50 overflow-y-auto p-2 sm:px-4 sm:py-6 flex items-center justify-center">
             <!-- Backdrop -->
             <div
                 class="fixed inset-0 bg-coffee-950/60 backdrop-blur-xs transition-opacity"
@@ -382,21 +500,21 @@
             ></div>
 
             <!-- Modal Content Panel -->
-            <div class="relative w-full max-w-lg bg-white rounded-3xl border border-coffee-200 shadow-2xl overflow-hidden z-10 max-h-[90vh] flex flex-col">
+            <div class="relative w-full max-w-lg bg-white rounded-3xl border border-coffee-200 shadow-2xl overflow-hidden z-10 max-h-[calc(100dvh-1rem)] sm:max-h-[90dvh] flex flex-col">
                 <!-- Modal Header -->
-                <div class="px-6 py-4 border-b border-coffee-100 bg-cream-50 flex items-center justify-between">
-                    <div>
-                        <h3 class="text-lg font-bold text-coffee-950 tracking-tight">
+                <div class="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-coffee-100 bg-cream-50 flex items-center justify-between shrink-0">
+                    <div class="min-w-0">
+                        <h3 class="text-base sm:text-lg font-bold text-coffee-950 tracking-tight truncate">
                             {{ $activeProduct['name'] }}
                         </h3>
-                        <p class="text-xs text-coffee-500 font-mono mt-0.5">
+                        <p class="text-xs text-coffee-500 font-mono mt-0.5 truncate">
                             {{ $activeProduct['sku'] }}
                         </p>
                     </div>
                     <button
                         type="button"
                         wire:click="$set('showCustomizeModal', false)"
-                        class="text-coffee-400 hover:text-coffee-800 p-1 rounded-xl hover:bg-coffee-100 transition-colors cursor-pointer"
+                        class="min-w-11 min-h-11 inline-flex items-center justify-center text-coffee-400 hover:text-coffee-800 p-2 rounded-xl hover:bg-coffee-100 transition-colors cursor-pointer shrink-0"
                     >
                         <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -405,7 +523,7 @@
                 </div>
 
                 <!-- Modal Body (Scrollable options) -->
-                <div class="p-6 overflow-y-auto space-y-5">
+                <div class="flex-1 min-h-0 p-4 sm:p-6 overflow-y-auto space-y-4 sm:space-y-5">
 
                     <!-- 1. Size / Portion Variants -->
                     @if ($activeProduct['has_variants'] && !empty($activeProduct['variants']))
@@ -524,7 +642,7 @@
 
     <!-- PAYMENT MODAL -->
     @if ($showPaymentModal)
-        <div class="fixed inset-0 z-50 overflow-y-auto px-4 py-6 sm:px-0 flex items-center justify-center">
+        <div class="fixed inset-0 z-50 overflow-y-auto p-2 sm:px-4 sm:py-6 flex items-center justify-center">
             <!-- Backdrop -->
             <div
                 class="fixed inset-0 bg-coffee-950/60 backdrop-blur-xs transition-opacity"
@@ -532,11 +650,11 @@
             ></div>
 
             <!-- Modal Content Panel -->
-            <div class="relative w-full max-w-md bg-white rounded-3xl border border-coffee-200 shadow-2xl overflow-hidden z-10 flex flex-col">
+            <div class="relative w-full max-w-md bg-white rounded-3xl border border-coffee-200 shadow-2xl overflow-hidden z-10 max-h-[calc(100dvh-1rem)] sm:max-h-[90dvh] flex flex-col">
                 <!-- Modal Header -->
-                <div class="px-6 py-4.5 border-b border-coffee-100 bg-cream-50 flex items-center justify-between">
+                <div class="px-4 sm:px-6 py-3.5 sm:py-4.5 border-b border-coffee-100 bg-cream-50 flex items-center justify-between shrink-0">
                     <div>
-                        <h3 class="text-lg font-bold text-coffee-950 tracking-tight">
+                        <h3 class="text-base sm:text-lg font-bold text-coffee-950 tracking-tight">
                             {{ __('messages.pos.payment_modal_title') }}
                         </h3>
                         <p class="text-xs text-coffee-500 mt-0.5">
@@ -546,7 +664,7 @@
                     <button
                         type="button"
                         wire:click="$set('showPaymentModal', false)"
-                        class="text-coffee-400 hover:text-coffee-800 p-1"
+                        class="min-w-11 min-h-11 inline-flex items-center justify-center text-coffee-400 hover:text-coffee-800 p-2 rounded-xl hover:bg-coffee-100 transition-colors cursor-pointer shrink-0"
                     >
                         <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -555,7 +673,7 @@
                 </div>
 
                 <!-- Modal Body -->
-                <div class="p-6 space-y-5 overflow-y-auto max-h-[70vh]">
+                <div class="flex-1 min-h-0 p-4 sm:p-6 space-y-4 sm:space-y-5 overflow-y-auto max-h-[70vh]">
                     <!-- Total Bill Box -->
                     <div class="p-4 rounded-2xl bg-cream-100/80 border border-coffee-200 text-center">
                         <span class="text-xs font-semibold text-coffee-600 block uppercase tracking-wider">{{ __('messages.pos.total_bill') }}</span>
@@ -831,11 +949,11 @@
 
     <!-- SUCCESS MODAL -->
     @if ($showSuccessModal)
-        <div class="fixed inset-0 z-50 overflow-y-auto px-4 py-6 sm:px-0 flex items-center justify-center">
+        <div class="fixed inset-0 z-50 overflow-y-auto p-2 sm:px-4 sm:py-6 flex items-center justify-center">
             <div class="fixed inset-0 bg-coffee-950/60 backdrop-blur-xs"></div>
 
             <div
-                class="relative w-full max-w-sm bg-white rounded-3xl border border-emerald-200 shadow-2xl overflow-hidden z-10"
+                class="relative w-full max-w-sm bg-white rounded-3xl border border-emerald-200 shadow-2xl overflow-hidden z-10 max-h-[calc(100dvh-1rem)] sm:max-h-[90dvh] flex flex-col"
                 @if ($lastPrintJobStatus === 'pending' || $lastPrintJobStatus === 'processing')
                     wire:poll.2000ms="refreshPrintStatus"
                 @endif
@@ -967,6 +1085,7 @@
                                 variant="primary"
                                 size="sm"
                                 wire:click="closeSuccessModal"
+                                x-on:click="activeView = 'menu'"
                                 class="col-span-2 text-sm font-bold bg-coffee-900 hover:bg-coffee-800"
                             >
                                 {{ __('messages.pos.new_order') }}

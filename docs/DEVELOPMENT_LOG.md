@@ -2107,6 +2107,187 @@ Implemented Phase 7 Task 7.4 (read-only export of the Sales, COGS & Gross-Profit
 - **Laravel Pint (`php vendor/bin/pint --test`):** ✅ Clean (`passed`)
 - **Vite Build (`npm run build`):** ✅ Compiled successfully in 622ms
 
+---
+
+## Responsive Navigation — Collapsible Desktop Sidebar & Tablet/Mobile Off-Canvas Drawer
+
+**Date:** 2026-11-28  
+**Status:** ✅ COMPLETED
+
+### Summary
+Diagnosed and fixed the tablet/mobile navigation bug and implemented a collapsible desktop sidebar (`lg:w-64` expanded vs `lg:w-20` icon rail) and off-canvas tablet/mobile drawer (`< 1024px`) in `resources/views/components/layouts/app.blade.php` and `resources/css/app.css` without touching any services, models, migrations, routes, permission logic, or existing tests.
+
+### Step 1 Root-Cause Diagnosis (`resources/views/components/layouts/app.blade.php`)
+1. **Breakpoint Mismatch (`md:` `768px` instead of `lg:` `1024px`, `app.blade.php:29,37,57,313`)**:
+   - The hamburger button (`app.blade.php:313`), backdrop (`app.blade.php:29`), and drawer close button (`app.blade.php:57`) used `md:hidden`, while `<aside>` (`app.blade.php:37`) used `md:static md:translate-x-0`. On tablet viewports (`768px`–`1023px`, such as iPad portrait `768×1024` and `820×1180`), the hamburger button was hidden and the full `256px` sidebar was permanently fixed inline with no way to dismiss or collapse it, even though `/pos` (`cashier-pos.blade.php:1`) switches to its desktop row layout at `lg:` (`1024px`).
+2. **Missing Static Off-Canvas Default & Fragile Mobile Drawer Geometry (`app.blade.php:35-39,67`)**:
+   - `<aside>` lacked `-translate-x-full lg:translate-x-0` in its static `class` attribute (relying solely on Alpine `:class` evaluation), its inner wrapper `<div>` (`app.blade.php:39`) was not `flex-1 min-h-0 flex flex-col`, and `<nav>` (`app.blade.php:67`) used `max-h-[calc(100vh-220px)]` (where `100vh` includes mobile browser chrome) instead of `flex-1 min-h-0 overflow-y-auto` inside `max-h-dvh pb-[env(safe-area-inset-bottom)]`.
+   - Furthermore, `<aside>` had no `Escape` handler, no link-click close handler, no `livewire:navigated` handler, no `resize.window` reset across `1024px`, no scroll lock, and no focus management, and `storage/logs/browser.log:32807-33006` showed earlier Alpine evaluation errors when PHP-style `$variables` were placed in Alpine attributes on plain HTML elements.
+
+### Implementation Details
+1. **Desktop Collapsible Sidebar (`>= 1024px`, `lg:` breakpoint)**:
+   - Added `#desktop-sidebar-toggle` (`<button type="button">`, `hidden lg:inline-flex`) at the top of `#app-sidebar` with `aria-controls="app-sidebar"`, `aria-expanded="true"`, `:aria-expanded="(!sidebarCollapsed).toString()"`, and translated `aria-label` / `title` switching between `messages.nav.collapse_sidebar` (`"Ciutkan menu"` / `"Collapse menu"`) and `messages.nav.expand_sidebar` (`"Bentangkan menu"` / `"Expand menu"`) via `data-collapse-label` / `data-expand-label` dataset attributes.
+   - Toggles `#app-sidebar` between `lg:w-64` (`256px`) and `lg:w-20` (`80px`).
+   - Preserves all nav label text (`span.tp-nav-label`), group headings (`div.tp-nav-section`), user name/role (`div.tp-user-text`), and the Owner low-stock badge in the server-rendered DOM, hiding text on desktop collapse via `:class="sidebarCollapsed ? 'lg:hidden' : ''"`.
+   - Every nav link includes a translated `title` tooltip, and the `/inventory/stock` low-stock badge repositions as a compact corner pill (`lg:absolute lg:top-0.5 lg:right-1`) in the collapsed rail.
+   - Persists `sidebarCollapsed` in `localStorage` under `tp.sidebar.collapsed` (`'1'` / `'0'`) wrapped in `try / catch`, paired with a pre-paint inline `<script>` in `<head>` toggling `html.tp-sidebar-collapsed` and `@media (min-width: 1024px)` CSS rules in `resources/css/app.css`.
+2. **Tablet & Mobile Off-Canvas Drawer (`< 1024px`, below `lg:`)**:
+   - `#app-sidebar` defaults to `-translate-x-full lg:translate-x-0` below `1024px` and slides in (`translate-x-0`) over `#mobile-sidebar-backdrop` (`bg-coffee-950/60 lg:hidden`) when `#mobile-menu-toggle` (`lg:hidden min-w-11 min-h-11`, minimum `44px × 44px` touch target) is clicked.
+   - Because all collapse hiding classes are `lg:`-prefixed, the drawer below `1024px` always renders full text labels, section headings, and the full user card.
+   - Closes on backdrop tap, `#mobile-drawer-close` tap, `Escape` key, clicking any nav link, `livewire:navigated`, and resizing across `1024px`; locks `<body>` scroll (`overflow-hidden`) while open below `1024px`; moves focus to `$refs.drawerCloseBtn` on open and returns focus to `$refs.mobileMenuBtn` on close.
+3. **Print & Reduced Motion**:
+   - Added `motion-reduce:transition-none` on all sidebar/backdrop/button transitions and `@media print` rules in `resources/css/app.css` hiding `#app-sidebar`, `#mobile-sidebar-backdrop`, `#mobile-menu-toggle`, `#desktop-sidebar-toggle`, `#mobile-drawer-close`, and `.no-print`.
+
+### Behaviours Verified by Automated Markup Tests vs. Manual Browser Testing
+- **Verified by Automated Tests (`ResponsiveNavTest`)**:
+  - Presence, attributes (`aria-controls`, `aria-expanded`, `type="button"`), and translated `aria-label` / `data-collapse-label` / `data-expand-label` values of `#desktop-sidebar-toggle`, `#mobile-menu-toggle`, `#mobile-drawer-close`, and `#app-sidebar` in both `id` and `en`.
+  - Presence of responsive Tailwind classes (`-translate-x-full`, `lg:translate-x-0`, `lg:static`, `lg:w-64`, `lg:w-20`, `lg:hidden`, `bg-coffee-950/60`, `min-w-11 min-h-11`, `motion-reduce:transition-none`, `no-print`).
+  - Presence of all Owner sidebar labels and the low-stock badge in the rendered HTML in `id` and `en`, and Cashier visibility of allowed links (`pos`, `orders_queue`, `shifts`, `logout`) with all Owner-only links absent.
+  - Full scan across every `.blade.php` file in `resources/views` confirming no PHP-style `$variable` outside the Alpine/Livewire magic allow-list appears in any `x-*`, `:*`, `@*`, or `wire:*` attribute on a plain HTML element.
+  - `localStorage` (`tp.sidebar.collapsed`) `getItem` and `setItem` calls wrapped in `try / catch`.
+  - Identical key sets and absence of HTML entities in `lang/id/messages.php` and `lang/en/messages.php`.
+- **Requires Manual Browser Verification (`1366×768`, `1024×768`, `820×1180`, `768×1024`, `390×844`, `375×667`)**:
+  - Visual smooth width transition between `256px` (`lg:w-64`) and `80px` (`lg:w-20`) on desktop without pre-paint flicker across page reloads.
+  - Native browser hover tooltip rendering on collapsed rail icons and visual corner positioning of the low-stock badge at `>= 1024px`.
+  - Touch/click slide-in animation of the off-canvas drawer below `1024px`, live focus transfer between `#mobile-menu-toggle` and `#mobile-drawer-close`, background scroll lock on mobile browsers, and automatic drawer dismissal when resizing a browser window across the `1024px` boundary.
+
+### Deliverables
+- **Files Created:**
+  - `tests/Feature/Layout/ResponsiveNavTest.php` (5 tests, 152 assertions)
+- **Files Modified:**
+  - `resources/views/components/layouts/app.blade.php`
+  - `resources/css/app.css`
+  - `lang/id/messages.php`, `lang/en/messages.php`
+  - `docs/DEVELOPMENT_LOG.md`, `docs/ARCHITECTURE.md`, `docs/PROJECT_PLAN.md`
+
+### Automated Test Results
+- **Responsive Navigation Feature Tests (`ResponsiveNavTest`):** 5 tests, 152 assertions — 100% passing
+- **Existing Test Suites (Unmodified, including `LowStockAlertTest` & `RawKeysAndEntitiesUiTest`):** 527 tests, 8751 assertions — 100% passing
+- **Full Test Suite (`php artisan test --compact`):** 532 tests, 8903 assertions — 100% passing (0 failures, 0 errors)
+- **Laravel Pint (`php vendor/bin/pint --test`):** ✅ Clean (`passed`)
+- **Vite Build (`npm run build`):** ✅ Compiled successfully in 1.46s
+
+---
+
+## POS Screen Responsive Layout for Tablet & Phone (Two-View Menu/Order Switcher Below `1024px`)
+
+**Date:** 2026-11-28  
+**Status:** ✅ COMPLETED
+
+### Summary
+Diagnosed why the POS product catalogue was completely invisible below the `lg:` (`1024px`) breakpoint and implemented a client-side two-view (`"menu"` / `"order"`) layout for tablet and phone viewports (`320px` to `1023px`) while keeping the two-column desktop layout (`>= 1024px`) and all existing POS server logic and tests 100% unchanged.
+
+### Step 1 Root-Cause Diagnosis (`resources/views/livewire/pos/cashier-pos.blade.php`)
+- **Root Container (`cashier-pos.blade.php:1`)**: `<div class="h-[calc(100vh-65px)] flex flex-col lg:flex-row overflow-hidden bg-cream-50">` placed the two POS columns into a fixed-height `flex-col` container with `overflow-hidden` below `1024px` (`lg:`).
+- **Catalogue Column (`cashier-pos.blade.php:4`)**: `<div class="flex-1 flex flex-col min-w-0 h-full overflow-hidden ...">` used `flex-1` (`flex: 1 1 0%`, i.e. `flex-basis: 0%` and `flex-shrink: 1`) with `overflow-hidden`.
+- **Cart Column (`cashier-pos.blade.php:168`)**: `<div class="w-full lg:w-[400px] xl:w-[440px] bg-white flex flex-col h-full border-t lg:border-t-0 border-coffee-200/80 shrink-0 shadow-lg z-20">` had both `h-full` (`height: 100%`) and `shrink-0` (`flex-shrink: 0`).
+- **Plain-Words Root Cause**: Below `1024px` (`320px` to `1023px`, including `768px` tablet portrait and `~343px` phone), the `h-full shrink-0` Cart column claimed 100% of the `flex-col` container's height and refused to shrink, leaving `0px` of vertical space for the `flex-1 overflow-hidden` Product Catalogue column (whose computed height collapsed to `0px`).
+
+### Implementation Details
+1. **Client-Only Two-View Switcher Below `1024px` (`resources/views/livewire/pos/cashier-pos.blade.php`)**:
+   - Added static `x-data="{ activeView: 'menu' }"` on the root POS wrapper (zero dynamic PHP interpolation inside `x-data` so Livewire morphing never resets `activeView` on re-render).
+   - Added `#pos-mobile-view-switch` (`lg:hidden`) at the top of the POS area with two `min-h-11` (`44px`) buttons (`#pos-tab-menu` and `#pos-tab-order`), translated labels (`messages.pos.mobile_tab_menu` and `messages.pos.mobile_tab_order`), `aria-pressed`, and a live cart item count badge (`#pos-cart-count-badge`, `data-cart-count="{{ $cartItemCount }}"`).
+   - **Menu View (`#pos-catalog-panel`)**: uses `:class="activeView === 'menu' ? 'flex' : 'hidden lg:flex'"`, keeping the search input, dining mode toggle, horizontally scrollable category chips (`overflow-x-auto no-scrollbar`), and product grid (`grid-cols-2 sm:grid-cols-3 xl:grid-cols-4`, giving 2 columns at `320px`–`639px` and 3 columns at `640px`–`1023px`). Upgraded product card add buttons to `min-w-11 min-h-11 w-11 h-11` (`44px × 44px` touch target), added sold-out badge display (`$product->is_sold_out`), added `pb-24 lg:pb-5` catalogue bottom padding, and added a sticky bottom bar (`#pos-mobile-bottom-bar`, shown when `!empty($cart)`) displaying `messages.pos.view_order_bar` (`"Lihat pesanan • :count item • Rp :total"` / `"View order • :count items • Rp :total"`) that switches `activeView` to `'order'` on tap.
+   - **Order View (`#pos-cart-panel`)**: uses `:class="activeView === 'order' ? 'flex' : 'hidden lg:flex'"` and `hidden lg:flex ... flex-1 lg:flex-none min-h-0 lg:h-full`, includes a `min-h-11` `"Tambah Item"` / `"Add Items"` button (`#pos-back-to-menu`, `x-on:click="activeView = 'menu'"`) in the cart header, keeps the totals and `"Hold Order"` / `"Checkout Now"` buttons in a sticky footer (`sticky bottom-0 z-10`), and automatically returns `activeView` to `'menu'` when the cart becomes empty (`x-init="activeView = 'menu'"` on the `@empty` state plus `x-on:click="activeView = 'menu'"` on `clearCart`, `holdOrder`, and `closeSuccessModal`).
+   - **Modals on `360×640` Screens**: constrained the Customize, Payment, and Success modals with `p-2 sm:px-4 sm:py-6` and `max-h-[calc(100dvh-1rem)] sm:max-h-[90dvh] flex flex-col`, internal `flex-1 min-h-0 overflow-y-auto` bodies, `min-w-11 min-h-11` close buttons, and `shrink-0` footers while preserving the QRIS height-limiting classes (`max-h-72 overflow-hidden` and `max-h-56 h-auto w-auto object-contain`).
+2. **Compact POS Top Header at `360px` (`resources/views/components/layouts/app.blade.php`)**:
+   - Added `min-w-0 flex-1` and `truncate` to the header title container, updated the shift status chip to collapse its text to the status dot below `sm:` (`hidden sm:inline truncate max-w-56`), and marked the language switcher `shrink-0` so the header never wraps into overlapping lines at `360px`.
+
+### Behaviours Verified by Automated Markup Tests vs. Manual Browser Testing
+- **Verified by Automated Tests (`PosResponsiveTest`)**:
+  - Segmented switcher (`#pos-mobile-view-switch`, `#pos-tab-menu`, `#pos-tab-order`) rendered with translated labels and `aria-pressed` in `id` and `en`.
+  - Live cart-count badge (`#pos-cart-count-badge`, `data-cart-count`) and sticky bottom bar (`#pos-mobile-bottom-bar`) for `0`, `1`, and `3` items (`Rp 22.000` and `Rp 58.000`), and absence of the bottom bar when the cart is empty.
+  - Presence of the `"Tambah Item"` / `"Add Items"` button (`#pos-back-to-menu`) in the Order view in `id` and `en`.
+  - Simultaneous presence of both `#pos-catalog-panel` and `#pos-cart-panel` in the HTML at every width with expected responsive classes (`flex-col lg:flex-row`, `hidden lg:flex`, `lg:w-[400px] xl:w-[440px]`, `grid-cols-2 sm:grid-cols-3 xl:grid-cols-4`, `min-h-11`, `min-w-11 min-h-11`, `pb-24 lg:pb-5`, `sticky bottom-0`, `motion-reduce:transition-none`).
+  - All existing POS labels rendered for both Owner and Cashier in `id` and `en`.
+  - Client-only view state leaves `$cart`, `$checkoutIdempotencyKey`, `$paymentMethod`, `$cashGiven`, and `$paymentInFlight` unchanged across Livewire re-renders.
+  - Reuse of `ResponsiveNavTest::scanBladeFileForInvalidAlpineVariables()` and `ResponsiveNavTest::assertLanguageParityAndNoHtmlEntities()`.
+- **Requires Manual Browser Verification (`1366×768`, `1024×768`, `768×1024`, `360×640`, `~343px`)**:
+  - Tapping `"Menu"` and `"Pesanan"` / `"Order"` tabs and the sticky bottom bar in a live browser below `1024px` toggles visibility between `#pos-catalog-panel` and `#pos-cart-panel` without page reload.
+  - Visual verification at `768×1024` (3-column product grid) and `360×640` / `~343px` (2-column product grid, non-wrapping top header, horizontal scrolling of category chips without horizontal page scroll).
+  - Visual verification that the sticky bottom bar on the Menu view does not cover the last row of products, that the sticky cart footer keeps totals and `"Bayar Sekarang"` / `"Checkout Now"` reachable on `360×640`, and that the Customize, Payment (Cash/QRIS/Debit), and Success modals fit and scroll cleanly on `360×640`.
+  - Automatic return to the `"Menu"` tab when clearing the cart, holding an order, removing the last item, or clicking `"Pesanan Baru"` / `"New Order"` on the payment success modal.
+
+### Deliverables
+- **Files Created:**
+  - `tests/Feature/Layout/PosResponsiveTest.php` (5 tests, 193 assertions)
+- **Files Modified:**
+  - `resources/views/livewire/pos/cashier-pos.blade.php`
+  - `resources/views/components/layouts/app.blade.php`
+  - `lang/id/messages.php`, `lang/en/messages.php`
+  - `tests/Feature/Layout/ResponsiveNavTest.php` (extracted reusable static scan and language-parity helper methods)
+  - `docs/DEVELOPMENT_LOG.md`, `docs/ARCHITECTURE.md`, `docs/PROJECT_PLAN.md`
+
+### Automated Test Results
+- **POS Responsive Feature Tests (`PosResponsiveTest`):** 5 tests, 193 assertions — 100% passing
+- **Existing Test Suites (Unmodified, including `PosCheckoutIntegrationTest`, `PosCashQuickButtonsTest`, `ManualBrowserBugFixPackTest`, `Phase5EndToEndTest`, `ResponsiveNavTest`):** 532 tests, 8903 assertions — 100% passing
+- **Full Test Suite (`php artisan test --compact`):** 537 tests, 9096 assertions — 100% passing (0 failures, 0 errors)
+- **Laravel Pint (`php vendor/bin/pint --test`):** ✅ Clean (`passed`)
+- **Vite Build (`npm run build`):** ✅ Compiled successfully in 4.87s
+
+---
+
+## POS Responsive Layout Follow-Up Bug Fixes (BUG 1–4: Order View Visibility, Compact Switch, Duplicate Dining Pill & Compact Tablet Cards)
+
+**Date:** 2026-11-28  
+**Status:** ✅ COMPLETED
+
+### Summary
+Diagnosed and fixed four follow-up responsive layout bugs on `/pos` (`resources/views/livewire/pos/cashier-pos.blade.php`) reported from Chrome device-mode testing at phone (`290px`–`390px`) and tablet (`800×546`) viewports, and extended `tests/Feature/Layout/PosResponsiveTest.php` without modifying any services, models, migrations, routes, or existing test assertions.
+
+### Step 1 Root-Cause Diagnosis (`resources/views/livewire/pos/cashier-pos.blade.php`)
+1. **BUG 1 — Empty Area Under Switch When Selecting `"Pesanan"` / `"Order"` (`cashier-pos.blade.php:263-267` & `421`)**:
+   - At `cashier-pos.blade.php:264-266`, `#pos-cart-panel` had both `:class="activeView === 'order' ? 'flex' : 'hidden lg:flex'"` AND `class="hidden lg:flex w-full ..."`.
+   - When Alpine initialized with `activeView === 'menu'`, `:class` evaluated to `'hidden lg:flex'`. Because `'hidden'` was already present in the static `class` attribute, Alpine did not take ownership of `'hidden'` as a dynamically added class. When the user tapped `"Pesanan"` (`activeView = 'order'`), Alpine added `'flex'` without removing the static `'hidden'` class (`class="hidden lg:flex ... flex"`). Because `.hidden` (`display: none`) appears after `.flex` (`display: flex`) in Tailwind's compiled CSS utilities layer, `.hidden` still won below `1024px` (`lg:`), leaving **both** `#pos-catalog-panel` and `#pos-cart-panel` with `display: none`.
+   - Additionally, `x-init="activeView = 'menu'"` on the `@empty` placeholder (`cashier-pos.blade.php:421`) could reset `activeView` back to `'menu'` if an empty-cart DOM node re-initialized.
+2. **BUG 2 — Oversized Menu/Pesanan Switch on Tablet (`cashier-pos.blade.php:9-54`)**:
+   - `#pos-mobile-view-switch` stretched full width (`grid grid-cols-2` with no `max-w-*`) with `px-3.5 py-2`, `p-1`, `min-h-11`, and `sm:text-sm`, turning each button into a wide, tall block across `768px`–`1023px` tablet screens.
+3. **BUG 3 — Duplicate `"Bawa Pulang"` Pill on Tablet (`cashier-pos.blade.php:115-117`)**:
+   - Inside the top control bar (`cashier-pos.blade.php:91-118`), directly beside the interactive two-button dining-mode toggle (`cashier-pos.blade.php:92-113`), lines `115–117` rendered a second read-only badge `<div class="hidden sm:flex items-center px-3 py-2 bg-white rounded-xl border border-coffee-200 text-xs font-bold text-coffee-800 shadow-2xs">{{ $diningMode === 'dine_in' ? __('messages.pos.dine_in') : __('messages.pos.takeaway') }}</div>`. Below `640px` (`sm:`) it was hidden, but at `>= 640px` (`sm:` / tablet) it appeared right next to the toggle as a duplicate pill.
+4. **BUG 4 — Product Cards Too Tall on `800×546` Tablet (`cashier-pos.blade.php:64,122,143-229`)**:
+   - Product cards used `p-3 sm:p-4`, an `h-24 sm:h-28` (`112px`) image placeholder with `mb-3`, and `mt-3 pt-2.5` price/footer spacing, making each card `~245px` tall so only about one row fit below the header, switch, search bar, and category bar on an `800×546` screen.
+
+### Fixes Implemented (`resources/views/livewire/pos/cashier-pos.blade.php`)
+1. **Single-Source Visibility Control & Desktop Override (`#pos-catalog-panel` & `#pos-cart-panel`)**:
+   - Removed the static `hidden` class from `#pos-cart-panel`'s `class` attribute and removed the static base `flex` class from `#pos-catalog-panel`'s `class` attribute so Alpine's `:class` (`activeView === 'menu' ? 'flex' : 'hidden lg:flex'` and `activeView === 'order' ? 'flex' : 'hidden lg:flex'`) has exclusive ownership of `'flex'` vs `'hidden'` below `1024px`.
+   - Added `lg:flex lg:!flex` to both panels' static `class` attributes so desktop (`>= 1024px`) always displays both columns side-by-side regardless of `activeView` or resizing across `1024px`.
+   - Removed `x-init="activeView = 'menu'"` from the `@empty` cart block and placed conditional `x-on:click="activeView = 'menu'"` on the last-item `removeItem` and `decreaseQty` buttons (alongside `clearCart`, `holdOrder`, and `closeSuccessModal`).
+2. **Compact Segmented Switch (`#pos-mobile-view-switch`)**:
+   - Reduced outer bar padding to `px-3 py-1.5`, centered the inner pill with `max-w-md mx-auto grid grid-cols-2 gap-1 bg-cream-100 p-0.5 rounded-xl`, and sized buttons to `min-h-10 h-10 px-3 py-1.5 rounded-lg text-xs font-bold` (`40px` height) with `w-3.5 h-3.5` icons while keeping `#pos-cart-count-badge`.
+3. **Removed Duplicate Order-Type Pill (`#pos-dining-mode-toggle`)**:
+   - Removed the redundant `hidden sm:flex` read-only dining-mode pill (`cashier-pos.blade.php:115-117`) so only the interactive `#pos-dining-mode-toggle` control appears in the catalogue header at every width.
+4. **Compact Product Cards & Control Bars (`640px`–`1023px`)**:
+   - Tightened search/dining bar (`px-3.5 py-2 sm:px-4 sm:py-2.5`) and category bar (`py-1.5 sm:py-2`, `px-3.5 py-1.5` pills).
+   - Updated the product grid to `grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-3 lg:gap-4`, tightened card padding to `p-2.5 sm:p-3 lg:p-3.5`, reduced the image placeholder height to `h-20 sm:h-20 md:h-20 lg:h-24` (`mb-2`, `w-8 h-8` icon), and set product titles to `line-clamp-2 leading-snug` with `mt-2 pt-2` price/add-button footer (`min-w-11 min-h-11 w-11 h-11`) so at least 2 rows of 3 cards fit on an `800×546` tablet screen.
+
+### Behaviours Verified by Automated Markup Tests vs. Manual Browser Testing
+- **Verified by Automated Tests (`PosResponsiveTest`)**:
+  - Neither `#pos-catalog-panel` nor `#pos-cart-panel` has any static display-none class (`hidden`, `max-lg:hidden`, `md:hidden`, `sm:hidden`) in its static `class` attribute; visibility below `lg:` comes from Alpine `:class`, and both columns carry `lg:flex` and `lg:!flex` desktop overrides.
+  - `#pos-cart-panel` contains the sticky footer (`sticky bottom-0 z-10`) with subtotal, total, `"Hold Order"`, and `"Checkout Now"`.
+  - `#pos-mobile-view-switch` has the compact `px-3 py-1.5`, `max-w-md mx-auto`, and `min-h-10 h-10` classes (no oversized `py-3`/`py-4`), and only one dining-mode control (`#pos-dining-mode-toggle`) is rendered in the catalogue top bar.
+  - Product cards use `h-20 sm:h-20 md:h-20 lg:h-24` and `line-clamp-2`, and the grid keeps `grid-cols-2`, `sm:grid-cols-3`, `md:grid-cols-3`, and `xl:grid-cols-4`.
+  - Reused `ResponsiveNavTest` scan for invalid PHP `$variables` in Alpine/Livewire attributes and language key parity.
+- **Requires Manual Browser Testing (`800×546`, `768×1024`, `360×640`, `290px`–`390px`, `1366×768`)**:
+  - Tapping `"Pesanan"` / `"Order"` at `290px`–`390px` phone width and `800×546` tablet width displays the cart items, totals, `"Tahan Pesanan"`, and `"Bayar Sekarang"` immediately under the switch with internal scroll and sticky footer.
+  - Visual confirmation on `800×546` tablet that the centered `max-w-md` switch is compact, only one dining-mode toggle is shown, and at least 2 rows of 3 product cards are visible at once.
+
+### Deliverables
+- **Files Created:** None (extended existing `tests/Feature/Layout/PosResponsiveTest.php`).
+- **Files Modified:**
+  - `resources/views/livewire/pos/cashier-pos.blade.php`
+  - `tests/Feature/Layout/PosResponsiveTest.php` (6 tests, 217 assertions)
+  - `docs/DEVELOPMENT_LOG.md`, `docs/ARCHITECTURE.md`, `docs/PROJECT_PLAN.md`
+
+### Automated Test Results
+- **POS Responsive Feature Tests (`PosResponsiveTest`):** 6 tests, 217 assertions — 100% passing
+- **Existing Test Suites (Unmodified):** 532 tests, 8914 assertions — 100% passing
+- **Full Test Suite (`php artisan test --compact`):** 538 tests, 9131 assertions — 100% passing (0 failures, 0 errors)
+- **Laravel Pint (`php vendor/bin/pint --test`):** ✅ Clean (`passed`)
+- **Vite Build (`npm run build`):** ✅ Compiled successfully in 1.31s
+
+
+
+
 
 
 

@@ -51,3 +51,28 @@
 ::-webkit-scrollbar-thumb:hover {
     background: #cbb4a3;
 }
+
+/* Pre-paint collapsed desktop sidebar state to prevent width flash before Alpine hydrates */
+@media (min-width: 1024px) {
+    html.tp-sidebar-collapsed #app-sidebar {
+        width: 5rem;
+    }
+    html.tp-sidebar-collapsed #app-sidebar .tp-nav-label,
+    html.tp-sidebar-collapsed #app-sidebar .tp-nav-section,
+    html.tp-sidebar-collapsed #app-sidebar .tp-brand-text,
+    html.tp-sidebar-collapsed #app-sidebar .tp-user-text {
+        display: none;
+    }
+}
+
+/* Print rules: hide navigation sidebar, toggle buttons, and backdrop */
+@media print {
+    #app-sidebar,
+    #mobile-sidebar-backdrop,
+    #mobile-menu-toggle,
+    #desktop-sidebar-toggle,
+    #mobile-drawer-close,
+    .no-print {
+        display: none !important;
+    }
+}
